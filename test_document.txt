@@ -1,0 +1,14 @@
+Este es un documento de prueba para DocAI.
+
+Contenido del documento:
+- Párrafo 1: Este es el primer párrafo con información importante.
+- Párrafo 2: Aquí hay más información relevante para las pruebas.
+- Párrafo 3: Información adicional sobre el sistema de análisis inteligente.
+
+El sistema DocAI puede:
+1. Extraer texto de documentos
+2. Crear chunks para procesamiento
+3. Generar embeddings
+4. Responder preguntas sobre el contenido
+
+Este documento sirve para probar la funcionalidad de upload y procesamiento.
