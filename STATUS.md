@@ -2,6 +2,7 @@
 
 ## 🆕 Actualización reciente (Octubre 2025)
 - ✅ Backend FastAPI habilitado nuevamente y operando en entorno local
+- ✅ Paquetería backend reinstalada en `.venv311` (FastAPI, Uvicorn, SQLAlchemy, Passlib, etc.)
 - ✅ Flujo completo de autenticación/login verificado tras ajuste de dependencias
 
 ## ✅ COMPLETADO - MVP FUNCIONAL AL 100%
