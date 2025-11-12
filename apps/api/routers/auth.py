@@ -1,22 +1,27 @@
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import os
 import uuid
 from database_simple import get_db, User, Document, Message as DBMessage, Conversation, UserPreferences
 from auth_simple import (
-    authenticate_user, 
-    create_access_token, 
-    get_password_hash, 
+    authenticate_user,
+    create_access_token,
     get_current_user,
-    verify_password
+    get_password_hash,
+    revoke_token,
+    verify_password,
+    verify_token,
 )
+import config as cfg
 from schemas import (
     UserCreate, UserLogin, Token, UserResponse, Message, 
     UserProfileUpdate, PasswordChange, UserStats,
     UserPreferencesUpdate, UserPreferencesResponse
 )
+from security.csrf import set_csrf_cookie, clear_csrf_cookie
+from security.csrf import verify_csrf as csrf_protect
 
 router = APIRouter()
 
@@ -27,8 +32,16 @@ os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
+    # Demo mode: optionally disable open registration
+    if cfg.DEMO_PUBLIC and not cfg.DEMO_REGISTRATION_ENABLED:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Registración deshabilitada en modo demo")
+    email_normalized = user_data.email.strip().lower()
     # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = (
+        db.query(User)
+        .filter(func.lower(User.email) == email_normalized)
+        .first()
+    )
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -38,7 +51,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
-        email=user_data.email,
+        email=email_normalized,
         hashed_password=hashed_password
     )
     
@@ -49,7 +62,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/login", response_model=Token)
-async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+async def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db)):
     """Login user and return access token"""
     user = authenticate_user(db, user_data.email, user_data.password)
     if not user:
@@ -60,7 +73,62 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
     
     access_token = create_access_token(user.id)
-    
+    # Set httpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=cfg.COOKIE_SECURE,
+        samesite=cfg.COOKIE_SAMESITE,
+        max_age=24*3600,
+        path="/",
+    )
+    # Issue CSRF token cookie for double-submit
+    try:
+        set_csrf_cookie(response, subject=str(user.id))
+    except Exception:
+        pass
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/guest", response_model=Token)
+async def guest_login(response: Response, db: Session = Depends(get_db)):
+    """Issue a temporary guest session (demo only).
+    - Requires DEMO_PUBLIC=true.
+    - Creates a throwaway user and returns cookies.
+    """
+    if not cfg.DEMO_PUBLIC:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Guest mode disabled")
+
+    # Create a random guest user
+    import secrets
+    guest_id = str(uuid.uuid4())
+    email = f"guest-{guest_id[:8]}@demo.local"
+    # Random password; not used, but kept for completeness
+    pwd = secrets.token_urlsafe(16)
+    hashed_password = get_password_hash(pwd)
+
+    # Persist user
+    new_user = User(email=email, hashed_password=hashed_password, plan="demo")
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Issue access token cookie
+    access_token = create_access_token(new_user.id)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=cfg.COOKIE_SECURE,
+        samesite=cfg.COOKIE_SAMESITE,
+        max_age=24*3600,
+        path="/",
+    )
+    # CSRF token cookie for mutating routes
+    try:
+        set_csrf_cookie(response, subject=str(new_user.id))
+    except Exception:
+        pass
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
@@ -68,16 +136,57 @@ async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
 
+@router.post("/refresh", response_model=Token)
+async def refresh_token(request: Request, response: Response):
+    """Rotate access token stored in httpOnly cookie"""
+    old_token = request.cookies.get("access_token")
+    if not old_token:
+        raise HTTPException(status_code=401, detail="No token to refresh")
+    payload = verify_token(old_token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    revoke_token(old_token)
+    new_token = create_access_token(payload.user_id)
+    response.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=cfg.COOKIE_SECURE,
+        samesite=cfg.COOKIE_SAMESITE,
+        max_age=24*3600,
+        path="/",
+    )
+    # Rotate CSRF token as well
+    try:
+        set_csrf_cookie(response, subject=str(payload.user_id))
+    except Exception:
+        pass
+    return {"access_token": new_token, "token_type": "bearer"}
+
 @router.post("/logout", response_model=Message)
-async def logout():
-    """Logout user (client-side token removal)"""
+async def logout(request: Request, response: Response):
+    """Logout user by deleting httpOnly cookie and invalidating token"""
+    token = request.cookies.get("access_token")
+    if token:
+        revoke_token(token)
+    response.delete_cookie(
+        key="access_token",
+        samesite=cfg.COOKIE_SAMESITE,
+        secure=cfg.COOKIE_SECURE,
+        path="/",
+    )
+    try:
+        clear_csrf_cookie(response)
+    except Exception:
+        pass
     return {"message": "Successfully logged out"}
 
 @router.put("/profile", response_model=UserResponse)
 async def update_profile(
     profile_data: UserProfileUpdate, 
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
 ):
     """Update user profile information"""
     # Check if email is being changed and if it's already in use
@@ -108,7 +217,8 @@ async def update_profile(
 async def change_password(
     password_data: PasswordChange,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
 ):
     """Change user password"""
     # Verify current password
@@ -241,7 +351,8 @@ async def get_user_preferences(
 async def update_user_preferences(
     preferences_data: UserPreferencesUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
 ):
     """Update user preferences"""
     preferences = db.query(UserPreferences).filter(
@@ -268,7 +379,8 @@ async def update_user_preferences(
 async def upload_profile_picture(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
 ):
     """Upload profile picture"""
     # Validate file type (only images)

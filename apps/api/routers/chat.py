@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+import re
 import logging
 
 from database_simple import get_db, User, Document, Conversation, Message
 from routers.auth import get_current_user
 from rag_system import RAGSystem
+from security.csrf import verify_csrf as csrf_protect
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +31,9 @@ class ChatResponse(BaseModel):
     success: bool
     conversation_id: str
     error: Optional[str] = None
+    chunks_found: Optional[int] = None
+    confidence: Optional[float] = None
+    coverage: Optional[float] = None
 
 class ConversationResponse(BaseModel):
     conversation_id: str
@@ -45,13 +50,23 @@ class MessageResponse(BaseModel):
 
 # Initialize RAG system
 rag_system = RAGSystem()
+logger.info(f"Chat router initialized with provider: {getattr(rag_system, 'provider', 'unknown')}")
+
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _sanitize_message(text: str) -> str:
+    sanitized = _CONTROL_CHARS.sub("", text or "")
+    return sanitized.strip()
+
 
 @router.post("/documents/{document_id}", response_model=ChatResponse)
 async def chat_with_document(
     document_id: str,
     chat_request: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _=Depends(csrf_protect),
 ):
     """Chat with a specific document"""
     try:
@@ -89,21 +104,29 @@ async def chat_with_document(
             db.refresh(conversation)
         
         # Save user message
+        sanitized_message = _sanitize_message(chat_request.message)
+        if not sanitized_message:
+            raise HTTPException(
+                status_code=400,
+                detail="El mensaje no puede estar vacío."
+            )
+
         user_message = Message(
             conversation_id=conversation.id,
             role="user",
-            content=chat_request.message
+            content=sanitized_message
         )
         db.add(user_message)
         db.commit()
         
         # Generate AI response using RAG
+        logger.info(f"Chat provider in request: {getattr(rag_system, 'provider', 'unknown')}")
         logger.info(f"Processing chat request for document {document_id}")
         rag_result = rag_system.chat_with_document(
             db=db,
             document_id=document_id,
             document_title=document.title,
-            user_query=chat_request.message
+            user_query=sanitized_message
         )
         
         # Save AI response
@@ -131,7 +154,10 @@ async def chat_with_document(
             citations=citations_response,
             success=rag_result["success"],
             conversation_id=conversation.id,
-            error=rag_result.get("error")
+            error=rag_result.get("error"),
+            chunks_found=rag_result.get("chunks_found"),
+            confidence=rag_result.get("confidence"),
+            coverage=rag_result.get("coverage"),
         )
         
     except HTTPException:

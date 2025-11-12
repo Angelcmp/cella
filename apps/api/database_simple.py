@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON, Float, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import uuid
@@ -148,6 +148,17 @@ class ExportHistory(Base):
     file_size = Column(Integer, default=0)
     status = Column(String, default="completed")  # generating, completed, failed
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+    
+    jti = Column(String, primary_key=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_revoked_tokens_expires_at", "expires_at"),
+    )
 
 # Create tables
 def create_tables():

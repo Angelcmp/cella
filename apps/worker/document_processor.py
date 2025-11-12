@@ -10,6 +10,13 @@ import re
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import logging
+try:
+    # Load root .env so the worker also picks up env vars when started manually
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    # If python-dotenv is not installed in this env, continue silently
+    pass
 
 # Document processing libraries
 import pdfplumber
@@ -52,6 +59,8 @@ class DocumentProcessor:
         if self.gemini_client:
             self.provider = "gemini"
             logger.info("Using Gemini for embeddings")
+            embed_pref = os.getenv("GEMINI_MODEL_EMBED", "text-embedding-004")
+            logger.info(f"Gemini embedding model preference: {embed_pref}")
         elif self.openai_client:
             self.provider = "openai"
             logger.info("Using OpenAI for embeddings")
@@ -343,9 +352,10 @@ class DocumentProcessor:
             
             # Try multiple embedding model names
             embedding_models = [
+                os.getenv("GEMINI_MODEL_EMBED", "text-embedding-004"),
                 "text-embedding-004",
-                "models/text-embedding-004", 
-                "models/embedding-001"
+                # Legacy alias kept as last fallback only
+                "models/text-embedding-004",
             ]
             
             working_model = None
@@ -372,8 +382,17 @@ class DocumentProcessor:
                         model=working_model,
                         content=chunk["text"]
                     )
-                    
-                    chunk["embedding"] = result['embedding']
+                    # Extract embedding values depending on SDK shape
+                    values = None
+                    try:
+                        values = result["embedding"]["values"]
+                    except Exception:
+                        values = result.get("embedding")
+
+                    if not values:
+                        raise ValueError("Empty embedding values returned")
+
+                    chunk["embedding"] = values
                     chunk["embedding_model"] = working_model
                     
                     if (i + 1) % 10 == 0:

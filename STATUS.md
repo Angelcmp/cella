@@ -384,3 +384,7 @@ Pendientes inmediatos (seguridad/infra)
 - Integrar Redis para blacklist de tokens/rotación robusta y para rate limiting centralizado.
 - Antivirus real (ClamAV/servicio) detrás de flag con timeouts y logs.
 - Observabilidad: métricas (p50/p95/p99), logs estructurados y tracing distribuido (OTel).
+- Rate limiting dedicado para `/auth/guest`:
+  1. Extender `LIMITS` en `apps/api/main.py` con la ruta `/auth/guest` usando un umbral más holgado (15-20 req/min/IP).
+  2. Evaluar escenarios multiusuario (eventos/demo) y ajustar el límite o añadir un “cooldown” adicional por cookie/User-Agent.
+  3. Validar que las respuestas incluyan cabeceras `X-RateLimit-*` y documentar el comportamiento en la guía demo.
