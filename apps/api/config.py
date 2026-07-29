@@ -11,6 +11,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 DEMO_PUBLIC = _env_bool("DEMO_PUBLIC", False)
 DEMO_REGISTRATION_ENABLED = _env_bool("DEMO_REGISTRATION_ENABLED", True)
+DEMO_GUEST_ENABLED = _env_bool("DEMO_GUEST_ENABLED", True if DEMO_PUBLIC else False)
 DEMO_AUTO_CLEAN_HOURS = int(os.getenv("DEMO_AUTO_CLEAN_HOURS", "0"))
 DEMO_WHITELIST_EMAILS = [e.strip().lower() for e in os.getenv("DEMO_WHITELIST_EMAILS", "").split(",") if e.strip()]
 
@@ -49,6 +50,7 @@ RATE_LIMIT_ENABLED = _env_bool("RATE_LIMIT_ENABLED", True)
 RATE_LIMIT_LOGIN_PER_MIN = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "5"))
 RATE_LIMIT_UPLOAD_PER_MIN = int(os.getenv("RATE_LIMIT_UPLOAD_PER_MIN", "10"))
 RATE_LIMIT_CHAT_PER_MIN = int(os.getenv("RATE_LIMIT_CHAT_PER_MIN", "30"))
+GUEST_RATE_LIMIT_PER_MIN = int(os.getenv("GUEST_RATE_LIMIT_PER_MIN", "20"))
 
 # Files / AV
 ENABLE_FILE_AV_SCAN = _env_bool("ENABLE_FILE_AV_SCAN", False)

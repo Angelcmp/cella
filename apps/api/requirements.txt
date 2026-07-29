@@ -23,3 +23,4 @@ pytesseract==0.3.10
 pydantic==2.5.0
 pydantic-settings==2.1.0
 httpx==0.25.2
+certifi==2024.7.4

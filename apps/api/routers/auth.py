@@ -29,6 +29,19 @@ router = APIRouter()
 PROFILE_PICS_DIR = "profile_pics"
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 
+_DEMO_ADMIN_SET = set(cfg.DEMO_WHITELIST_EMAILS)
+
+def _is_demo_admin(email: str) -> bool:
+    if not email:
+        return False
+    return email.strip().lower() in _DEMO_ADMIN_SET
+
+def _attach_demo_flag(user: User) -> User:
+    if user is None:
+        return user
+    setattr(user, "is_demo_admin", _is_demo_admin(getattr(user, "email", "")))
+    return user
+
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
@@ -59,7 +72,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    return new_user
+    return _attach_demo_flag(new_user)
 
 @router.post("/login", response_model=Token)
 async def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db)):
@@ -98,6 +111,8 @@ async def guest_login(response: Response, db: Session = Depends(get_db)):
     """
     if not cfg.DEMO_PUBLIC:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Guest mode disabled")
+    if not cfg.DEMO_GUEST_ENABLED:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Guest sessions are disabled")
 
     # Create a random guest user
     import secrets
@@ -134,7 +149,7 @@ async def guest_login(response: Response, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user information"""
-    return current_user
+    return _attach_demo_flag(current_user)
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(request: Request, response: Response):
@@ -211,7 +226,7 @@ async def update_profile(
     db.commit()
     db.refresh(current_user)
     
-    return current_user
+    return _attach_demo_flag(current_user)
 
 @router.put("/change-password", response_model=Message)
 async def change_password(
@@ -420,7 +435,7 @@ async def upload_profile_picture(
     db.commit()
     db.refresh(current_user)
     
-    return current_user
+    return _attach_demo_flag(current_user)
 
 @router.get("/profile-picture/{filename}")
 async def get_profile_picture(filename: str):

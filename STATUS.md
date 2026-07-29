@@ -1,4 +1,67 @@
-# DocAI - Estado del Proyecto (Actualizado a Octubre 2025)
+# DocAI - Estado del Proyecto (Actualizado al 22 Febrero 2026)
+
+## 🆕 Actualización reciente (Febrero 2026)
+- ✅ Fase 3 (Superficies públicas) completada:
+  - Landing reescrita con hero IA-First, CTAs gradient y footer premium.
+  - Auth (/auth/login y /auth/register) con formularios XL y storytelling DocZen.
+  - Docs: sidebar fijo, sin bordes duros; TOC flotante; estilos de código/print y mejoras de legibilidad.
+  - Demo pública (/new) con quick steps, uploader mejorado, estados y header “Midnight Focus”.
+  - Se añadieron páginas de marketing: `/pricing` (selector mensual/anual con persistencia y ahorro equivalente) y `/features`.
+- ✅ Fase 4 (Dashboard autenticado) completada:
+  - Home con tarjetas KPI, zona de subida, accesos rápidos y consejos.
+  - Documentos (tabla/grid/list), toolbar y badges de estado con glow/spinner; visor con chat lateral y acciones IA.
+  - Chat selector y chat por documento con acciones inline (Guía/Mapa/Quiz) estilizadas.
+  - Uploader y Perfil remaquetados al sistema DocZen.
+- 🔧 Pulidos globales: footer global removido del layout (evita duplicados), headers “Midnight Focus” en dark, badges “Demo Mode” unificados, aside del dashboard/Docs con comportamiento y visual refinados, oculto el icono de Next.js en dev.
+
+
+## 🆕 Actualización reciente (Noviembre 2025)
+- ✅ 12/11/2025: Se documentó `docs/DEMO_TUNNEL.md` con el flujo oficial para exponer DocAI mediante `ENABLE_TUNNEL=true ./start-dev.sh`, usando Cloudflare Quick Tunnels (o binario alternativo vía `TUNNEL_BIN`) y fijando `COOKIE_SECURE=true`, `NEXT_PUBLIC_API_URL`, `NEXTAUTH_URL`, `NEXT_PUBLIC_PUBLIC_URL` y `CSRF_ALLOWED_ORIGINS` al dominio HTTPS generado para mantener la demo pública cifrada.
+- ✅ 13/11/2025: Se agregaron perfiles duplicados de entorno para alternar rápidamente entre la demo LAN y el uso local aislado:
+  - Backend: `apps/api/.env.demo` (IP 192.168.8.102 expuesta en `0.0.0.0`) y `apps/api/.env.local` (solo loopback, `DEMO_PUBLIC=false`, `CSRF_ALLOWED_ORIGINS=localhost`).
+  - Frontend: `apps/web/.env.demo` (API pública en la LAN) y `apps/web/.env.localhost` (API/UI en `http://localhost` con demo auto-login/QR desactivados).
+  - Para cambiar de perfil basta con copiar el archivo correspondiente antes de iniciar servicios, por ejemplo `cp apps/api/.env.demo apps/api/.env && cp apps/web/.env.demo apps/web/.env.local` para el concurso, o sus equivalentes `*.local*` para trabajar sin exponer el puerto en la red.
+  - 🔁 Si cambia la IP LAN (p. ej. nuevo router), actualiza la IP en `/.env` (`CSRF_ALLOWED_ORIGINS`, `NEXT_PUBLIC_API_URL`, `NEXTAUTH_URL`), en `apps/api/.env.demo` (y el `.env` activo si lo copias) y en `apps/web/.env.demo`/`.env.local` (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_PUBLIC_URL`, `CSRF_ALLOWED_ORIGINS`). Reinicia API/worker/frontend tras copiar los perfiles para aplicar la nueva dirección.
+- ✅ 13/11/2025: La demo pública `/new` ahora permite generar resúmenes completos del documento cuando el procesamiento termina:
+  - Se añadió un botón “Resumen” junto a Guía/Mapa/Quiz que invoca `POST /documents/{id}/summary` con protección CSRF y, al concluir, redirige a la nueva vista dedicada.
+  - Nueva página ligera `apps/web/src/app/new/summary/[documentId]/page.tsx` que muestra, solo para invitados, el resumen ejecutivo, puntos clave, temas principales y métricas del documento generado, manteniendo la estética del dashboard sin exponer el resto de la app.
+- ☑ PRIORIDAD CAMBIO 18/11: Se estabilizaron los embeddings de Gemini en entornos LAN con certificados inconsistentes.
+  - `.env`, `apps/api/.env` y `apps/worker/.env` ahora fijan `GEMINI_MODEL_EMBED=models/text-embedding-004` para cumplir con el prefijo obligatorio del SDK y evitar errores `Model names should start with models/`.
+  - `start-dev.sh` fuerza `GRPC_DEFAULT_SSL_ROOTS_FILE_PATH` a la ruta que provee `python -m certifi`, mostrando advertencia si no está disponible; así gRPC valida certificados aunque la distro no tenga CAs actualizadas.
+  - `apps/api/requirements.txt` incluye `certifi==2024.7.4`, asegurando que el paquete esté presente en la venv sin depender del sistema.
+
+## 🎨 Plan de Rediseño DocZen (IA-First)
+Referencia: `DocZen-Sistema-Visual.md`. El objetivo es migrar progresivamente toda la experiencia a la identidad “Inteligencia Orgánica”.
+
+### Fase 1 · Fundamentos visuales y tokens
+- [x] Incorporar nuevas familias tipográficas (Fraunces, Space Grotesk, Inter/Satoshi, JetBrains Mono) en `src/app/layout.tsx` y asegurar fallback accesibles.
+- [x] Reestructurar `src/app/globals.css` con los tokens `--bg-primary`, `--accent-primary`, gradientes (Zen Glow, Midnight Focus) y texturas (paper-noise.png) para ambos modos.
+- [x] Actualizar theme provider/`ThemeToggle` para respetar los nuevos tokens y sincronizar la clase `.dark`.
+- [x] Preparar assets compartidos (texturas, ilustraciones IA, iconografía refinada) dentro de `public/` y documentar su uso.
+
+### Fase 2 · Componentes y shell compartida
+- [ ] Rediseñar `components/ui` (Button, Card, Badge, Input, Accordion, Dialog, Tooltip, Progress, Switch) siguiendo tamaños, radios y estados definidos.
+- [ ] Actualizar `Sidebar.tsx`, `Footer.tsx`, `ThemeToggle.tsx`, `QrButton.tsx` y `StructuredData.tsx` con el nuevo look (tipografía, badges Demo/Pronto, métricas de almacenamiento).
+- [x] Ajustar `ChatInterface`, `DocumentViewer` y modales IA (StudyGuide/Mindmap/Quiz) para usar las nuevas burbujas, gradientes y patrones de interacción.
+- [ ] Definir tokens de espaciado/z-index y guidelines de motion (hover-lift 2.0, delays, skeletons) reutilizables.
+
+### Fase 3 · Superficies públicas (marketing + docs + demo)
+- [x] Reescribir la landing (`src/app/page.tsx`) con el nuevo hero IA, grids de diferenciales, carrusel “Featured”, pricing editorial y footer premium.
+- [x] Actualizar páginas de auth (`/auth/login|register`) con storytelling IA, disclaimers de demo y formularios XL.
+- [x] Modernizar `/docs` (sidebar, buscador `⌘K`, TOC flotante, callouts, código numerado, estilos imprimibles) acorde al sistema.
+- [x] Rediseñar `/new` (demo pública) con los módulos de Quick Steps, uploader, panel de estado, viewer/chat embebidos y CTA Pro.
+
+### Fase 4 · Dashboard y flujos autenticados
+- [x] Dashboard Home: tarjetas KPI, barra de acciones (Subir, Chat global, Análisis), zona de subida rápida, accesos rápidos y tips onboarding con el nuevo lenguaje visual.
+- [x] Documentos (`/dashboard/documents`, `/viewer`, `/summary`): toolbar refinada, vistas tabla/grid/list actualizadas, visor bicolor con panel de chat y CTA Guía/Mapa/Quiz coherentes.
+- [x] Chat (`/dashboard/chat`, `/chat/[id]`): tarjetas selector, badges “Listo”, burbujas IA/usuario y acciones inline (guía/mapa/quiz) con los nuevos estilos.
+- [x] Uploader dedicado y Perfil: formularios, cards métricas, switches y módulos de preferencias remaquetados.
+
+### Fase 5 · QA integral y handoff
+- [ ] Revisiones cruzadas en desktop/mobile para cada superficie (landing, docs, demo, dashboard).
+- [ ] Validar accesibilidad (contrastes AA, estados de foco, navegación con teclado).
+- [ ] Documentar en `FRONTEND_STATUS.md` los componentes migrados y abrir issues restantes por página.
+- [ ] Preparar capturas + storybook/Playroom ligero para compartir el sistema visual con el equipo de negocio/marketing.
 
 ## 🆕 Actualización reciente (Octubre 2025)
 - ✅ Backend FastAPI habilitado nuevamente y operando en entorno local
@@ -257,7 +320,7 @@ Resumen conciso de lo añadido para la demo de conferencia.
   - Migración a cookies (`credentials: 'include'`), sin `localStorage`.
   - Señalización Demo: badges + banners; página `/docs/demo`. Footer global con enlace.
   - QR modal para acceso móvil (Landing y Dashboard) con `NEXT_PUBLIC_PUBLIC_URL` y `NEXT_PUBLIC_ENABLE_QR`.
-  - Botón “Reset Demo” en Dashboard para admins (`NEXT_PUBLIC_SHOW_DEMO_RESET`, `NEXT_PUBLIC_DEMO_ADMIN_EMAILS`).
+  - Botón “Reset Demo” en Dashboard para admins (`NEXT_PUBLIC_SHOW_DEMO_RESET` + flag `is_demo_admin` entregado por la API).
 - Env recomendadas demo
   - Backend: ver DOCUMENTACION.md (bloques .env con CSP/limits/AV/cookies/whitelist).
   - Frontend: `NEXT_PUBLIC_DEMO_PUBLIC=true`, `NEXT_PUBLIC_PUBLIC_URL=https://tudominio`, `NEXT_PUBLIC_ENABLE_QR=true`.
@@ -284,13 +347,14 @@ Objetivo: habilitar una demo pública, sin registro, que concentre todo el flujo
 - Fixes y ajustes relacionados:
   - Frontend documentos: `DELETE /documents/{id}` ahora envía header CSRF.
   - `/new` upload: asegura CSRF antes de subir y envía `x-csrf-token`.
-  - CORS/CSRF: ejemplos de `.env` para local (`COOKIE_SECURE=false`, orígenes localhost) y servidor.
-  - Guest quota (backend): `GUEST_MAX_DOCUMENTS` (por defecto 1) aplicado en `POST /documents/upload` para `plan='demo'`.
+- CORS/CSRF: ejemplos de `.env` para local (`COOKIE_SECURE=false`, orígenes localhost) y servidor.
+- Guest quota (backend): `GUEST_MAX_DOCUMENTS` (por defecto 1) aplicado en `POST /documents/upload` para `plan='demo'`.
+- Nota operativa: durante pruebas LAN, bajamos `COOKIE_SECURE=false` en `.env` y `apps/api/.env` para que las cookies guest funcionen sobre HTTP. Antes de exponer la demo pública, vuelve a `true` o usa el túnel HTTPS (`ENABLE_TUNNEL=true ./start-dev.sh`).
 
 Variables relevantes (.env):
-- Backend: `DEMO_PUBLIC`, `DEMO_AUTO_CLEAN_HOURS`, `DEMO_WHITELIST_EMAILS`, `COOKIE_SECURE`, `CSRF_ENABLED`, `CSRF_ALLOWED_ORIGINS`.
-  - `GUEST_MAX_DOCUMENTS` (cuota básica por invitado)
-- Frontend: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_DEMO_AUTO_LOGIN`, `NEXT_PUBLIC_PUBLIC_URL`, `NEXT_PUBLIC_ENABLE_QR`, `NEXT_PUBLIC_SHOW_DEMO_RESET`, `NEXT_PUBLIC_DEMO_ADMIN_EMAILS`.
+- Backend: `DEMO_PUBLIC`, `DEMO_AUTO_CLEAN_HOURS`, `DEMO_WHITELIST_EMAILS`, `DEMO_GUEST_ENABLED`, `COOKIE_SECURE`, `CSRF_ENABLED`, `CSRF_ALLOWED_ORIGINS`.
+  - `GUEST_MAX_DOCUMENTS` (cuota básica por invitado), `GUEST_RATE_LIMIT_PER_MIN` (throttle per-IP para `/auth/guest`)
+- Frontend: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_DEMO_AUTO_LOGIN`, `NEXT_PUBLIC_PUBLIC_URL`, `NEXT_PUBLIC_ENABLE_QR`, `NEXT_PUBLIC_SHOW_DEMO_RESET`.
 
 ---
 

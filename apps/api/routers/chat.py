@@ -19,6 +19,7 @@ router = APIRouter(tags=["chat"])
 # Pydantic models
 class ChatRequest(BaseModel):
     message: str
+    model: str = "deepseek-v4-flash"
 
 class CitationResponse(BaseModel):
     page: int
@@ -126,7 +127,8 @@ async def chat_with_document(
             db=db,
             document_id=document_id,
             document_title=document.title,
-            user_query=sanitized_message
+            user_query=sanitized_message,
+            model=chat_request.model
         )
         
         # Save AI response

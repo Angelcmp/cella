@@ -137,4 +137,4 @@ documents/
 # Python virtual environment
 venv/
 env/
-ENV/
+ENV/DocAI-backup-*.tar.gz

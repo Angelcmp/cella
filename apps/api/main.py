@@ -127,6 +127,7 @@ _RATE_BUCKETS = defaultdict(lambda: deque())
 
 LIMITS = {
     "/auth/login": cfg.RATE_LIMIT_LOGIN_PER_MIN,
+    "/auth/guest": cfg.GUEST_RATE_LIMIT_PER_MIN,
     "/documents/upload": cfg.RATE_LIMIT_UPLOAD_PER_MIN,
 }
 

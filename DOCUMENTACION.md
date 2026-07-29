@@ -2405,30 +2405,33 @@ Resumen de cambios implementados para la presentación en conferencia. Este bloq
   - `NEXT_PUBLIC_PUBLIC_URL` + `NEXT_PUBLIC_ENABLE_QR=true`.
   - Componente modal `QrButton` (landing y dashboard) con QR embebido y tooltip.
 - Reset Demo (UI)
-  - Botón en el header del Dashboard (solo visible si `NEXT_PUBLIC_SHOW_DEMO_RESET=true` y el email del usuario está en `NEXT_PUBLIC_DEMO_ADMIN_EMAILS`).
+  - Botón en el header del Dashboard (solo visible si `NEXT_PUBLIC_SHOW_DEMO_RESET=true` y la API marca al usuario como admin de demo mediante `is_demo_admin`).
 
 ### Variables de Entorno Nuevas/Relevantes
 - Backend
   - `ENABLE_CSP_STRICT`, `RATE_LIMIT_ENABLED`
   - `RATE_LIMIT_LOGIN_PER_MIN`, `RATE_LIMIT_UPLOAD_PER_MIN`, `RATE_LIMIT_CHAT_PER_MIN`
+  - `GUEST_RATE_LIMIT_PER_MIN`
   - `ENABLE_FILE_AV_SCAN`
   - `COOKIE_SAMESITE` (Lax), `COOKIE_SECURE` (true en prod/demo)
   - `PROVIDER_LLM`, `PROVIDER_EMBEDDINGS`
-  - `DEMO_PUBLIC`, `DEMO_REGISTRATION_ENABLED`, `DEMO_AUTO_CLEAN_HOURS`, `DEMO_WHITELIST_EMAILS`
+  - `DEMO_PUBLIC`, `DEMO_REGISTRATION_ENABLED`, `DEMO_GUEST_ENABLED`, `DEMO_AUTO_CLEAN_HOURS`, `DEMO_WHITELIST_EMAILS`
 - Frontend
   - `NEXT_PUBLIC_PUBLIC_URL`, `NEXT_PUBLIC_ENABLE_QR`
   - `NEXT_PUBLIC_DEMO_PUBLIC`
-  - `NEXT_PUBLIC_SHOW_DEMO_RESET`, `NEXT_PUBLIC_DEMO_ADMIN_EMAILS`
+  - `NEXT_PUBLIC_SHOW_DEMO_RESET`
 
 ### Configuración Recomendada – Demo Online
 - Backend (`.env`):
 ```
 DEMO_PUBLIC=true
 DEMO_REGISTRATION_ENABLED=false
+DEMO_GUEST_ENABLED=true
 DEMO_AUTO_CLEAN_HOURS=2
 DEMO_WHITELIST_EMAILS=tu_admin@tu.dominio
 ENABLE_CSP_STRICT=true
 RATE_LIMIT_ENABLED=true
+GUEST_RATE_LIMIT_PER_MIN=20
 ENABLE_FILE_AV_SCAN=true
 COOKIE_SECURE=true
 ```
@@ -2438,7 +2441,6 @@ NEXT_PUBLIC_DEMO_PUBLIC=true
 NEXT_PUBLIC_PUBLIC_URL=https://tudominio
 NEXT_PUBLIC_ENABLE_QR=true
 NEXT_PUBLIC_SHOW_DEMO_RESET=true
-NEXT_PUBLIC_DEMO_ADMIN_EMAILS=tu_admin@tu.dominio
 ```
 - Semillas y arranque
   - `python scripts/seed_demo.py`
