@@ -1,0 +1,152 @@
+/* DocumentViewer Styles for Enhanced Readability */
+
+.documentContent {
+  /* Typography */
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--foreground);
+  text-align: justify;
+  hyphens: auto;
+  
+  /* Spacing and layout */
+  max-width: none;
+  word-spacing: 0.1em;
+  letter-spacing: 0.01em;
+}
+
+.documentContent p {
+  margin-bottom: 1.5rem;
+  text-align: justify;
+  text-justify: inter-word;
+  orphans: 2;
+  widows: 2;
+}
+
+.documentContent p:first-child {
+  text-indent: 0;
+}
+
+.documentContent p + p {
+  text-indent: 1.5em;
+}
+
+/* Headers and special text */
+.documentContent h1,
+.documentContent h2,
+.documentContent h3,
+.documentContent h4,
+.documentContent h5,
+.documentContent h6 {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-weight: bold;
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  text-indent: 0;
+  color: var(--foreground);
+}
+
+.documentContent h1 { font-size: 1.5rem; }
+.documentContent h2 { font-size: 1.3rem; }
+.documentContent h3 { font-size: 1.1rem; }
+
+/* Lists */
+.documentContent ul,
+.documentContent ol {
+  margin-bottom: 1.5rem;
+  padding-left: 2rem;
+}
+
+.documentContent li {
+  margin-bottom: 0.5rem;
+  text-align: justify;
+}
+
+/* Blockquotes */
+.documentContent blockquote {
+  border-left: 4px solid var(--border);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--muted-foreground);
+  text-indent: 0;
+}
+
+/* Special formatting for academic/legal documents */
+.documentContent .citation {
+  font-style: italic;
+  color: var(--muted-foreground);
+}
+
+.documentContent .footnote {
+  font-size: 0.875rem;
+  vertical-align: super;
+  color: var(--muted-foreground);
+}
+
+/* Page break indicators */
+.pageBreak {
+  border-top: 1px dashed var(--border);
+  margin: 2rem 0;
+  padding-top: 1rem;
+}
+
+/* Highlighting improvements */
+.documentContent mark {
+  background-color: var(--muted);
+  color: var(--primary);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .documentContent {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  
+  .documentContent p + p {
+    text-indent: 1em;
+  }
+}
+
+/* Print styles */
+@media print {
+  .documentContent {
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+  }
+  
+  .documentContent mark {
+    background-color: #f0f0f0;
+    color: #000;
+    box-shadow: none;
+  }
+}
+
+/* Smooth transitions for zoom */
+.documentPaper {
+  transition: transform 0.2s ease-in-out;
+  transform-origin: top center;
+}
+
+/* Paper-like appearance */
+.paperShadow {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.paperTexture {
+  background-color: #ffffff;
+  background-image: 
+    linear-gradient(90deg, rgba(0,0,0,0.01) 1px, transparent 1px),
+    linear-gradient(rgba(0,0,0,0.01) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

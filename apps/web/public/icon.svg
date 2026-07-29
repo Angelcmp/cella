@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .logo-diamond { fill: #a78bfa; }
+    }
+    @media (prefers-color-scheme: light) {
+      .logo-diamond { fill: #9966CC; }
+    }
+  </style>
+  <path class="logo-diamond" d="M16 2 L30 16 L16 30 L2 16 Z" stroke-linejoin="round" />
+</svg>
