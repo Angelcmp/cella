@@ -17,7 +17,7 @@ except Exception:
 load_dotenv()
 
 # Import routers
-from routers import auth, documents, chat, exports, admin
+from routers import auth, documents, chat
 
 # Database
 from database_simple import engine, Base, create_tables
@@ -28,7 +28,7 @@ security = HTTPBearer()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🚀 Starting DocAI API...")
+    print("🚀 Starting Cella API...")
     create_tables()
     print("📊 Database tables created/verified")
     # Start demo cleanup if enabled
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         task.cancel()
 
 app = FastAPI(
-    title="DocAI API",
+    title="Cella API",
     description="API para análisis inteligente de documentos",
     version="1.0.0",
     lifespan=lifespan
@@ -126,7 +126,6 @@ from collections import defaultdict, deque
 _RATE_BUCKETS = defaultdict(lambda: deque())
 
 LIMITS = {
-    "/auth/login": cfg.RATE_LIMIT_LOGIN_PER_MIN,
     "/auth/guest": cfg.GUEST_RATE_LIMIT_PER_MIN,
     "/documents/upload": cfg.RATE_LIMIT_UPLOAD_PER_MIN,
 }
@@ -174,18 +173,16 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
 
 @app.get("/")
 async def root():
-    return {"message": "DocAI API is running", "version": "1.0.0"}
+    return {"message": "Cella API is running", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "docai-api"}
+    return {"status": "healthy", "service": "cella-api"}
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
-app.include_router(exports.router, prefix="/exports", tags=["exports"])
-app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 if __name__ == "__main__":
     uvicorn.run(

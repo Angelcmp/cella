@@ -6,6 +6,9 @@ from datetime import datetime
 import os
 from typing import Generator
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # For now, use SQLite for development (will change to PostgreSQL later)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./docai.db")
 
@@ -70,7 +73,7 @@ class DocumentEmbedding(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     chunk_id = Column(String, nullable=False)
     embedding = Column(Text)  # JSON string for now, will be Vector later
-    dim = Column(Integer, default=1536)
+    dim = Column(Integer, default=384)
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -88,6 +91,8 @@ class Message(Base):
     role = Column(String, nullable=False)  # user, assistant
     content = Column(Text, nullable=False)
     citations = Column(JSON)
+    chunks_found = Column(Integer, default=0)
+    coverage = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class DocumentSummary(Base):
@@ -103,51 +108,16 @@ class DocumentSummary(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
-class UsageEvent(Base):
-    __tablename__ = "usage_events"
+class DocumentMindmap(Base):
+    __tablename__ = "doc_mindmaps"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, nullable=False)
-    type = Column(String, nullable=False)  # upload, index, query, summary
-    tokens_in = Column(Integer, default=0)
-    tokens_out = Column(Integer, default=0)
-    cost_estimate = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class UserPreferences(Base):
-    __tablename__ = "user_preferences"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, nullable=False, unique=True)
-    
-    # Notifications preferences
-    notify_document_processing = Column(Boolean, default=True)
-    notify_new_features = Column(Boolean, default=True)
-    notify_promotions = Column(Boolean, default=False)
-    
-    # Chat preferences
-    show_document_citations = Column(Boolean, default=True)
-    save_conversation_history = Column(Boolean, default=True)
-    
-    # Document preferences
-    auto_generate_summaries = Column(Boolean, default=True)
-    auto_delete_after_days = Column(Integer, default=0)  # 0 = never delete
-    
+    document_id = Column(String, nullable=False, unique=True)
+    markdown = Column(Text, nullable=False)
+    mindmap_metadata = Column(JSON)
+    pages_used = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
-
-class ExportHistory(Base):
-    __tablename__ = "export_history"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, nullable=False)
-    conversation_id = Column(String, nullable=False)
-    document_id = Column(String, nullable=False)
-    export_type = Column(String, nullable=False)  # pdf, docx, txt
-    filename = Column(String, nullable=False)
-    file_size = Column(Integer, default=0)
-    status = Column(String, default="completed")  # generating, completed, failed
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 class RevokedToken(Base):
     __tablename__ = "revoked_tokens"

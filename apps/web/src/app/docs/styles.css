@@ -1,0 +1,93 @@
+/* DocZen Docs – Fase 3 */
+html {
+  scroll-behavior: smooth;
+}
+
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: var(--gradient-zen-glow);
+  z-index: 1000;
+  transition: width 0.25s ease;
+}
+
+.prose {
+  max-width: none;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.prose a {
+  color: var(--accent-primary);
+  text-decoration-color: rgba(217, 119, 6, 0.25);
+  transition: color 0.2s;
+}
+
+.prose a:hover {
+  color: var(--accent-highlight);
+  text-decoration-color: rgba(217, 119, 6, 0.6);
+}
+
+.prose code:not(pre code) {
+  background: rgba(93, 64, 55, 0.08);
+  color: var(--text-primary);
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+}
+
+.prose pre {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.prose th,
+.prose td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 768px) {
+  .prose {
+    font-size: 1rem;
+  }
+
+  .prose h1 {
+    font-size: 2rem;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #111827;
+  }
+  .prose pre {
+    background: #f3f4f6;
+  }
+}

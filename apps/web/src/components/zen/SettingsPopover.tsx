@@ -3,13 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
-  Settings,
   Moon,
   Sun,
   BookOpen,
   CircleDollarSign,
   ArrowLeft,
-  X,
 } from "lucide-react";
 
 interface SettingsPopoverProps {
@@ -47,7 +45,7 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
       document.documentElement.classList.toggle("dark", newTheme === "dark");
       document.documentElement.setAttribute("data-theme", newTheme);
       try {
-        localStorage.setItem("docai-theme", newTheme);
+        localStorage.setItem("cella-theme", newTheme);
       } catch {}
     }
   };

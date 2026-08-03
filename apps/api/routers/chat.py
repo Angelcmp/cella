@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Iterator
 import re
+import json
 import logging
+import os
 
 from database_simple import get_db, User, Document, Conversation, Message
 from routers.auth import get_current_user
@@ -20,6 +23,7 @@ router = APIRouter(tags=["chat"])
 class ChatRequest(BaseModel):
     message: str
     model: str = "deepseek-v4-flash"
+    stream: bool = False
 
 class CitationResponse(BaseModel):
     page: int
@@ -36,24 +40,29 @@ class ChatResponse(BaseModel):
     confidence: Optional[float] = None
     coverage: Optional[float] = None
 
-class ConversationResponse(BaseModel):
-    conversation_id: str
-    document_id: str
-    document_title: str
-    created_at: str
-
-class MessageResponse(BaseModel):
-    id: str
-    role: str
-    content: str
-    citations: Optional[List[Dict[str, Any]]] = []
-    created_at: str
-
 # Initialize RAG system
 rag_system = RAGSystem()
 logger.info(f"Chat router initialized with provider: {getattr(rag_system, 'provider', 'unknown')}")
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+THINKING_ENABLED = os.getenv("THINKING_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_reasoning_model(model: Optional[str]) -> bool:
+    """Heuristic: does this model expose native reasoning content?"""
+    m = (model or "").lower()
+    return any(k in m for k in ("reasoner", "z1", "thinking", "glm-4.6", "glm-4.7", "deepseek-r"))
+
+
+def _synthetic_thinking() -> Iterator[str]:
+    """Brief fallback "thinking" phase used when the model has no reasoning."""
+    for step in (
+        "Leyendo el documento…",
+        "Buscando los fragmentos más relevantes…",
+        "Ordenando la respuesta con citas…",
+    ):
+        yield step
 
 
 def _sanitize_message(text: str) -> str:
@@ -61,50 +70,58 @@ def _sanitize_message(text: str) -> str:
     return sanitized.strip()
 
 
-@router.post("/documents/{document_id}", response_model=ChatResponse)
+def _get_or_create_conversation(
+    db: Session,
+    user_id: str,
+    document_id: str,
+) -> Conversation:
+    conversation = db.query(Conversation).filter(
+        Conversation.user_id == user_id,
+        Conversation.document_id == document_id
+    ).first()
+    if not conversation:
+        conversation = Conversation(user_id=user_id, document_id=document_id)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+    return conversation
+
+
+@router.post("/documents/{document_id}")
 async def chat_with_document(
     document_id: str,
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(csrf_protect),
 ):
-    """Chat with a specific document"""
+    """Chat with a specific document.
+
+    If chat_request.stream is True, returns a Server-Sent Events stream with the
+    AI response. Otherwise returns a JSON ChatResponse.
+    """
     try:
         # Verify document exists and belongs to user
         document = db.query(Document).filter(
             Document.id == document_id,
             Document.user_id == current_user.id
         ).first()
-        
+
         if not document:
             raise HTTPException(
                 status_code=404,
                 detail="Document not found or you don't have access to it"
             )
-        
+
         if document.status != "indexed":
             raise HTTPException(
                 status_code=400,
                 detail=f"Document is not ready for chat. Status: {document.status}"
             )
-        
-        # Find or create conversation
-        conversation = db.query(Conversation).filter(
-            Conversation.user_id == current_user.id,
-            Conversation.document_id == document_id
-        ).first()
-        
-        if not conversation:
-            conversation = Conversation(
-                user_id=current_user.id,
-                document_id=document_id
-            )
-            db.add(conversation)
-            db.commit()
-            db.refresh(conversation)
-        
-        # Save user message
+
+        # Find or create conversation and save user message
+        conversation = _get_or_create_conversation(db, current_user.id, document_id)
         sanitized_message = _sanitize_message(chat_request.message)
         if not sanitized_message:
             raise HTTPException(
@@ -119,29 +136,44 @@ async def chat_with_document(
         )
         db.add(user_message)
         db.commit()
-        
-        # Generate AI response using RAG
-        logger.info(f"Chat provider in request: {getattr(rag_system, 'provider', 'unknown')}")
-        logger.info(f"Processing chat request for document {document_id}")
+
+        logger.info(
+            f"Processing chat request for document {document_id}, "
+            f"stream={chat_request.stream}, model={chat_request.model}"
+        )
+
+        if chat_request.stream:
+            return _stream_chat_response(
+                db,
+                conversation.id,
+                document_id,
+                document.title,
+                sanitized_message,
+                chat_request.model,
+                background_tasks,
+            )
+
+        # Non-streaming path
         rag_result = rag_system.chat_with_document(
             db=db,
             document_id=document_id,
             document_title=document.title,
             user_query=sanitized_message,
-            model=chat_request.model
+            model=chat_request.model,
         )
-        
+
         # Save AI response
         ai_message = Message(
             conversation_id=conversation.id,
             role="assistant",
             content=rag_result["response"],
-            citations=rag_result["citations"]
+            citations=rag_result["citations"],
+            chunks_found=rag_result.get("chunks_found"),
+            coverage=rag_result.get("coverage"),
         )
         db.add(ai_message)
         db.commit()
-        
-        # Convert citations to response format
+
         citations_response = [
             CitationResponse(
                 page=citation["page"],
@@ -150,7 +182,7 @@ async def chat_with_document(
             )
             for citation in rag_result["citations"]
         ]
-        
+
         return ChatResponse(
             response=rag_result["response"],
             citations=citations_response,
@@ -161,7 +193,7 @@ async def chat_with_document(
             confidence=rag_result.get("confidence"),
             coverage=rag_result.get("coverage"),
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -171,117 +203,145 @@ async def chat_with_document(
             detail=f"Internal server error: {str(e)}"
         )
 
-@router.get("/conversations", response_model=List[ConversationResponse])
-async def get_user_conversations(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get all conversations for the current user"""
-    try:
-        conversations = db.query(Conversation, Document).join(
-            Document, Conversation.document_id == Document.id
-        ).filter(
-            Conversation.user_id == current_user.id
-        ).order_by(Conversation.created_at.desc()).all()
-        
-        return [
-            ConversationResponse(
-                conversation_id=conv.id,
-                document_id=conv.document_id,
-                document_title=doc.title,
-                created_at=conv.created_at.isoformat()
-            )
-            for conv, doc in conversations
-        ]
-        
-    except Exception as e:
-        logger.error(f"Error fetching conversations: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch conversations"
-        )
 
-@router.get("/conversations/{conversation_id}/messages", response_model=List[MessageResponse])
-async def get_conversation_messages(
+def _save_ai_message(
     conversation_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get all messages in a conversation"""
+    full_response: str,
+    citations: List[Dict[str, Any]],
+    chunks_found: Optional[int],
+    coverage: Optional[float],
+) -> None:
+    """Background task: persist the streamed assistant response."""
+    # This function runs in a background task; the dependency injection-managed
+    # session is not available here, so we create a standalone session.
     try:
-        # Verify conversation belongs to user
-        conversation = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == current_user.id
-        ).first()
-        
-        if not conversation:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation not found"
+        from database_simple import SessionLocal
+        db = SessionLocal()
+        try:
+            ai_message = Message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=full_response,
+                citations=citations,
+                chunks_found=chunks_found,
+                coverage=coverage,
             )
-        
-        # Get messages
-        messages = db.query(Message).filter(
-            Message.conversation_id == conversation_id
-        ).order_by(Message.created_at).all()
-        
-        return [
-            MessageResponse(
-                id=msg.id,
-                role=msg.role,
-                content=msg.content,
-                citations=msg.citations or [],
-                created_at=msg.created_at.isoformat()
-            )
-            for msg in messages
-        ]
-        
-    except HTTPException:
-        raise
+            db.add(ai_message)
+            db.commit()
+        finally:
+            db.close()
     except Exception as e:
-        logger.error(f"Error fetching messages: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch messages"
-        )
+        logger.error(f"Failed to save streamed AI message: {e}")
 
-@router.delete("/conversations/{conversation_id}")
-async def delete_conversation(
+
+def _stream_chat_response(
+    db: Session,
     conversation_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Delete a conversation and all its messages"""
+    document_id: str,
+    document_title: str,
+    user_query: str,
+    model: Optional[str],
+    background_tasks: BackgroundTasks,
+) -> StreamingResponse:
+    """Build a streaming response generator and return it as SSE."""
     try:
-        # Verify conversation belongs to user
-        conversation = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == current_user.id
-        ).first()
-        
-        if not conversation:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation not found"
-            )
-        
-        # Delete messages first
-        db.query(Message).filter(
-            Message.conversation_id == conversation_id
-        ).delete()
-        
-        # Delete conversation
-        db.delete(conversation)
-        db.commit()
-        
-        return {"message": "Conversation deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting conversation: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to delete conversation"
+        ctx = rag_system.prepare_chat_prompt(
+            db=db,
+            document_id=document_id,
+            document_title=document_title,
+            user_query=user_query,
         )
+    except Exception as e:
+        logger.error(f"Failed to prepare chat prompt: {e}")
+        ctx = {
+            "prompt": None,
+            "relevant_chunks": [],
+            "chunks_found": 0,
+            "coverage": 0.0,
+            "metadata_response": f"Lo siento, ocurrió un error al preparar la respuesta: {str(e)}",
+        }
+
+    citations = ctx.get("relevant_chunks", [])
+    metadata_response = ctx.get("metadata_response")
+    chunks_found = ctx.get("chunks_found")
+    coverage = ctx.get("coverage")
+
+    def event_stream() -> Iterator[str]:
+        full_response = ""
+        try:
+            # Initial metadata event (citations, coverage, etc.)
+            meta_payload = {
+                "event": "meta",
+                "conversation_id": conversation_id,
+                "chunks_found": chunks_found,
+                "coverage": coverage,
+                "citations": [
+                    {
+                        "page": c.get("page", 0),
+                        "snippet": c.get("snippet", ""),
+                        "similarity": c.get("similarity"),
+                    }
+                    for c in citations
+                ],
+            }
+            yield f"event: meta\ndata: {json.dumps(meta_payload, ensure_ascii=False)}\n\n"
+
+            if metadata_response:
+                # Precomputed answer (metadata, abstention, etc.)
+                full_response = metadata_response
+                payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
+                yield f"event: text_delta\ndata: {payload}\n\n"
+                yield f"event: delta\ndata: {payload}\n\n"
+            else:
+                prompt = ctx.get("prompt")
+                if prompt:
+                    # Fallback: synthetic thinking phase for models without reasoning
+                    thinking_open = False
+                    if THINKING_ENABLED and not _is_reasoning_model(model):
+                        yield "event: thinking_start\ndata: {}\n\n"
+                        thinking_open = True
+                        for step in _synthetic_thinking():
+                            payload = json.dumps({"event": "thinking_delta", "delta": step}, ensure_ascii=False)
+                            yield f"event: thinking_delta\ndata: {payload}\n\n"
+                    try:
+                        for kind, token in rag_system.chat_stream(prompt, model=model):
+                            if kind == "thinking":
+                                if not thinking_open:
+                                    yield "event: thinking_start\ndata: {}\n\n"
+                                    thinking_open = True
+                                payload = json.dumps({"event": "thinking_delta", "delta": token}, ensure_ascii=False)
+                                yield f"event: thinking_delta\ndata: {payload}\n\n"
+                            else:
+                                if thinking_open:
+                                    yield "event: thinking_end\ndata: {}\n\n"
+                                    thinking_open = False
+                                full_response += token
+                                payload = json.dumps({"event": "text_delta", "delta": token}, ensure_ascii=False)
+                                yield f"event: text_delta\ndata: {payload}\n\n"
+                    finally:
+                        if thinking_open:
+                            yield "event: thinking_end\ndata: {}\n\n"
+
+            yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"Streaming chat error: {e}")
+            yield f"event: error\ndata: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            background_tasks.add_task(
+                _save_ai_message,
+                conversation_id,
+                full_response,
+                citations,
+                chunks_found,
+                coverage,
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

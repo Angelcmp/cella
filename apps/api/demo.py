@@ -9,7 +9,7 @@ from sqlalchemy import and_, or_
 import config as cfg
 from database_simple import (
     SessionLocal, User, Document, DocumentChunk, DocumentEmbedding,
-    DocumentSummary, Conversation, Message, ExportHistory
+    DocumentSummary, Conversation, Message
 )
 
 UPLOAD_DIR = "uploads"
@@ -50,9 +50,6 @@ def _delete_user_data(db: Session, user: User):
         db.query(DocumentSummary).filter(DocumentSummary.document_id.in_(doc_ids)).delete(synchronize_session=False)
         # Documents
         db.query(Document).filter(Document.id.in_(doc_ids)).delete(synchronize_session=False)
-
-    # Export history
-    db.query(ExportHistory).filter(ExportHistory.user_id == user.id).delete(synchronize_session=False)
 
     # Profile picture
     if user.profile_picture:

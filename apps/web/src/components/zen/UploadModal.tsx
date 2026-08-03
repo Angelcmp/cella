@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { X, Upload, FileText, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { withCsrfHeaders } from "@/lib/csrf";
+import CellaDialog from "./CellaDialog";
 import type { ZenDocument } from "./store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -107,112 +108,101 @@ export default function UploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-glow w-[480px] max-w-[95vw] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            Subir documento
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-[var(--bg-muted)] text-[var(--text-muted)]"
+    <CellaDialog open onClose={onClose} title="Subir documento" maxWidth="480px">
+      <div className="p-1">
+        {!uploading && !file && (
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${
+              dragOver
+                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
+                : "border-[var(--border-subtle)] hover:border-[var(--text-muted)]"
+            }`}
+            onClick={() => inputRef.current?.click()}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6">
-          {!uploading && !file && (
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
+            <Upload className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-sm text-[var(--text-primary)] font-medium mb-1">
+              Arrastra tu archivo aquí
+            </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              o haz clic para seleccionar · PDF, DOCX, PPTX, TXT · Máx 30MB
+            </p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.docx,.pptx,.txt,.doc"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
               }}
-              onDragLeave={() => setDragOver(false)}
-              className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${
-                dragOver
-                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-                  : "border-[var(--border-subtle)] hover:border-[var(--text-muted)]"
-              }`}
-              onClick={() => inputRef.current?.click()}
-            >
-              <Upload className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3" />
-              <p className="text-sm text-[var(--text-primary)] font-medium mb-1">
-                Arrastra tu archivo aquí
-              </p>
-              <p className="text-xs text-[var(--text-muted)]">
-                o haz clic para seleccionar · PDF, DOCX, PPTX, TXT · Máx 30MB
-              </p>
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".pdf,.docx,.pptx,.txt,.doc"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFile(f);
-                }}
-              />
-            </div>
-          )}
+            />
+          </div>
+        )}
 
-          {file && !uploading && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-muted)] border border-[var(--border-subtle)]">
-                <FileText className="w-8 h-8 text-[var(--accent-primary)]" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {(file.size / 1024 / 1024).toFixed(1)} MB
-                  </p>
-                </div>
-                <button
-                  onClick={() => setFile(null)}
-                  className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+        {file && !uploading && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-muted)] border border-[var(--border-subtle)]">
+              <FileText className="w-8 h-8 text-[var(--accent-primary)]" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                </p>
               </div>
               <button
-                onClick={handleUpload}
-                className="w-full py-2.5 rounded-xl bg-[var(--gradient-zen-glow)] text-white text-sm font-medium hover:shadow-glow transition-all flex items-center justify-center gap-2"
+                onClick={() => setFile(null)}
+                className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                aria-label="Quitar archivo"
               >
-                <Upload className="w-4 h-4" />
-                Subir ahora
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
-          )}
+            <button
+              onClick={handleUpload}
+              className="w-full py-2.5 rounded-xl bg-[var(--gradient-zen-glow)] text-white text-sm font-medium hover:shadow-glow transition-all flex items-center justify-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Subir ahora
+            </button>
+          </div>
+        )}
 
-          {uploading && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-[var(--accent-primary)] animate-spin" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {progress >= 100 ? "Procesando..." : "Subiendo..."}
-                  </p>
-                  <div className="w-full h-1.5 rounded-full bg-[var(--bg-muted)] mt-2 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[var(--gradient-zen-glow)] transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
+        {uploading && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-[var(--accent-primary)] animate-spin" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  {progress >= 100 ? "Procesando..." : "Subiendo..."}
+                </p>
+                <div className="w-full h-1.5 rounded-full bg-[var(--bg-muted)] mt-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[var(--gradient-zen-glow)] transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {error && (
-            <div className="flex items-center gap-2 mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-        </div>
+        {error && (
+          <div className="flex items-center gap-2 mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
       </div>
-    </div>
+    </CellaDialog>
   );
 }

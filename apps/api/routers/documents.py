@@ -1,26 +1,21 @@
-import base64
-import hashlib
-import hmac
 import logging
 import os
 import shutil
 import subprocess
 import tempfile
-import time
 import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import config as cfg
 from database_simple import Document, DocumentChunk, User, get_db
-from rag_system import MindmapGenerator, QuizGenerator, StudyGuideGenerator, SummaryGenerator
+from rag_system import MindmapGenerator, QuizGenerator, SummaryGenerator
 from routers.auth import get_current_user
-from schemas import DocumentResponse, Message
+from schemas import DocumentResponse
 from security.csrf import verify_csrf as csrf_protect
 
 def _valid_signature(content: bytes, mime: str) -> bool:
@@ -204,35 +199,6 @@ async def get_document(
     
     return document
 
-@router.delete("/{document_id}", response_model=Message)
-async def delete_document(
-    document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    _=Depends(csrf_protect),
-):
-    """Delete a document"""
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == current_user.id
-    ).first()
-    
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-    
-    # Delete file from storage
-    if document.storage_url and os.path.exists(document.storage_url):
-        os.remove(document.storage_url)
-    
-    # Delete from database
-    db.delete(document)
-    db.commit()
-    
-    return {"message": "Document deleted successfully"}
-
 
 @router.post("/{document_id}/summary")
 async def generate_document_summary(
@@ -413,78 +379,32 @@ async def get_document_content(
     }
 
 
-class StudyGuideRequest(BaseModel):
-    pages: Optional[dict] = None  # {"start": int, "end": int}
-    query: Optional[str] = None
-    format: Optional[str] = "json"  # json | markdown
-
-
-@router.post("/{document_id}/study-guide")
-async def generate_study_guide(
-    document_id: str,
-    request: StudyGuideRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    _=Depends(csrf_protect),
-):
-    """Generate a study guide for a document or a page range.
-
-    - Accepts optional page range {start, end} to focus the guide.
-    - Returns a structured JSON guide (default) or Markdown.
-    """
-
-    # Verify document ownership
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == current_user.id
-    ).first()
-
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-
-    if document.status != "indexed":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Document must be indexed before generating a study guide. Current status: {document.status}"
-        )
-
-    # Normalize page range
-    start_page: Optional[int] = None
-    end_page: Optional[int] = None
-    if request.pages and isinstance(request.pages, dict):
-        try:
-            start_page = int(request.pages.get("start")) if request.pages.get("start") is not None else None
-            end_page = int(request.pages.get("end")) if request.pages.get("end") is not None else None
-            if start_page is not None and end_page is not None and start_page > end_page:
-                start_page, end_page = end_page, start_page
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid pages object. Use {start:int, end:int}")
-
-    generator = StudyGuideGenerator()
-    result = generator.generate_study_guide(
-        db=db,
-        document_id=document_id,
-        document_title=document.title,
-        start_page=start_page,
-        end_page=end_page,
-        user_query=request.query,
-        output_format=request.format or "json",
-    )
-
-    if not result.get("success"):
-        raise HTTPException(status_code=500, detail=f"Failed to generate study guide: {result.get('error', 'unknown error')}")
-
-    return result
-
-
 class MindmapRequest(BaseModel):
     pages: Optional[dict] = None  # {"start": int, "end": int}
     query: Optional[str] = None
     focus_mode: Optional[str] = None  # definitions | processes | actors | timeline
     detail_level: Optional[int] = 2   # 1..3
+
+
+@router.get("/{document_id}/mindmap")
+async def get_mindmap(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get the persisted default mindmap for a document, if available."""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    generator = MindmapGenerator()
+    result = generator.get_document_mindmap(db, document_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mindmap not generated yet")
+    return result
 
 
 @router.post("/{document_id}/mindmap")
@@ -586,136 +506,3 @@ async def generate_quiz(
         raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {result.get('error', 'unknown error')}")
 
     return result
-
-
-@router.get("/{document_id}/file")
-async def get_document_file(
-    document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Serve the actual document file for PDF viewing"""
-    
-    # Verify document ownership
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == current_user.id
-    ).first()
-    
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-    
-    # Check if file exists
-    if not document.storage_url or not os.path.exists(document.storage_url):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document file not found on server"
-        )
-    
-    # Infer media type by file extension to enable inline viewing in browsers
-    _, ext = os.path.splitext(document.storage_url)
-    ext = ext.lower()
-    media_type = "application/octet-stream"
-    if ext == ".pdf":
-        media_type = "application/pdf"
-    elif ext == ".txt":
-        media_type = "text/plain"
-    elif ext == ".docx":
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    elif ext == ".pptx":
-        media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-
-    # Prefer inline display where possible (e.g., PDF viewers)
-    headers = {"Content-Disposition": f"inline; filename=\"{os.path.basename(document.filename)}\""}
-
-    return FileResponse(
-        path=document.storage_url,
-        filename=os.path.basename(document.filename),
-        media_type=media_type,
-        headers=headers,
-    )
-
-
-def _sign_payload(secret: str, data: str) -> str:
-    mac = hmac.new(secret.encode("utf-8"), msg=data.encode("utf-8"), digestmod=hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(mac).decode("utf-8").rstrip("=")
-
-
-@router.post("/{document_id}/file/signed-url")
-async def create_signed_file_url(
-    document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    _=Depends(csrf_protect),
-):
-    """Issue a short-lived signed URL to fetch the file without cookies (for iframe embedding)."""
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == current_user.id
-    ).first()
-
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    # Expire in 2 minutes
-    exp = int(time.time()) + 120
-    payload = f"doc:{document_id}|usr:{current_user.id}|exp:{exp}"
-    sig = _sign_payload(cfg.SIGNING_SECRET, payload)
-    token = base64.urlsafe_b64encode(f"{payload}|sig:{sig}".encode("utf-8")).decode("utf-8").rstrip("=")
-    return {"url": f"/documents/{document_id}/file/signed?token={token}", "expires_at": exp}
-
-
-@router.get("/{document_id}/file/signed")
-async def get_document_file_signed(
-    document_id: str,
-    token: str,
-    db: Session = Depends(get_db)
-):
-    """Serve document file validating a signed token; no cookies required."""
-    try:
-        pad = "=" * ((4 - (len(token) % 4)) % 4)
-        raw = base64.urlsafe_b64decode(token + pad).decode("utf-8")
-        parts = dict(p.split(":", 1) for p in raw.split("|") if ":" in p)
-        if parts.get("doc") != document_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        exp = int(parts.get("exp", "0"))
-        if exp < int(time.time()):
-            raise HTTPException(status_code=401, detail="Token expired")
-        sig = parts.get("sig")
-        base_payload = "|".join([f"doc:{parts.get('doc')}", f"usr:{parts.get('usr')}", f"exp:{parts.get('exp')}"])
-        expected = _sign_payload(cfg.SIGNING_SECRET, base_payload)
-        if not hmac.compare_digest(sig or "", expected):
-            raise HTTPException(status_code=401, detail="Invalid signature")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token format")
-
-    document = db.query(Document).filter(Document.id == document_id).first()
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if not document.storage_url or not os.path.exists(document.storage_url):
-        raise HTTPException(status_code=404, detail="Document file not found on server")
-
-    _, ext = os.path.splitext(document.storage_url)
-    ext = ext.lower()
-    media_type = "application/octet-stream"
-    if ext == ".pdf":
-        media_type = "application/pdf"
-    elif ext == ".txt":
-        media_type = "text/plain"
-    elif ext == ".docx":
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    elif ext == ".pptx":
-        media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-
-    headers = {"Content-Disposition": f"inline; filename=\"{os.path.basename(document.filename)}\""}
-    return FileResponse(
-        path=document.storage_url,
-        filename=os.path.basename(document.filename),
-        media_type=media_type,
-        headers=headers,
-    )

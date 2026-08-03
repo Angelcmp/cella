@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Fraunces, Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Fraunces, Space_Grotesk, Inter, JetBrains_Mono, Work_Sans } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
+import { Toaster } from "@/components/ui/sonner";
 
 const fraunces = Fraunces({
   variable: "--font-serif",
@@ -27,35 +28,39 @@ const jetBrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
+const workSans = Work_Sans({
+  variable: "--font-landing",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://docai.app'),
-  title: "DocAI - Análisis de Documentos con Inteligencia Artificial",
-  description: "Transforma tus documentos PDF, DOCX, PPTX y TXT en conversaciones inteligentes. Chat con IA, genera resúmenes automáticos y obtén respuestas precisas de tus archivos.",
-  keywords: "análisis documentos, inteligencia artificial, chat IA, resúmenes automáticos, procesamiento documentos, RAG, Gemini AI",
-  authors: [{ name: "DocAI Team" }],
-  creator: "DocAI",
-  publisher: "DocAI",
+  metadataBase: new URL('https://cella.ai'),
+  title: "Cella - Análisis de Documentos con Inteligencia Artificial",
+  description: "Transforma tus documentos PDF, DOCX, PPTX y TXT en conversaciones inteligentes. Chat con IA, genera resúmenes, mapas mentales y obtén respuestas precisas de tus archivos.",
+  keywords: "análisis documentos, inteligencia artificial, chat IA, resúmenes automáticos, mapas mentales, quiz, procesamiento documentos, RAG",
+  authors: [{ name: "Cella" }],
+  creator: "Cella",
+  publisher: "Cella",
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "https://docai.app",
-    siteName: "DocAI",
-    title: "DocAI - Análisis de Documentos con IA",
+    url: "https://cella.ai",
+    siteName: "Cella",
+    title: "Cella - Análisis de Documentos con IA",
     description: "Transforma tus documentos en conversaciones inteligentes con IA. Sube PDF, DOCX, PPTX, TXT y chatea con tus archivos.",
     images: [
       {
         url: "/dashboard1.png",
         width: 1200,
         height: 630,
-        alt: "DocAI Dashboard - Análisis de Documentos con IA",
+        alt: "Cella - Análisis de Documentos con IA",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "@DocAI_App",
-    creator: "@DocAI_App",
-    title: "DocAI - Análisis de Documentos con IA",
+    title: "Cella - Análisis de Documentos con IA",
     description: "Transforma tus documentos en conversaciones inteligentes con IA",
     images: ["/dashboard1.png"],
   },
@@ -84,11 +89,12 @@ export default function RootLayout({
   return (
     <html lang="es" data-theme="light">
       <body
-        className={`${fraunces.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} antialiased`}
+        className={`${fraunces.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} ${workSans.variable} antialiased`}
         suppressHydrationWarning
       >
         <StructuredData />
         {children}
+        <Toaster />
         {/* Footer removido del layout global para evitar duplicados; solo la landing principal muestra footer */}
       </body>
     </html>

@@ -2,23 +2,20 @@
 """
 RAG (Retrieval-Augmented Generation) system for DocAI
 Handles document search and response generation with citations
-Supports both OpenAI and Google Gemini APIs
+Supports DeepSeek, Zhipu (GLM) and OpenAI via OpenAI-compatible APIs
 """
 
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Tuple, Iterator
 import numpy as np
 from sqlalchemy.orm import Session
 
-# OpenAI for embeddings and chat
-from openai import OpenAI
-
-# Google Gemini for embeddings and chat
-import google.generativeai as genai
-
-from database_simple import DocumentChunk, DocumentEmbedding, DocumentSummary, Document
+from database_simple import DocumentChunk, DocumentEmbedding, DocumentSummary, Document, DocumentMindmap
+from providers import ProviderRouter
+from cache import RAGCache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,33 +25,17 @@ class RAGSystem:
     """Handles retrieval-augmented generation for document chat"""
     
     def __init__(self):
-        # Initialize OpenAI client
-        self.openai_client = None
-        if os.getenv("OPENAI_API_KEY"):
-            self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            logger.info("OpenAI client initialized")
-        
-        # Initialize Gemini client
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("Gemini client initialized")
-            logger.info(
-                f"Gemini chat model preference: {os.getenv('GEMINI_MODEL_CHAT') or 'auto'}, "
-                f"embed: {os.getenv('GEMINI_MODEL_EMBED') or 'text-embedding-004'}"
-            )
-        
-        # Determine which provider to use
-        if self.gemini_client:
-            self.provider = "gemini"
-            logger.info("Using Gemini as primary provider")
-        elif self.openai_client:
-            self.provider = "openai"
-            logger.info("Using OpenAI as primary provider")
-        else:
-            self.provider = "mock"
-            logger.warning("No API keys found, using mock responses")
+        self.router = ProviderRouter()
+        self.cache = RAGCache()
+        # Keep a provider readout for compatibility with loggers
+        chat_provider = self.router.chat_provider
+        embed_provider = self.router.embeddings_provider
+        self.provider = chat_provider.name if chat_provider else "mock"
+        self.embed_provider = embed_provider.name if embed_provider else "mock"
+        logger.info(
+            f"RAGSystem initialized: chat_provider={self.provider}, "
+            f"embed_provider={self.embed_provider}, cache_enabled={self.cache.enabled}"
+        )
     
     def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """Calculate cosine similarity between two vectors"""
@@ -65,69 +46,32 @@ class RAGSystem:
         except:
             return 0.0
     
-    def generate_query_embedding(self, query: str) -> Optional[List[float]]:
-        """Generate embedding for user query"""
-        if self.provider == "gemini":
-            return self._generate_gemini_embedding(query)
-        elif self.provider == "openai":
-            return self._generate_openai_embedding(query)
-        else:
-            logger.warning("No API client available, returning mock embedding")
-            return [0.1] * 768  # Standard embedding size for mock
-    
-    def _generate_gemini_embedding(self, text: str) -> Optional[List[float]]:
-        """Generate embedding using Gemini API"""
+    def generate_query_embedding(
+        self,
+        query: str,
+        document_id: Optional[str] = None,
+    ) -> Optional[List[float]]:
+        """Generate embedding for user query using the configured embeddings provider.
+
+        If document_id is provided, the embedding is cached in Redis for faster
+        repeated queries on the same document.
+        """
+        if document_id:
+            cached = self.cache.get_query_embedding(document_id, query)
+            if cached is not None:
+                logger.info("Using cached query embedding")
+                return cached
+
         try:
-            # Prefer explicit env override and current model names
-            env_embed_model = os.getenv("GEMINI_MODEL_EMBED", "text-embedding-004")
-            embedding_models = [
-                env_embed_model,
-                "text-embedding-004",
-                # Keep a legacy alias as fallback only
-                "models/text-embedding-004",
-            ]
-
-            for model_name in embedding_models:
-                try:
-                    result = self.gemini_client.embed_content(
-                        model=model_name,
-                        content=text
-                    )
-                    # google.generativeai returns {'embedding': {'values': [...]}}
-                    values = None
-                    try:
-                        values = result["embedding"]["values"]
-                    except Exception:
-                        # Some older SDKs may already return the flat list
-                        values = result.get("embedding")
-
-                    if not values:
-                        raise ValueError("Empty embedding values returned")
-
-                    logger.info(f"Successfully used embedding model: {model_name}")
-                    return values
-                except Exception as model_error:
-                    logger.warning(f"Embedding model {model_name} failed: {model_error}")
-                    continue
-            
-            # If all embedding models fail
-            raise Exception("All Gemini embedding models failed")
-            
+            embedding = self.router.embed(query)
+            if document_id and embedding:
+                self.cache.set_query_embedding(document_id, query, embedding)
+            return embedding
         except Exception as e:
-            logger.error(f"Failed to generate Gemini embedding: {e}")
-            return [0.1] * 768  # Mock embedding as fallback
-    
-    def _generate_openai_embedding(self, text: str) -> Optional[List[float]]:
-        """Generate embedding using OpenAI API"""
-        try:
-            response = self.openai_client.embeddings.create(
-                model="text-embedding-ada-002",
-                input=text
-            )
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"Failed to generate OpenAI embedding: {e}")
-            return [0.1] * 1536  # Mock embedding as fallback
+            logger.error(f"Failed to generate query embedding: {e}")
+            # Fallback to mock embedding matching the configured dimension
+            dim = self.router.get_embed_dim() if self.router.embeddings_provider else 1024
+            return [0.1] * dim
     
     def search_relevant_chunks(
         self, 
@@ -302,72 +246,31 @@ RESPUESTA:"""
             dedup.append(u)
         return dedup, anchored_ratio
     
-    def generate_response(self, prompt: str) -> Tuple[str, List[Dict[str, Any]]]:
-        """Generate response using configured AI provider"""
-        if self.provider == "gemini":
-            return self._generate_gemini_response(prompt)
-        elif self.provider == "openai":
-            return self._generate_openai_response(prompt)
-        else:
-            # Mock response for development
-            mock_response = f"Esta es una respuesta simulada a su pregunta. En el momento no tengo acceso a APIs de IA, pero puedo mostrar cómo funcionaría el sistema de citas.\n\nBasándome en los fragmentos del documento, puedo proporcionar información relevante con citas específicas de las páginas correspondientes."
-            mock_citations = [
-                {"page": 1, "snippet": "Fragmento relevante del documento...", "similarity": 0.85},
-                {"page": 2, "snippet": "Otro fragmento relacionado...", "similarity": 0.72}
-            ]
-            return mock_response, mock_citations
-    
-    def _generate_gemini_response(self, prompt: str) -> Tuple[str, List[Dict[str, Any]]]:
-        """Generate response using Gemini API"""
-        try:
-            # Try model names in order of preference; allow env override
-            preferred = os.getenv("GEMINI_MODEL_CHAT")
-            model_names = [
-                *( [preferred] if preferred else [] ),
-                # Prefer 2.0 first to avoid 404s on some SDKs
-                'gemini-2.0-flash',
-                # Current stable 1.5 latest (may 404 on older SDKs)
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-pro-latest',
-                # Legacy 1.5 names
-                'gemini-1.5-flash',
-                'gemini-1.5-pro',
-            ]
+    def generate_response(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        max_tokens: int = 1000,
+        temperature: float = 0.3,
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        """Generate response using configured AI provider.
 
-            for model_name in model_names:
-                if not model_name:
-                    continue
-                try:
-                    model = self.gemini_client.GenerativeModel(model_name)
-                    response = model.generate_content(prompt)
-                    logger.info(f"Successfully used model: {model_name}")
-                    return response.text, []
-                except Exception as model_error:
-                    logger.warning(f"Model {model_name} failed: {model_error}")
-                    continue
-            
-            # If all models fail
-            raise Exception("All Gemini models failed")
-            
-        except Exception as e:
-            logger.error(f"Failed to generate Gemini response: {e}")
-            return f"Lo siento, ocurrió un error al generar la respuesta: {str(e)}", []
-    
-    def _generate_openai_response(self, prompt: str) -> Tuple[str, List[Dict[str, Any]]]:
-        """Generate response using OpenAI API"""
+        Args:
+            prompt: The full prompt to send.
+            model: Optional model id from the frontend (e.g. deepseek-v4-flash).
+            max_tokens: Maximum tokens to generate.
+            temperature: Sampling temperature.
+        """
         try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "Eres un asistente experto en análisis de documentos que proporciona respuestas precisas con citas."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=1000,
-                temperature=0.3
+            text, _ = self.router.chat(
+                prompt,
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
             )
-            return response.choices[0].message.content, []
+            return text, []
         except Exception as e:
-            logger.error(f"Failed to generate OpenAI response: {e}")
+            logger.error(f"Failed to generate chat response: {e}")
             return f"Lo siento, ocurrió un error al generar la respuesta: {str(e)}", []
     
     def extract_citations_from_chunks(self, relevant_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -511,18 +414,25 @@ RESPUESTA:"""
             return {}
 
     def chat_with_document(
-        self, 
-        db: Session, 
-        document_id: str, 
-        document_title: str, 
-        user_query: str
+        self,
+        db: Session,
+        document_id: str,
+        document_title: str,
+        user_query: str,
+        model: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Complete RAG pipeline for document chat"""
-        
+
         logger.info(f"Starting chat with document {document_id}")
         logger.info(f"User query: {user_query}")
-        
+
         try:
+            # Check cache for repeated queries
+            cached = self.cache.get_chat_response(document_id, user_query, model)
+            if cached:
+                logger.info("Using cached chat response")
+                return cached
+
             # Check if this is a metadata question
             # First, see if the question targets specific page(s)
             page_req = self.parse_page_request(user_query)
@@ -542,7 +452,7 @@ RESPUESTA:"""
                     relevant_chunks=page_chunks,
                     document_title=document_title,
                 )
-                ai_text, _ = self.generate_response(prompt)
+                ai_text, _ = self.generate_response(prompt, model=model)
                 citations = self.extract_citations_from_chunks(page_chunks)
                 return {
                     "response": ai_text,
@@ -588,10 +498,10 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
                     }
             
             # Step 1: Generate query embedding
-            query_embedding = self.generate_query_embedding(user_query)
+            query_embedding = self.generate_query_embedding(user_query, document_id)
             if not query_embedding:
                 raise ValueError("Failed to generate query embedding")
-            
+
             # Step 2: Search for relevant chunks - increase top_k for better coverage
             top_k = 10 if len(user_query.split()) > 5 else 5  # More chunks for complex queries
             relevant_chunks = self.search_relevant_chunks(
@@ -632,18 +542,18 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
                 }
 
             # Normal path: ask LLM
-            response_text, llm_citations = self.generate_response(prompt)
-            
+            response_text, llm_citations = self.generate_response(prompt, model=model)
+
             # Step 5: Anchor sentences to retrieved chunks and derive citations
             anchored_citations, anchored_ratio = self._anchor_sentences_to_chunks(response_text, relevant_chunks)
             chunk_citations = anchored_citations or self.extract_citations_from_chunks(relevant_chunks)
-            
+
             # Combine citations (prefer LLM citations if available, otherwise use chunk citations)
             final_citations = llm_citations if llm_citations else chunk_citations
-            
+
             logger.info(f"Generated response with {len(final_citations)} citations")
-            
-            return {
+
+            result = {
                 "response": response_text,
                 "citations": final_citations,
                 "success": True,
@@ -651,7 +561,9 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
                 "confidence": round(0.5 * coverage + 0.5 * anchored_ratio, 3),
                 "coverage": round(coverage, 3)
             }
-            
+            self.cache.set_chat_response(document_id, user_query, result, model)
+            return result
+
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             return {
@@ -661,19 +573,156 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
                 "error": str(e)
             }
 
+    def prepare_chat_prompt(
+        self,
+        db: Session,
+        document_id: str,
+        document_title: str,
+        user_query: str,
+    ) -> Dict[str, Any]:
+        """Build the RAG prompt and retrieve context for streaming.
+
+        Returns a dict with the keys:
+        - prompt: string prompt ready for the LLM
+        - relevant_chunks: list of chunk dicts for citations
+        - chunks_found: number of chunks retrieved
+        - coverage: mean similarity of top-3 chunks
+        - metadata_response: optional precomputed response (for metadata questions)
+        """
+        # Page-specific questions
+        page_req = self.parse_page_request(user_query)
+        if page_req:
+            start_p, end_p = page_req
+            page_chunks = self.get_chunks_for_pages(db, document_id, start_p, end_p)
+            if not page_chunks:
+                return {
+                    "prompt": None,
+                    "relevant_chunks": [],
+                    "chunks_found": 0,
+                    "coverage": 0.0,
+                    "metadata_response": f"No encontré contenido para las páginas {start_p}-{end_p}. Verifica el rango y vuelve a intentar.",
+                }
+            prompt = self.create_rag_prompt(
+                query=f"Limítate a responder usando únicamente el contenido de las páginas {start_p}-{end_p}. {user_query}",
+                relevant_chunks=page_chunks,
+                document_title=document_title,
+            )
+            return {
+                "prompt": prompt,
+                "relevant_chunks": page_chunks,
+                "chunks_found": len(page_chunks),
+                "coverage": 1.0,
+                "metadata_response": None,
+            }
+
+        # Metadata questions
+        if self.is_metadata_question(user_query):
+            metadata = self.get_document_metadata(db, document_id)
+            if metadata and metadata.get("total_pages", 0) > 0:
+                response = f"""Basándome en el análisis completo del documento "{document_title}":
+
+**Información del documento:**
+- **Total de páginas:** {metadata['total_pages']} páginas
+- **Rango de páginas:** De la página {metadata['first_page']} a la página {metadata['last_page']}
+- **Fragmentos procesados:** {metadata['total_chunks']} fragmentos de texto
+- **Estado del procesamiento:** {metadata['status']}
+
+El documento ha sido completamente procesado e indexado. Todas las páginas están disponibles para consultas y análisis."""
+                return {
+                    "prompt": None,
+                    "relevant_chunks": [
+                        {
+                            "page": metadata["first_page"],
+                            "snippet": f"Primera página del documento: página {metadata['first_page']}",
+                            "similarity": 1.0,
+                        },
+                        {
+                            "page": metadata["last_page"],
+                            "snippet": f"Última página del documento: página {metadata['last_page']}",
+                            "similarity": 1.0,
+                        },
+                    ],
+                    "chunks_found": metadata["total_chunks"],
+                    "coverage": 1.0,
+                    "metadata_response": response,
+                }
+
+        # Normal RAG path
+        query_embedding = self.generate_query_embedding(user_query, document_id)
+        if not query_embedding:
+            raise ValueError("Failed to generate query embedding")
+
+        top_k = 10 if len(user_query.split()) > 5 else 5
+        relevant_chunks = self.search_relevant_chunks(
+            db, document_id, query_embedding, top_k=top_k
+        )
+
+        if not relevant_chunks:
+            return {
+                "prompt": None,
+                "relevant_chunks": [],
+                "chunks_found": 0,
+                "coverage": 0.0,
+                "metadata_response": (
+                    "Lo siento, no encontré información relevante en el documento para responder tu pregunta. "
+                    "Intenta reformular la pregunta o verifica que el documento contenga información relacionada con tu consulta."
+                ),
+            }
+
+        sims = [c.get("similarity", 0.0) for c in relevant_chunks]
+        sims_top = sims[: min(3, len(sims))]
+        coverage = float(sum(sims_top) / max(len(sims_top), 1))
+        min_cov = float(os.getenv("RAG_MIN_COVERAGE", "0.22"))
+
+        if coverage < min_cov:
+            safe_msg = (
+                "No hay suficiente información en los fragmentos recuperados para responder con certeza. "
+                "Prueba hacer una pregunta más específica (por ejemplo, mencionando una página o sección), "
+                "o amplía el contexto subiendo más contenido relacionado."
+            )
+            return {
+                "prompt": None,
+                "relevant_chunks": relevant_chunks[:2],
+                "chunks_found": len(relevant_chunks),
+                "coverage": coverage,
+                "metadata_response": safe_msg,
+            }
+
+        prompt = self.create_rag_prompt(user_query, relevant_chunks, document_title)
+        return {
+            "prompt": prompt,
+            "relevant_chunks": relevant_chunks,
+            "chunks_found": len(relevant_chunks),
+            "coverage": coverage,
+            "metadata_response": None,
+        }
+
+    def chat_stream(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        max_tokens: int = 1000,
+        temperature: float = 0.3,
+    ) -> Iterator[Tuple[str, str]]:
+        """Stream a chat response from the configured LLM.
+
+        Yields (kind, text) tuples where kind is "thinking" (reasoning content,
+        if the model exposes it) or "text" (final answer).
+        """
+        yield from self.router.chat_stream(
+            prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
 
 class SummaryGenerator:
-    """Handles automatic document summarization using Gemini API"""
-    
+    """Handles automatic document summarization using the configured LLM provider"""
+
     def __init__(self):
-        # Initialize Gemini client
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("SummaryGenerator: Gemini client initialized")
-        else:
-            logger.warning("SummaryGenerator: No Gemini API key found")
+        self.router = ProviderRouter()
+        logger.info("SummaryGenerator initialized")
     
     def create_summary_prompt(self, document_title: str, full_content: str, summary_type: str = "comprehensive") -> str:
         """Create a prompt for document summarization"""
@@ -729,70 +778,96 @@ Responde solo con JSON válido."""
 
         return prompt
     
-    def generate_summary_with_gemini(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Generate summary using Gemini API"""
-        if not self.gemini_client:
-            logger.error("Gemini client not available")
-            return None
-            
-        try:
-            # Try multiple model names; allow env override
-            preferred = os.getenv("GEMINI_MODEL_CHAT")
-            model_names = [
-                *( [preferred] if preferred else [] ),
-                'gemini-2.0-flash',
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-pro-latest',
-                'gemini-1.5-flash',
-                'gemini-1.5-pro',
-            ]
+    def _extract_json(self, response_text: str) -> Optional[Dict[str, Any]]:
+        """Try to parse JSON from an LLM response, cleaning fenced blocks if needed.
 
-            for model_name in model_names:
-                if not model_name:
-                    continue
-                try:
-                    model = self.gemini_client.GenerativeModel(model_name)
-                    response = model.generate_content(
-                        prompt,
-                        generation_config=genai.GenerationConfig(
-                            temperature=0.3,
-                            max_output_tokens=1000,
-                        )
-                    )
-                    
-                    # Parse JSON response
-                    response_text = response.text.strip()
-                    
-                    # Clean up response if it has markdown formatting
-                    if response_text.startswith("```json"):
-                        response_text = response_text.replace("```json", "").replace("```", "").strip()
-                    
-                    summary_data = json.loads(response_text)
-                    logger.info(f"Successfully generated summary using model: {model_name}")
-                    return summary_data
-                    
-                except json.JSONDecodeError as e:
-                    logger.warning(f"JSON parse error with model {model_name}: {e}")
-                    # Try to extract JSON from the response
-                    try:
-                        start = response.text.find('{')
-                        end = response.text.rfind('}') + 1
-                        if start != -1 and end != 0:
-                            clean_json = response.text[start:end]
-                            summary_data = json.loads(clean_json)
-                            return summary_data
-                    except:
-                        pass
-                    continue
-                except Exception as model_error:
-                    logger.warning(f"Model {model_name} failed: {model_error}")
-                    continue
-            
-            # If all models fail
-            raise Exception("All Gemini models failed for summary generation")
-            
+        Falls back to extracting a structured summary from plain text if no JSON
+        is found.
+        """
+        response_text = response_text.strip()
+        logger.info(f"Summary raw response (first 500 chars): {response_text[:500]!r}")
+
+        # 1. Strip fenced ```json ... ``` blocks
+        cleaned = response_text
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        # 2. Try to parse the whole response
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        # 3. Try to extract the first JSON object
+        start = cleaned.find('{')
+        end = cleaned.rfind('}') + 1
+        if start != -1 and end != 0:
+            try:
+                return json.loads(cleaned[start:end])
+            except Exception:
+                pass
+
+        # 4. Fallback: parse plain text into structured summary
+        return self._parse_text_summary(response_text)
+
+    def _parse_text_summary(self, text: str) -> Optional[Dict[str, Any]]:
+        """Convert a plain text summary into the expected JSON structure."""
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if not lines:
+            return None
+
+        # First paragraph(s) as executive summary
+        executive_summary_lines = []
+        for line in lines:
+            if line.startswith('-') or line.startswith('*') or line.startswith('•') or line.startswith('1.') or line.startswith('2.') or 'Tema:' in line or 'Punto clave:' in line:
+                break
+            executive_summary_lines.append(line)
+        executive_summary = ' '.join(executive_summary_lines) if executive_summary_lines else lines[0]
+
+        # Extract bullet points as key_points
+        key_points = [line.lstrip('-*•').strip() for line in lines if line.startswith('-') or line.startswith('*') or line.startswith('•')]
+        if not key_points and len(lines) > 1:
+            key_points = [line for line in lines[1:] if len(line) > 20 and not line.lower().startswith('resumen')]
+        key_points = key_points[:8]
+
+        # Infer topics from key_points or from lines containing 'Tema:' or numbered lists
+        main_topics = []
+        for line in lines:
+            if line.startswith('1.') or line.startswith('2.') or line.startswith('3.') or line.startswith('4.') or line.startswith('5.'):
+                main_topics.append(line.split('.', 1)[-1].strip())
+        if not main_topics and key_points:
+            main_topics = [kp.split(':', 1)[0].strip() for kp in key_points if ':' in kp][:5]
+        if not main_topics:
+            main_topics = [lines[0][:60]]
+        main_topics = main_topics[:5]
+
+        return {
+            "executive_summary": executive_summary,
+            "key_points": key_points,
+            "main_topics": main_topics,
+        }
+
+    def generate_summary_with_llm(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """Generate summary using the configured LLM provider"""
+        try:
+            text, _ = self.router.chat(
+                prompt,
+                temperature=0.3,
+                max_tokens=1000,
+            )
+            summary_data = self._extract_json(text)
+            if summary_data:
+                logger.info("Successfully generated summary")
+                return summary_data
+            logger.warning("Summary response did not contain valid JSON")
+            return None
         except Exception as e:
-            logger.error(f"Failed to generate summary with Gemini: {e}")
+            logger.error(f"Failed to generate summary with LLM: {e}")
             return None
     
     def get_document_full_content(self, db: Session, document_id: str) -> Optional[str]:
@@ -840,9 +915,13 @@ Responde solo con JSON válido."""
                 logger.info(f"Summary already exists for document {document_id}")
                 return {
                     "summary_id": existing_summary.id,
+                    "summary": existing_summary.executive_summary,
                     "executive_summary": existing_summary.executive_summary,
                     "key_points": existing_summary.key_points,
+                    "keyPoints": existing_summary.key_points,
                     "main_topics": existing_summary.main_topics,
+                    "topics": existing_summary.main_topics,
+                    "generatedAt": existing_summary.created_at.isoformat(),
                     "created_at": existing_summary.created_at.isoformat(),
                     "success": True,
                     "was_existing": True
@@ -860,10 +939,10 @@ Responde solo con JSON válido."""
             # Create summary prompt
             prompt = self.create_summary_prompt(document.title, full_content, summary_type)
             
-            # Generate summary using Gemini
-            summary_data = self.generate_summary_with_gemini(prompt)
+            # Generate summary using configured LLM
+            summary_data = self.generate_summary_with_llm(prompt)
             if not summary_data:
-                raise ValueError("Failed to generate summary with Gemini")
+                raise ValueError("Failed to generate summary with LLM")
             
             # Save summary to database
             new_summary = DocumentSummary(
@@ -883,9 +962,13 @@ Responde solo con JSON válido."""
             
             return {
                 "summary_id": new_summary.id,
+                "summary": new_summary.executive_summary,
                 "executive_summary": new_summary.executive_summary,
                 "key_points": new_summary.key_points,
+                "keyPoints": new_summary.key_points,
                 "main_topics": new_summary.main_topics,
+                "topics": new_summary.main_topics,
+                "generatedAt": new_summary.created_at.isoformat(),
                 "created_at": new_summary.created_at.isoformat(),
                 "tokens_used": new_summary.tokens_used,
                 "success": True,
@@ -911,9 +994,13 @@ Responde solo con JSON válido."""
             
             return {
                 "summary_id": summary.id,
+                "summary": summary.executive_summary,
                 "executive_summary": summary.executive_summary,
+                "keyPoints": summary.key_points,
                 "key_points": summary.key_points,
+                "mainTopics": summary.main_topics,
                 "main_topics": summary.main_topics,
+                "generatedAt": summary.created_at.isoformat(),
                 "created_at": summary.created_at.isoformat(),
                 "tokens_used": summary.tokens_used
             }
@@ -924,16 +1011,11 @@ Responde solo con JSON válido."""
 
 
 class StudyGuideGenerator:
-    """Genera guías de estudio a partir de un documento o rango de páginas usando Gemini"""
+    """Genera guías de estudio a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("StudyGuideGenerator: Gemini client initialized")
-        else:
-            logger.warning("StudyGuideGenerator: No GEMINI_API_KEY; falling back to mock output")
+        self.router = ProviderRouter()
+        logger.info("StudyGuideGenerator initialized")
 
     def _fetch_context(
         self,
@@ -1046,33 +1128,17 @@ DEVUELVE SOLO EL {('Markdown' if output_format=='markdown' else 'JSON')} SOLICIT
 """
         return prompt
 
-    def _call_gemini(self, prompt: str) -> Optional[str]:
-        if not self.gemini_client:
+    def _call_llm(self, prompt: str) -> Optional[str]:
+        try:
+            text, _ = self.router.chat(
+                prompt,
+                temperature=0.3,
+                max_tokens=1200,
+            )
+            return (text or "").strip()
+        except Exception as e:
+            logger.error(f"StudyGuide: LLM call failed: {e}")
             return None
-        preferred = os.getenv("GEMINI_MODEL_CHAT")
-        model_names = [
-            *( [preferred] if preferred else [] ),
-            'gemini-2.0-flash',
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-pro-latest',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-        ]
-        for name in model_names:
-            try:
-                model = self.gemini_client.GenerativeModel(name)
-                resp = model.generate_content(
-                    prompt,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.3,
-                        max_output_tokens=1200,
-                    )
-                )
-                return (resp.text or "").strip()
-            except Exception as e:
-                logger.warning(f"StudyGuide: model {name} failed: {e}")
-                continue
-        return None
 
     def _json_to_markdown(self, guide: Dict[str, Any]) -> str:
         parts: List[str] = []
@@ -1148,7 +1214,7 @@ DEVUELVE SOLO EL {('Markdown' if output_format=='markdown' else 'JSON')} SOLICIT
             used_range = (min_p, max_p) if (min_p and max_p) else None
             prompt = self._create_prompt(document_title, context, used_range, user_query, output_format)
 
-            resp_text = self._call_gemini(prompt)
+            resp_text = self._call_llm(prompt)
             if not resp_text:
                 # Fallback mock minimal guide
                 mock = {
@@ -1202,16 +1268,34 @@ DEVUELVE SOLO EL {('Markdown' if output_format=='markdown' else 'JSON')} SOLICIT
 
 
 class MindmapGenerator:
-    """Genera mapas mentales (Mermaid) a partir de un documento o rango de páginas usando Gemini"""
+    """Genera mapas mentales (Mermaid) a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("MindmapGenerator: Gemini client initialized")
-        else:
-            logger.warning("MindmapGenerator: No GEMINI_API_KEY; using mock output")
+        self.router = ProviderRouter()
+        logger.info("MindmapGenerator initialized")
+
+    def get_document_mindmap(
+        self,
+        db: Session,
+        document_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Return the persisted default mindmap for a document, if it exists."""
+        try:
+            mindmap = db.query(DocumentMindmap).filter(
+                DocumentMindmap.document_id == document_id
+            ).first()
+            if not mindmap:
+                return None
+            return {
+                "success": True,
+                "markdown": mindmap.markdown,
+                "metadata": mindmap.mindmap_metadata,
+                "pages_used": mindmap.pages_used,
+                "was_existing": True,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get mindmap: {e}")
+            return None
 
     def _fetch_context(
         self,
@@ -1219,7 +1303,7 @@ class MindmapGenerator:
         document_id: str,
         start_page: Optional[int],
         end_page: Optional[int],
-        char_limit: int = 8000,
+        char_limit: int = 4000,
     ) -> Tuple[str, Optional[int], Optional[int]]:
         try:
             query = db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id)
@@ -1302,27 +1386,22 @@ Trabaja ÚNICAMENTE con el CONTEXTO de "{document_title}" {page_hint}.
 CONTEXTO:
 {context}
 
-SALIDA (SOLO EL BLOQUE MERMAID):
-```mermaid
-mindmap
-  root) {document_title}
-    ::
-```"""
+SALIDA (ESCRIBE SOLO EL BLOQUE MERMAID, SIN TEXTO ADICIONAL):"""
 
-    def _call_gemini(self, prompt: str) -> Optional[str]:
-        if not self.gemini_client:
+    def _call_llm(self, prompt: str) -> Optional[str]:
+        try:
+            text, _ = self.router.chat(
+                prompt,
+                temperature=0.2,
+                max_tokens=2500,
+            )
+            text = (text or "").strip()
+            if text:
+                logger.info(f"Mindmap raw response (first 500 chars): {text[:500]!r}")
+            return text if text else None
+        except Exception as e:
+            logger.error(f"Mindmap: LLM call failed: {e}")
             return None
-        preferred = os.getenv("GEMINI_MODEL_CHAT")
-        model_names = [*( [preferred] if preferred else [] ), 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro-latest']
-        for name in model_names:
-            try:
-                model = self.gemini_client.GenerativeModel(name)
-                resp = model.generate_content(prompt, generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=600))
-                return (resp.text or "").strip()
-            except Exception as e:
-                logger.warning(f"Mindmap: model {name} failed: {e}")
-                continue
-        return None
 
     def generate_mindmap(
         self,
@@ -1414,7 +1493,17 @@ mindmap
                 return {"success": False, "error": "No context available for the requested range"}
             used_range = (min_p, max_p) if (min_p and max_p) else None
             prompt = self._create_prompt(document_title, context, used_range, user_query, focus_mode=focus_mode, detail_level=detail_level)
-            text = self._call_gemini(prompt)
+            text = self._call_llm(prompt)
+            if not text and len(context) > 2500:
+                # DeepSeek sometimes returns empty for long prompts; retry once
+                # with a truncated (head) context to fit a tighter window.
+                logger.info("Mindmap: empty LLM response, retrying with truncated context")
+                short_context = context[:2500]
+                retry_prompt = self._create_prompt(
+                    document_title, short_context, used_range, user_query,
+                    focus_mode=focus_mode, detail_level=detail_level,
+                )
+                text = self._call_llm(retry_prompt)
             if not text:
                 # Fallback minimal example
                 md = f"""```mermaid
@@ -1429,7 +1518,7 @@ mindmap
                 meta_nodes = _parse_nodes_from_mermaid(md)
                 for n in meta_nodes:
                     n['snippet'] = _find_snippet(context, n['label'])
-                out = {"success": True, "markdown": md, "metadata": {"nodes": meta_nodes}}
+                out = {"success": False, "error": "LLM call failed: No response from provider", "markdown": md, "metadata": {"nodes": meta_nodes}}
                 if used_range:
                     out["pages_used"] = {"start": used_range[0], "end": used_range[1]}
                 return out
@@ -1446,6 +1535,37 @@ mindmap
             result = {"success": True, "markdown": text, "metadata": {"nodes": meta_nodes}}
             if used_range:
                 result["pages_used"] = {"start": used_range[0], "end": used_range[1]}
+
+            # Persist default (full-document) mindmap for fast retrieval
+            is_default = (
+                start_page is None and end_page is None
+                and not user_query
+                and not focus_mode
+                and detail_level == 2
+            )
+            if is_default:
+                try:
+                    existing = db.query(DocumentMindmap).filter(
+                        DocumentMindmap.document_id == document_id
+                    ).first()
+                    if existing:
+                        existing.markdown = result["markdown"]
+                        existing.mindmap_metadata = result.get("metadata")
+                        existing.pages_used = result.get("pages_used")
+                        existing.updated_at = datetime.utcnow()
+                    else:
+                        new_mindmap = DocumentMindmap(
+                            document_id=document_id,
+                            markdown=result["markdown"],
+                            mindmap_metadata=result.get("metadata"),
+                            pages_used=result.get("pages_used"),
+                        )
+                        db.add(new_mindmap)
+                    db.commit()
+                except Exception as persist_error:
+                    logger.warning(f"Mindmap: failed to persist default mindmap: {persist_error}")
+                    db.rollback()
+
             return result
         except Exception as e:
             logger.error(f"Mindmap: generation failed: {e}")
@@ -1453,16 +1573,11 @@ mindmap
 
 
 class QuizGenerator:
-    """Genera cuestionarios (opción múltiple) en Markdown a partir de un documento o rango de páginas usando Gemini"""
+    """Genera cuestionarios (opción múltiple) en Markdown a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("QuizGenerator: Gemini client initialized")
-        else:
-            logger.warning("QuizGenerator: No GEMINI_API_KEY; using mock output")
+        self.router = ProviderRouter()
+        logger.info("QuizGenerator initialized")
 
     def _fetch_context(
         self,
@@ -1545,20 +1660,17 @@ CONTEXTO:
 SALIDA: (SOLO EL CUESTIONARIO EN MARKDOWN)
 """
 
-    def _call_gemini(self, prompt: str) -> Optional[str]:
-        if not self.gemini_client:
+    def _call_llm(self, prompt: str) -> Optional[str]:
+        try:
+            text, _ = self.router.chat(
+                prompt,
+                temperature=0.2,
+                max_tokens=900,
+            )
+            return (text or "").strip()
+        except Exception as e:
+            logger.error(f"Quiz: LLM call failed: {e}")
             return None
-        preferred = os.getenv("GEMINI_MODEL_CHAT")
-        model_names = [*( [preferred] if preferred else [] ), 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro-latest']
-        for name in model_names:
-            try:
-                model = self.gemini_client.GenerativeModel(name)
-                resp = model.generate_content(prompt, generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=900))
-                return (resp.text or "").strip()
-            except Exception as e:
-                logger.warning(f"Quiz: model {name} failed: {e}")
-                continue
-        return None
 
     def generate_quiz(
         self,
@@ -1576,7 +1688,7 @@ SALIDA: (SOLO EL CUESTIONARIO EN MARKDOWN)
                 return {"success": False, "error": "No context available for the requested range"}
             used_range = (min_p, max_p) if (min_p and max_p) else None
             prompt = self._create_prompt(document_title, context, used_range, user_query, num_questions=num_questions)
-            text = self._call_gemini(prompt)
+            text = self._call_llm(prompt)
             if not text:
                 # Fallback minimal quiz
                 md = "\n".join([
@@ -1589,7 +1701,7 @@ SALIDA: (SOLO EL CUESTIONARIO EN MARKDOWN)
                     "   Justificación: Basada en el texto",
                     f"   Páginas: {min_p}-{max_p}",
                 ])
-                out = {"success": True, "markdown": md}
+                out = {"success": False, "error": "LLM call failed: No response from provider", "markdown": md}
                 if used_range:
                     out["pages_used"] = {"start": used_range[0], "end": used_range[1]}
                 return out

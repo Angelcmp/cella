@@ -38,6 +38,15 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
     loadSummary();
   }, [documentId]);
 
+  const normalize = (raw: any): SummaryData => ({
+    summary: raw.summary || raw.executive_summary || "",
+    keyPoints: raw.keyPoints || raw.key_points || [],
+    topics: raw.topics || raw.mainTopics || raw.main_topics || [],
+    pageCount: raw.pageCount ?? raw.page_count,
+    wordCount: raw.wordCount ?? raw.word_count,
+    generatedAt: raw.generatedAt || raw.created_at || new Date().toISOString(),
+  });
+
   const loadSummary = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/${documentId}/summary`, {
@@ -46,7 +55,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
 
       if (response.ok) {
         const summaryData = await response.json();
-        setSummary(summaryData);
+        setSummary(normalize(summaryData));
         setHasError(false);
       } else if (response.status === 404) {
         // No summary exists yet - this is normal
@@ -77,7 +86,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
 
       if (response.ok) {
         const summaryData = await response.json();
-        setSummary(summaryData);
+        setSummary(normalize(summaryData));
         toast.success("Resumen generado exitosamente");
       } else {
         const error = await response.json();

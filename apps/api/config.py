@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def _env_bool(name: str, default: bool = False) -> bool:
     val = os.getenv(name)
@@ -63,8 +65,8 @@ COOKIE_SECURE = _env_bool(
 )
 
 # Providers
-PROVIDER_LLM = os.getenv("PROVIDER_LLM", "gemini")
-PROVIDER_EMBEDDINGS = os.getenv("PROVIDER_EMBEDDINGS", "api")
+PROVIDER_LLM = os.getenv("PROVIDER_LLM", "deepseek")
+PROVIDER_EMBEDDINGS = os.getenv("PROVIDER_EMBEDDINGS", "local")
 
 # Guest quotas
 GUEST_MAX_DOCUMENTS = int(os.getenv("GUEST_MAX_DOCUMENTS", "1"))

@@ -147,26 +147,10 @@ ENV/
 *.pptx
 *.txt
 *.md
-!DOCUMENTACION.md
-!STATUS.md
-!ROADMAP_PENDIENTE.md
-!FRONTEND_STATUS.md
-!GUIA_RAPIDA.md
-!PLAN_TECNICO_MODALIDADES.md
-!ANTHROPIC_TRANSFORMATION.md
-!SETUP_GEMINI.md
 !README.md
 
 # Dev logs
 *.log
 
-# Screenshot scripts
-scripts/capture_screenshots.mjs
-
 # Public root dir (not the app public/)
 /public/
-
-# Random docs
-docs/
-demo.md
-frontend.mdDocAI-backup-*.tar.gz

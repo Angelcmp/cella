@@ -6,19 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   FileText, 
-  Download, 
   ExternalLink,
-  Clock,
-  Hash,
-  FileIcon,
   Eye,
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Search,
   ZoomIn,
-  ZoomOut,
-  Maximize2
+  ZoomOut
 } from "lucide-react";
 import { toast } from "sonner";
 import styles from "./DocumentViewer.module.css";

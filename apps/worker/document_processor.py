@@ -27,12 +27,11 @@ import pytesseract
 from PIL import Image
 
 # AI and embeddings
-import openai
-from openai import OpenAI
-import google.generativeai as genai
 
 # Add parent directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+
+from providers import ProviderRouter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,31 +41,17 @@ class DocumentProcessor:
     """Handles real document processing with text extraction and embeddings"""
     
     def __init__(self):
-        # Initialize OpenAI client (will use environment variable)
-        self.openai_client = None
-        if os.getenv("OPENAI_API_KEY"):
-            self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            logger.info("OpenAI client initialized for embeddings")
-        
-        # Initialize Gemini client
-        self.gemini_client = None
-        if os.getenv("GEMINI_API_KEY"):
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            self.gemini_client = genai
-            logger.info("Gemini client initialized for embeddings")
-        
-        # Determine which provider to use
-        if self.gemini_client:
-            self.provider = "gemini"
-            logger.info("Using Gemini for embeddings")
-            embed_pref = os.getenv("GEMINI_MODEL_EMBED", "text-embedding-004")
-            logger.info(f"Gemini embedding model preference: {embed_pref}")
-        elif self.openai_client:
-            self.provider = "openai"
-            logger.info("Using OpenAI for embeddings")
-        else:
-            self.provider = "mock"
-            logger.warning("No API keys found, embeddings will be simulated")
+        self.router = ProviderRouter()
+        self.embed_provider_name = (
+            self.router.embeddings_provider.name
+            if self.router.embeddings_provider
+            else "mock"
+        )
+        self.embed_dim = self.router.get_embed_dim()
+        logger.info(
+            f"DocumentProcessor initialized: embeddings_provider={self.embed_provider_name}, "
+            f"dim={self.embed_dim}"
+        )
     
     def clean_text_preserve_structure(self, text: str) -> str:
         """Clean text while preserving paragraph structure and meaningful formatting"""
@@ -332,121 +317,33 @@ class DocumentProcessor:
         return chunks
     
     def generate_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate embeddings for text chunks"""
-        if self.provider == "gemini":
-            return self._generate_gemini_embeddings(chunks)
-        elif self.provider == "openai":
-            return self._generate_openai_embeddings(chunks)
-        else:
-            logger.warning("No API client available, generating mock embeddings")
-            # Return mock embeddings for development
+        """Generate embeddings for text chunks using the configured embeddings provider.
+
+        Falls back to mock embeddings if no provider is configured.
+        """
+        if not self.router.embeddings_provider:
+            logger.warning("No embedding provider available, generating mock embeddings")
             for chunk in chunks:
-                chunk["embedding"] = [0.1] * 768  # Standard embedding size for mock
+                chunk["embedding"] = [0.1] * self.embed_dim
                 chunk["embedding_model"] = "mock-embedding"
             return chunks
-    
-    def _generate_gemini_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate embeddings using Gemini API"""
-        try:
-            logger.info(f"Generating Gemini embeddings for {len(chunks)} chunks...")
-            
-            # Try multiple embedding model names
-            embedding_models = [
-                os.getenv("GEMINI_MODEL_EMBED", "text-embedding-004"),
-                "text-embedding-004",
-                # Legacy alias kept as last fallback only
-                "models/text-embedding-004",
-            ]
-            
-            working_model = None
-            # Test which model works
-            for model_name in embedding_models:
-                try:
-                    test_result = self.gemini_client.embed_content(
-                        model=model_name,
-                        content="test"
-                    )
-                    working_model = model_name
-                    logger.info(f"Using embedding model: {model_name}")
-                    break
-                except Exception as e:
-                    logger.warning(f"Model {model_name} failed: {e}")
-                    continue
-            
-            if not working_model:
-                raise Exception("No working Gemini embedding model found")
-            
-            for i, chunk in enumerate(chunks):
-                try:
-                    result = self.gemini_client.embed_content(
-                        model=working_model,
-                        content=chunk["text"]
-                    )
-                    # Extract embedding values depending on SDK shape
-                    values = None
-                    try:
-                        values = result["embedding"]["values"]
-                    except Exception:
-                        values = result.get("embedding")
 
-                    if not values:
-                        raise ValueError("Empty embedding values returned")
-
-                    chunk["embedding"] = values
-                    chunk["embedding_model"] = working_model
-                    
-                    if (i + 1) % 10 == 0:
-                        logger.info(f"Generated embeddings for {i + 1}/{len(chunks)} chunks")
-                        
-                except Exception as e:
-                    logger.error(f"Failed to generate Gemini embedding for chunk {i}: {e}")
-                    # Use mock embedding as fallback
-                    chunk["embedding"] = [0.1] * 768
-                    chunk["embedding_model"] = "fallback-mock"
-            
-            logger.info("Gemini embedding generation completed")
-            return chunks
-            
-        except Exception as e:
-            logger.error(f"Gemini embedding generation failed: {e}")
-            # Fallback to mock embeddings
-            for chunk in chunks:
-                chunk["embedding"] = [0.1] * 768
-                chunk["embedding_model"] = "error-fallback"
-            return chunks
-    
-    def _generate_openai_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate embeddings using OpenAI API"""
         try:
-            logger.info(f"Generating OpenAI embeddings for {len(chunks)} chunks...")
-            
-            for i, chunk in enumerate(chunks):
-                try:
-                    response = self.openai_client.embeddings.create(
-                        model="text-embedding-ada-002",
-                        input=chunk["text"]
-                    )
-                    
-                    chunk["embedding"] = response.data[0].embedding
-                    chunk["embedding_model"] = "text-embedding-ada-002"
-                    
-                    if (i + 1) % 10 == 0:
-                        logger.info(f"Generated embeddings for {i + 1}/{len(chunks)} chunks")
-                        
-                except Exception as e:
-                    logger.error(f"Failed to generate OpenAI embedding for chunk {i}: {e}")
-                    # Use mock embedding as fallback
-                    chunk["embedding"] = [0.1] * 1536
-                    chunk["embedding_model"] = "fallback-mock"
-            
-            logger.info("OpenAI embedding generation completed")
+            logger.info(f"Generating embeddings for {len(chunks)} chunks via {self.embed_provider_name}...")
+            texts = [chunk["text"] for chunk in chunks]
+            vectors = self.router.embed_batch(texts)
+
+            for chunk, vector in zip(chunks, vectors):
+                chunk["embedding"] = vector
+                chunk["embedding_model"] = self.embed_provider_name
+
+            logger.info(f"Generated embeddings for {len(chunks)} chunks")
             return chunks
-            
+
         except Exception as e:
-            logger.error(f"OpenAI embedding generation failed: {e}")
-            # Fallback to mock embeddings
+            logger.error(f"Embedding generation failed: {e}")
             for chunk in chunks:
-                chunk["embedding"] = [0.1] * 1536
+                chunk["embedding"] = [0.1] * self.embed_dim
                 chunk["embedding_model"] = "error-fallback"
             return chunks
     
