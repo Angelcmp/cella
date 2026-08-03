@@ -15,6 +15,7 @@ export interface Project {
   name: string;
   documents: string[];
   createdAt: string;
+  isDefault?: boolean;
 }
 
 export interface Conversation {
@@ -74,23 +75,19 @@ interface ZenState {
 
   setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
-  removeProject: (id: string) => void;
+  ensureDefaultProject: () => Project;
   setDocuments: (docs: ZenDocument[]) => void;
   addDocument: (doc: ZenDocument) => void;
-  removeDocument: (id: string) => void;
   setActiveProject: (id: string | null) => void;
   setActiveDocument: (id: string | null) => void;
   setActiveConversation: (id: string | null) => void;
   setRightTab: (tab: RightTab) => void;
 
-  setConversations: (convs: Conversation[]) => void;
   addConversation: (conv: Conversation) => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   removeConversation: (id: string) => void;
   togglePinConversation: (id: string) => void;
   setSelectedModel: (model: ModelId) => void;
-
-  syncStorage: () => void;
 }
 
 export const useZenStore = create<ZenState>((set, get) => ({
@@ -99,7 +96,7 @@ export const useZenStore = create<ZenState>((set, get) => ({
   activeProjectId: null,
   activeDocumentId: null,
   activeConversationId: null,
-  rightTab: "document",
+  rightTab: "mindmap",
 
   conversations: loadFromStorage<Conversation[]>("doczen:conversations", []),
   selectedModel: loadFromStorage<ModelId>("doczen:selectedModel", "deepseek-v4-flash"),
@@ -107,30 +104,28 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   addProject: (project) =>
     set((state) => ({ projects: [...state.projects, project] })),
-  removeProject: (id) =>
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== id),
-      activeProjectId:
-        state.activeProjectId === id ? null : state.activeProjectId,
-    })),
+  ensureDefaultProject: () => {
+    const state = get();
+    const defaultProject = state.projects.find((p) => p.isDefault);
+    if (defaultProject) return defaultProject;
+    const newProject: Project = {
+      id: crypto.randomUUID(),
+      name: "Mis documentos",
+      documents: [],
+      createdAt: new Date().toISOString(),
+      isDefault: true,
+    };
+    set((s) => ({ projects: [...s.projects, newProject] }));
+    return newProject;
+  },
   setDocuments: (documents) => set({ documents }),
   addDocument: (doc) =>
     set((state) => ({ documents: [...state.documents, doc] })),
-  removeDocument: (id) =>
-    set((state) => ({
-      documents: state.documents.filter((d) => d.id !== id),
-      activeDocumentId:
-        state.activeDocumentId === id ? null : state.activeDocumentId,
-    })),
   setActiveProject: (id) => set({ activeProjectId: id }),
   setActiveDocument: (id) => set({ activeDocumentId: id }),
   setActiveConversation: (id) => set({ activeConversationId: id }),
   setRightTab: (tab) => set({ rightTab: tab }),
 
-  setConversations: (convs) => {
-    set({ conversations: convs });
-    saveToStorage("doczen:conversations", convs);
-  },
   addConversation: (conv) => {
     const convs = [...get().conversations, conv];
     set({ conversations: convs });
@@ -165,13 +160,6 @@ export const useZenStore = create<ZenState>((set, get) => ({
   },
   setSelectedModel: (model) => {
     set({ selectedModel: model });
-    saveToStorage("doczen:selectedModel", model);
-  },
-
-  syncStorage: () => {
-    const convs = get().conversations;
-    const model = get().selectedModel;
-    saveToStorage("doczen:conversations", convs);
     saveToStorage("doczen:selectedModel", model);
   },
 }));

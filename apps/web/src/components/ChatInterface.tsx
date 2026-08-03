@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Loader2, Copy } from "lucide-react";
+import { useState, useEffect, useRef, type ReactElement } from "react";
 import { toast } from "sonner";
-import ExportDialog from "./ExportDialog";
 import ChatInput from "./zen/ChatInput";
+import ThinkingBlock from "./zen/ThinkingBlock";
 import { withCsrfHeaders } from "@/lib/csrf";
 import { cn } from "@/lib/utils";
 import type { ModelId } from "./zen/store";
@@ -15,6 +14,9 @@ interface Message {
   content: string;
   citations?: Citation[];
   timestamp: Date;
+  thinking?: string;
+  thinkingStartedAt?: number;
+  thinkingDone?: boolean;
 }
 
 interface Citation {
@@ -54,7 +56,7 @@ export default function ChatInterface({
 
     // Helper: render inline rich text (bold **...**, italic *...*, and code `...`)
     const renderInlineRich = (text: string) => {
-      const nodes: (string | JSX.Element)[] = [];
+      const nodes: (string | ReactElement)[] = [];
       // First split by code spans using backticks
       const codeSplit = text.split(/(`[^`]+`)/g);
       codeSplit.forEach((segment, i) => {
@@ -101,7 +103,7 @@ export default function ChatInterface({
     };
 
     // Split into blocks by triple backticks for code blocks
-    const blocks: JSX.Element[] = [];
+    const blocks: ReactElement[] = [];
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -236,7 +238,6 @@ export default function ChatInterface({
   };
 
   const handleSendMessage = async (text: string) => {
-
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -257,52 +258,169 @@ export default function ChatInterface({
           body: JSON.stringify({
             message: userMessage.content,
             model: model || "deepseek-v4-flash",
+            stream: true,
           }),
         })
       );
 
-      if (response.ok) {
-        const chatResponse = await response.json();
-        console.log("📨 Full chat response:", chatResponse);
-        
-        // Store conversation ID for export functionality
-        if (chatResponse.conversation_id && !conversationId) {
-          console.log("🔄 Setting conversation ID:", chatResponse.conversation_id);
-          setConversationId(chatResponse.conversation_id);
-        } else {
-          console.log("❌ No conversation_id in response or already set:", {
-            has_conversation_id: !!chatResponse.conversation_id,
-            current_conversationId: conversationId,
-            response_conversation_id: chatResponse.conversation_id
-          });
-        }
-        
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: chatResponse.response,
-          citations: chatResponse.citations.map((citation: { page: number; snippet: string; similarity?: number }) => ({
-            page: citation.page,
-            snippet: citation.snippet,
-            similarity: citation.similarity
-          })),
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-        
-        if (!chatResponse.success && chatResponse.error) {
-          toast.error(chatResponse.error);
-        }
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
         toast.error(errorData.detail || "Error al procesar el mensaje");
+        setIsLoading(false);
+        return;
       }
+
+      // Check if the server returned a JSON response (non-streaming fallback)
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const chatResponse = await response.json();
+        handleNonStreamingResponse(chatResponse);
+        return;
+      }
+
+      // Streaming SSE path
+      await handleStreamingResponse(response);
     } catch (error) {
       toast.error("Error de conexión al enviar el mensaje");
       console.error("Chat error:", error);
-    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleNonStreamingResponse = (chatResponse: any) => {
+    console.log("📨 Full chat response:", chatResponse);
+
+    if (chatResponse.conversation_id && !conversationId) {
+      console.log("🔄 Setting conversation ID:", chatResponse.conversation_id);
+      setConversationId(chatResponse.conversation_id);
+    }
+
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: chatResponse.response,
+      citations: chatResponse.citations?.map((citation: { page: number; snippet: string; similarity?: number }) => ({
+        page: citation.page,
+        snippet: citation.snippet,
+        similarity: citation.similarity
+      })),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+    setIsLoading(false);
+
+    if (!chatResponse.success && chatResponse.error) {
+      toast.error(chatResponse.error);
+    }
+  };
+
+  const handleStreamingResponse = async (response: Response) => {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      toast.error("No se pudo leer la respuesta del servidor");
+      setIsLoading(false);
+      return;
+    }
+
+    const assistantId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      citations: [],
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, assistantMessage]);
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let pendingCitations: Citation[] = [];
+    let pendingConversationId: string | null = null;
+
+    const updateAssistantMessage = (
+      updater: (msg: Message) => Message
+    ) => {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.id !== assistantId || last.role !== 'assistant') return prev;
+        const updated = [...prev];
+        updated[updated.length - 1] = updater(last);
+        return updated;
+      });
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let eventType = 'message';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+            continue;
+          }
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6);
+          if (raw === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(raw);
+            if (eventType === 'meta' || parsed.event === 'meta') {
+              pendingConversationId = parsed.conversation_id || null;
+              pendingCitations = (parsed.citations || []).map((c: any) => ({
+                page: c.page,
+                snippet: c.snippet,
+                similarity: c.similarity,
+              }));
+            } else if (eventType === 'thinking_start') {
+              updateAssistantMessage(msg => ({
+                ...msg,
+                thinkingStartedAt: msg.thinkingStartedAt ?? Date.now(),
+                thinkingDone: false,
+              }));
+            } else if (eventType === 'thinking_delta') {
+              const delta = parsed.delta || '';
+              updateAssistantMessage(msg => ({
+                ...msg,
+                thinking: (msg.thinking ?? '') + delta,
+                thinkingStartedAt: msg.thinkingStartedAt ?? Date.now(),
+                thinkingDone: false,
+              }));
+            } else if (eventType === 'thinking_end') {
+              updateAssistantMessage(msg => ({
+                ...msg,
+                thinkingDone: true,
+              }));
+            } else if (eventType === 'text_delta' || eventType === 'delta' || parsed.event === 'delta') {
+              const delta = parsed.delta || '';
+              updateAssistantMessage(msg => ({
+                ...msg,
+                content: msg.content + delta,
+                citations: pendingCitations.length > 0 ? pendingCitations : msg.citations,
+              }));
+            } else if (eventType === 'error' || parsed.event === 'error') {
+              toast.error(parsed.error || "Error en la respuesta");
+            }
+          } catch (e) {
+            // ignore malformed SSE lines
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Streaming error:", error);
+      toast.error("Error de conexión durante la respuesta");
+    } finally {
+      reader.releaseLock();
+      setIsLoading(false);
+      if (pendingConversationId && !conversationId) {
+        setConversationId(pendingConversationId);
+      }
     }
   };
 
@@ -354,6 +472,13 @@ export default function ChatInterface({
                 ? "bg-[var(--bg-muted)] text-[var(--text-primary)]"
                 : "text-[var(--text-primary)]"
             )}>
+              {message.role === "assistant" && message.thinkingStartedAt && (
+                <ThinkingBlock
+                  content={message.thinking ?? ""}
+                  startedAt={message.thinkingStartedAt}
+                  streaming={!message.thinkingDone}
+                />
+              )}
               <div className="break-words">
                 {formatMessageContent(message.content)}
               </div>
@@ -393,15 +518,6 @@ export default function ChatInterface({
             </div>
           </div>
         ))}
-
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl px-4 py-3 flex items-center gap-2 text-[var(--text-muted)]">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="text-sm">Generando respuesta...</span>
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
         </div>

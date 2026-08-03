@@ -54,6 +54,8 @@ export default function PricingClient() {
     {
       name: "Enterprise",
       isCustom: true,
+      monthlyPrice: 0,
+      yearlyPrice: 0,
       tagline: "Para equipos y consultoras",
       features: [
         "Espacios dedicados",
@@ -61,7 +63,7 @@ export default function PricingClient() {
         "API privada + SLA",
         "Soporte prioritario",
       ],
-      cta: { label: "Hablar con ventas", href: "mailto:ventas@docai.com", variant: "outline" as const },
+      cta: { label: "Hablar con ventas", href: "mailto:ventas@cella.ai", variant: "outline" as const },
     },
   ];
 
@@ -157,7 +159,7 @@ export default function PricingClient() {
       </div>
 
       <div className="mt-12 text-center text-sm text-[var(--text-secondary)]">
-        ¿Tienes requisitos especiales? <Link href="mailto:ventas@docai.com" className="text-[var(--accent-primary)] hover:underline">Contacta ventas</Link>.
+        ¿Tienes requisitos especiales? <Link href="mailto:ventas@cella.ai" className="text-[var(--accent-primary)] hover:underline">Contacta ventas</Link>.
       </div>
     </div>
   );

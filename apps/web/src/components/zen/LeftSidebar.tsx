@@ -8,21 +8,28 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
-  X,
   Loader2,
   Bot,
   Clock,
   Settings,
+  PanelLeft,
 } from "lucide-react";
-import { useZenStore, type ZenDocument, type Project, type Conversation } from "./store";
+import { useZenStore, type ZenDocument, type Conversation } from "./store";
 import ConversationItem from "./ConversationItem";
 import UploadModal from "./UploadModal";
 import HistoryModal from "./HistoryModal";
 import SettingsPopover from "./SettingsPopover";
+import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export default function LeftSidebar({ onClose }: { onClose: () => void }) {
+export default function LeftSidebar({
+  onClose,
+  collapsed = false,
+}: {
+  onClose: () => void;
+  collapsed?: boolean;
+}) {
   const {
     projects,
     documents,
@@ -62,13 +69,32 @@ export default function LeftSidebar({ onClose }: { onClose: () => void }) {
           createdAt: d.created_at || d.createdAt || new Date().toISOString(),
         }));
         setDocuments(docs);
+        return docs;
       }
     } catch {} finally {
       setLoadingDocs(false);
     }
+    return [];
   }, [setDocuments]);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      const docs = await fetchDocuments();
+      const hasPending = docs.some((d) => d.status === "pending" || d.status === "processing");
+      if (hasPending && !cancelled) {
+        timer = setTimeout(poll, 4000);
+      }
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [fetchDocuments]);
 
   const toggleProject = (id: string) => {
     setExpandedProjects((prev) => {
@@ -130,9 +156,64 @@ export default function LeftSidebar({ onClose }: { onClose: () => void }) {
     .filter((c) => !c.pinned)
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
+  const railItem = (
+    icon: React.ReactNode,
+    label: string,
+    onClick: () => void,
+    active = false
+  ) => (
+    <button
+      onClick={onClick}
+      title={label}
+      className={cn(
+        "w-full flex items-center justify-center p-1.5 rounded-md transition-colors",
+        collapsed && "justify-center",
+        active
+          ? "text-[var(--text-primary)] bg-[var(--bg-muted)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
+      )}
+    >
+      {icon}
+      {!collapsed && <span className="ml-2 flex-1 text-left text-xs">{label}</span>}
+    </button>
+  );
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center h-full py-2 gap-0.5">
+        <button
+          onClick={onClose}
+          title="Expandir panel"
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+        <div className="flex-1 w-full flex flex-col items-center gap-0.5 pt-1">
+          {railItem(<Plus className="w-4 h-4" />, "Nuevo chat", handleNewChat)}
+          {railItem(<Upload className="w-4 h-4" />, "Subir archivo", () => setShowUpload(true))}
+          {railItem(<Bot className="w-4 h-4" />, "Agent", () => {})}
+          {railItem(<Clock className="w-4 h-4" />, "Historial", () => setShowHistory(true))}
+        </div>
+        <div className="w-full flex flex-col items-center gap-0.5">
+          {railItem(<Settings className="w-4 h-4" />, "Ajustes", () => setShowSettings(true))}
+        </div>
+        {showUpload && <UploadModal onClose={() => setShowUpload(false)} onComplete={handleUploadComplete} />}
+        <HistoryModal open={showHistory} onClose={() => setShowHistory(false)} />
+        <SettingsPopover open={showSettings} onClose={() => setShowSettings(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-2 pt-2 pb-1.5 space-y-1">
+        <button
+          onClick={onClose}
+          className="w-full flex items-center justify-center p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+          title="Colapsar panel"
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
         <button
           onClick={handleNewChat}
           className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
@@ -225,6 +306,7 @@ export default function LeftSidebar({ onClose }: { onClose: () => void }) {
                       {project.documents.map((docId) => {
                         const doc = documents.find((d) => d.id === docId);
                         if (!doc) return null;
+                        const isProcessing = doc.status === "pending" || doc.status === "processing";
                         return (
                           <button
                             key={doc.id}
@@ -237,6 +319,14 @@ export default function LeftSidebar({ onClose }: { onClose: () => void }) {
                           >
                             <FileText className="w-3 h-3 shrink-0" />
                             <span className="truncate">{doc.title}</span>
+                            {isProcessing && (
+                              <span className="ml-auto flex items-center gap-1 shrink-0">
+                                <Loader2 className="w-2.5 h-2.5 text-[var(--accent-primary)] animate-spin" />
+                                <span className="text-[9px] text-[var(--accent-primary)]">
+                                  {doc.status === "pending" ? "Esperando" : "Procesando"}
+                                </span>
+                              </span>
+                            )}
                           </button>
                         );
                       })}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, ScrollText, GitFork, ListChecks, Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useZenStore } from "./store";
 import type { RightTab } from "./store";
 import DocumentViewer from "@/components/DocumentViewer";
@@ -19,36 +19,73 @@ const tabs: { id: RightTab; label: string }[] = [
   { id: "quiz", label: "Quiz" },
 ];
 
+interface QuizQuestion {
+  question: string;
+  options?: string[];
+  correct?: string;
+}
+
+interface QuizData {
+  markdown?: string;
+  questions?: QuizQuestion[];
+  error?: boolean;
+}
+
 export default function RightSidebar() {
   const { activeDocumentId, documents, rightTab, setRightTab } = useZenStore();
   const activeDoc = documents.find((d) => d.id === activeDocumentId);
 
-  const [quizData, setQuizData] = useState<any>(null);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [mindmapCode, setMindmapCode] = useState<string>("");
   const [loadingMindmap, setLoadingMindmap] = useState(false);
   const [mindmapView, setMindmapView] = useState<"concept" | "mermaid">("concept");
   const [summaryKey, setSummaryKey] = useState(0);
 
+  // Load persisted mindmap (auto-generated during indexing) when document changes
   useEffect(() => {
     setQuizData(null);
     setMindmapCode("");
     setSummaryKey((k) => k + 1);
+
+    if (!activeDocumentId) return;
+
+    const loadMindmap = async () => {
+      setLoadingMindmap(true);
+      try {
+        const res = await fetch(
+          `${API_URL}/documents/${activeDocumentId}/mindmap`,
+          { method: "GET", credentials: "include" }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.markdown) setMindmapCode(data.markdown);
+        }
+      } catch {
+        setMindmapCode("");
+      } finally {
+        setLoadingMindmap(false);
+      }
+    };
+
+    loadMindmap();
   }, [activeDocumentId]);
 
   const generateMindmap = async () => {
     if (!activeDocumentId) return;
     setLoadingMindmap(true);
     try {
-      const params = new URLSearchParams();
-      params.set("focus_query", "");
-      params.set("detail_level", "2");
       const res = await fetch(
-        `${API_URL}/documents/${activeDocumentId}/mindmap?${params}`,
-        { method: "POST", credentials: "include", headers: withCsrfHeaders().headers }
+        `${API_URL}/documents/${activeDocumentId}/mindmap`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: withCsrfHeaders({ headers: { "Content-Type": "application/json" } }).headers,
+          body: JSON.stringify({ detail_level: 2 }),
+        }
       );
       const data = await res.json();
-      if (data.md_content) setMindmapCode(data.md_content);
+      if (data.markdown) setMindmapCode(data.markdown);
     } catch { setMindmapCode(""); } finally { setLoadingMindmap(false); }
   };
 
@@ -58,7 +95,12 @@ export default function RightSidebar() {
     try {
       const res = await fetch(
         `${API_URL}/documents/${activeDocumentId}/quiz`,
-        { method: "POST", credentials: "include", headers: withCsrfHeaders().headers }
+        {
+          method: "POST",
+          credentials: "include",
+          headers: withCsrfHeaders({ headers: { "Content-Type": "application/json" } }).headers,
+          body: JSON.stringify({}),
+        }
       );
       const data = await res.json();
       setQuizData(data);
@@ -182,7 +224,7 @@ export default function RightSidebar() {
 
         return (
           <div className="p-4 space-y-4">
-            {quizData.questions?.map((q: any, i: number) => (
+            {quizData.questions?.map((q: QuizQuestion, i: number) => (
               <div key={i} className="p-3 rounded-xl border border-[var(--border-subtle)]">
                 <p className="text-xs font-medium text-[var(--text-primary)] mb-2">
                   {i + 1}. {q.question}

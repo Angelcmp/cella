@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(__file__))
 os.chdir(os.path.join(os.path.dirname(__file__), '..', 'api'))
 
 from document_processor import DocumentProcessor
-from rag_system import SummaryGenerator
+from rag_system import SummaryGenerator, MindmapGenerator
 
 def get_file_type_from_path(file_path: str) -> str:
     """Determine file type from file path"""
@@ -129,6 +129,46 @@ def generate_document_summary(document_id: str):
         # Don't fail the entire process if summary fails
         return True
 
+
+def generate_document_mindmap(document_id: str):
+    """Generate automatic mindmap after document processing"""
+    try:
+        from database_simple import SessionLocal, Document
+        
+        print(f"🧠 Generating automatic mindmap for document {document_id}")
+        
+        mindmap_generator = MindmapGenerator()
+        
+        db = SessionLocal()
+        try:
+            document = db.query(Document).filter(Document.id == document_id).first()
+            if not document:
+                print(f"⚠️ Document {document_id} not found for mindmap generation")
+                return True
+            
+            result = mindmap_generator.generate_mindmap(
+                db=db,
+                document_id=document_id,
+                document_title=document.title,
+            )
+            
+            if result["success"]:
+                print(f"✅ Mindmap generated successfully for document {document_id}")
+                return True
+            else:
+                print(f"⚠️ Mindmap generation failed: {result.get('error', 'Unknown error')}")
+                # Don't fail the entire process if mindmap fails
+                return True
+                
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"⚠️ Mindmap generation error: {e}")
+        # Don't fail the entire process if mindmap fails
+        return True
+
+
 def process_document(document_id: str, file_path: str):
     """
     Real document processing: extract text, create chunks, generate embeddings, and create summary
@@ -159,8 +199,9 @@ def process_document(document_id: str, file_path: str):
                 print(f"   🔤 Tokens: {result['total_tokens']}")
                 print(f"   📦 Chunks: {result['total_chunks']}")
                 
-                # Generate automatic summary
+                # Generate automatic summary and mindmap
                 generate_document_summary(document_id)
+                generate_document_mindmap(document_id)
                 
                 return True
             else:
@@ -181,7 +222,10 @@ def simulate_worker():
     print("📋 Checking for pending documents...")
     
     try:
-        from database_simple import SessionLocal, Document
+        from database_simple import SessionLocal, Document, create_tables
+        
+        # Ensure tables exist before polling
+        create_tables()
         
         while True:
             db = SessionLocal()
