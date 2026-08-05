@@ -6,9 +6,10 @@ import {
   Moon,
   Sun,
   BookOpen,
-  CircleDollarSign,
+  Sparkles,
   ArrowLeft,
 } from "lucide-react";
+import { useZenStore } from "./store";
 
 interface SettingsPopoverProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface SettingsPopoverProps {
 export default function SettingsPopover({ open, onClose }: SettingsPopoverProps) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const ref = useRef<HTMLDivElement>(null);
+  const setModelsModalOpen = useZenStore((s) => s.setModelsModalOpen);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -76,6 +78,17 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
 
           <div className="my-1 border-t border-[var(--border-subtle)]" />
 
+          <button
+            onClick={() => {
+              onClose();
+              setModelsModalOpen(true);
+            }}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+            Modelos e IA
+          </button>
+
           <Link
             href="/docs"
             onClick={onClose}
@@ -83,15 +96,6 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
           >
             <BookOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             Documentación
-          </Link>
-
-          <Link
-            href="/pricing"
-            onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
-          >
-            <CircleDollarSign className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-            Precios
           </Link>
 
           <Link

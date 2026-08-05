@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Files, Check } from "lucide-react";
 import { useZenStore, type ZenDocument } from "./store";
 import ChatInterface from "@/components/ChatInterface";
 import ChatInput from "./ChatInput";
 import UploadModal from "./UploadModal";
 import ZenUploadZone from "./ZenUploadZone";
 import TimelineRenderer from "./TimelineRenderer";
+import { cn } from "@/lib/utils";
 
 export default function ChatPanel() {
   const {
@@ -17,10 +18,24 @@ export default function ChatPanel() {
     addDocument,
     setActiveDocument,
     ensureDefaultProject,
+    chatDocumentIds,
+    setChatDocumentIds,
   } = useZenStore();
 
   const [showUpload, setShowUpload] = useState(false);
+  const [docPickerOpen, setDocPickerOpen] = useState(false);
   const activeDoc = documents.find((d) => d.id === activeDocumentId);
+
+  const indexedDocs = documents.filter((d) => d.status === "indexed");
+
+  const toggleChatDoc = (id: string) => {
+    const next = chatDocumentIds.includes(id)
+      ? chatDocumentIds.filter((x) => x !== id)
+      : [...chatDocumentIds, id];
+    setChatDocumentIds(next);
+  };
+
+  const isMultiChat = chatDocumentIds.length > 1;
 
   const handleUploadComplete = (doc: ZenDocument) => {
     addDocument(doc);
@@ -176,9 +191,70 @@ export default function ChatPanel() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex items-center gap-2 px-4 pt-2 pb-0.5 relative">
+        <button
+          onClick={() => setDocPickerOpen((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-colors",
+            isMultiChat
+              ? "border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
+              : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]"
+          )}
+          title="Seleccionar documentos para el chat"
+        >
+          <Files className="w-3 h-3" />
+          {isMultiChat
+            ? `${chatDocumentIds.length} documentos`
+            : "Chat con 1 documento"}
+        </button>
+        <span className="text-[10px] text-[var(--text-muted)] truncate">{activeDoc.title}</span>
+
+        {docPickerOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setDocPickerOpen(false)} />
+            <div className="absolute left-2 top-9 z-40 w-72 max-h-72 overflow-y-auto bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-xl p-2">
+              <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] px-2 pb-1.5">
+                Selecciona documentos (chat multi-doc)
+              </p>
+              {indexedDocs.length === 0 ? (
+                <p className="text-[10px] text-[var(--text-muted)] px-2 py-3 text-center">
+                  No hay documentos indexados
+                </p>
+              ) : (
+                indexedDocs.map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => toggleChatDoc(doc.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[11px] transition-colors",
+                      chatDocumentIds.includes(doc.id)
+                        ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
+                        chatDocumentIds.includes(doc.id)
+                          ? "bg-[var(--accent-primary)] border-[var(--accent-primary)]"
+                          : "border-[var(--border-subtle)]"
+                      )}
+                    >
+                      {chatDocumentIds.includes(doc.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                    </span>
+                    <span className="truncate">{doc.title}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
       <ChatInterface
         documentId={activeDoc.id}
         documentTitle={activeDoc.title}
+        documentIds={isMultiChat ? chatDocumentIds : undefined}
         model={selectedModel}
         onCitationClick={() => {}}
         onUploadClick={() => setShowUpload(true)}

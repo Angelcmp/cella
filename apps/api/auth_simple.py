@@ -171,10 +171,35 @@ def verify_token(token: str) -> Optional[TokenPayload]:
 # FastAPI helpers
 # ---------------------------------------------------------------------------
 
+def get_or_create_local_user(db: Session) -> User:
+    """Return (creating if needed) the single local system user."""
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == cfg.LOCAL_USER_EMAIL.lower())
+        .first()
+    )
+    if user:
+        return user
+    user = User(
+        email=cfg.LOCAL_USER_EMAIL,
+        hashed_password="local-no-password",
+        plan=cfg.LOCAL_USER_PLAN,
+        full_name="Cella Local",
+        username="local",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
+    if cfg.LOCAL_MODE:
+        return get_or_create_local_user(db)
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

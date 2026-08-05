@@ -11,6 +11,52 @@ interface SearchResult {
   href: string
 }
 
+// Mock search data - en producción esto vendría de una API o índice
+const searchData: SearchResult[] = [
+    {
+      id: '1',
+      title: 'Inicio Rápido',
+      content: 'Levanta Cella en tu máquina con ./start.sh y configura un modelo de IA...',
+      section: 'Comenzar',
+      href: '/docs#quick-start'
+    },
+    {
+      id: '2',
+      title: 'Instalación y Configuración',
+      content: 'Guía paso a paso para instalar Cella en tu sistema local...',
+      section: 'Comenzar',
+      href: '/docs#installation'
+    },
+    {
+      id: '3',
+      title: 'Configurar Modelos e IA',
+      content: 'Conecta Ollama local o añade tu API key (OpenAI, Claude, DeepSeek, Gemini)...',
+      section: 'Modelos e IA',
+      href: '/docs#models-overview'
+    },
+    {
+      id: '4',
+      title: 'Configurar Ollama',
+      content: 'Usa modelos locales sin API key con Ollama...',
+      section: 'Modelos e IA',
+      href: '/docs#ollama'
+    },
+    {
+      id: '5',
+      title: 'Chat con Documentos RAG',
+      content: 'Cómo usar el sistema de chat inteligente con documentos...',
+      section: 'Guía de Usuario',
+      href: '/docs#chat-rag'
+    },
+    {
+      id: '6',
+      title: 'Problemas Comunes',
+      content: 'Soluciones a los problemas más frecuentes en Cella...',
+      section: 'Solución de Problemas',
+      href: '/docs#common-issues'
+    }
+  ]
+
 export default function DocsSearch() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -18,45 +64,6 @@ export default function DocsSearch() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
-
-  // Mock search data - en producción esto vendría de una API o índice
-  const searchData: SearchResult[] = [
-    {
-      id: '1',
-      title: 'Instalación y Configuración',
-      content: 'Guía paso a paso para instalar DocAI en tu sistema local...',
-      section: 'Comenzar',
-      href: '/docs#installation'
-    },
-    {
-      id: '2',
-      title: 'Chat con Documentos RAG',
-      content: 'Cómo usar el sistema de chat inteligente con documentos...',
-      section: 'Guía de Usuario',
-      href: '/docs#chat-rag'
-    },
-    {
-      id: '3',
-      title: 'API de Autenticación',
-      content: 'Endpoints para registrarse, iniciar sesión y obtener tokens...',
-      section: 'API Reference',
-      href: '/docs#authentication'
-    },
-    {
-      id: '4',
-      title: 'Arquitectura del Sistema',
-      content: 'Descripción de la arquitectura y componentes de DocAI...',
-      section: 'Técnico',
-      href: '/docs#architecture'
-    },
-    {
-      id: '5',
-      title: 'Problemas Comunes',
-      content: 'Soluciones a los problemas más frecuentes en DocAI...',
-      section: 'Troubleshooting',
-      href: '/docs#common-issues'
-    }
-  ]
 
   // Open search with Cmd+K or Ctrl+K
   useEffect(() => {
@@ -194,7 +201,7 @@ export default function DocsSearch() {
               </div>
             ) : query ? (
               <div className="p-8 text-center">
-                <p className="text-muted-foreground">No se encontraron resultados para "{query}"</p>
+                <p className="text-muted-foreground">No se encontraron resultados para &quot;{query}&quot;</p>
               </div>
             ) : (
               <div className="p-8 text-center">
@@ -210,7 +217,7 @@ export default function DocsSearch() {
               <span>↵ Seleccionar</span>
               <span>Esc Cerrar</span>
             </div>
-            <span>Buscar por DocAI</span>
+            <span>Buscar en Cella</span>
           </div>
         </div>
       </div>

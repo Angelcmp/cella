@@ -23,11 +23,13 @@ interface Citation {
   page: number;
   snippet: string;
   similarity?: number;
+  document?: string;
 }
 
 interface ChatInterfaceProps {
   documentId: string;
   documentTitle: string;
+  documentIds?: string[];
   model?: ModelId;
   onCitationClick?: (page: number) => void;
   onUploadClick?: () => void;
@@ -37,11 +39,14 @@ interface ChatInterfaceProps {
 export default function ChatInterface({ 
   documentId, 
   documentTitle,
+  documentIds,
   model,
   onCitationClick,
   onUploadClick,
   className = "" 
 }: ChatInterfaceProps) {
+  const isMulti = Array.isArray(documentIds) && documentIds.length > 1;
+  const effectiveDocumentIds = isMulti ? documentIds : [documentId];
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -223,11 +228,13 @@ export default function ChatInterface({
     const welcomeMessage: Message = {
       id: 'welcome',
       role: 'assistant',
-      content: `¡Hola! Estoy listo para responder preguntas sobre "${documentTitle}". Puedo ayudarte a encontrar información específica y proporcionarte citas exactas. ¿En qué puedo ayudarte?`,
+      content: isMulti
+        ? `¡Hola! Estoy listo para responder preguntas sobre ${effectiveDocumentIds.length} documentos. Puedo buscar información en todos ellos y citar la fuente de cada respuesta. ¿En qué puedo ayudarte?`
+        : `¡Hola! Estoy listo para responder preguntas sobre "${documentTitle}". Puedo ayudarte a encontrar información específica y proporcionarte citas exactas. ¿En qué puedo ayudarte?`,
       timestamp: new Date()
     };
     setMessages([welcomeMessage]);
-  }, [documentTitle]);
+  }, [documentTitle, effectiveDocumentIds.length, isMulti]);
 
   useEffect(() => {
     scrollToBottom();
@@ -259,6 +266,7 @@ export default function ChatInterface({
             message: userMessage.content,
             model: model || "deepseek-v4-flash",
             stream: true,
+            document_ids: isMulti ? effectiveDocumentIds : undefined,
           }),
         })
       );
@@ -299,10 +307,11 @@ export default function ChatInterface({
       id: (Date.now() + 1).toString(),
       role: 'assistant',
       content: chatResponse.response,
-      citations: chatResponse.citations?.map((citation: { page: number; snippet: string; similarity?: number }) => ({
+      citations: chatResponse.citations?.map((citation: { page: number; snippet: string; similarity?: number; document?: string }) => ({
         page: citation.page,
         snippet: citation.snippet,
-        similarity: citation.similarity
+        similarity: citation.similarity,
+        document: citation.document,
       })),
       timestamp: new Date()
     };
@@ -377,6 +386,7 @@ export default function ChatInterface({
                 page: c.page,
                 snippet: c.snippet,
                 similarity: c.similarity,
+                document: c.document,
               }));
             } else if (eventType === 'thinking_start') {
               updateAssistantMessage(msg => ({
@@ -497,6 +507,11 @@ export default function ChatInterface({
                       <span className="text-[var(--text-secondary)] italic leading-snug">
                         &ldquo;{citation.snippet}&rdquo;
                       </span>
+                      {citation.document && (
+                        <span className="shrink-0 text-[10px] text-[var(--text-muted)] truncate max-w-[140px]" title={citation.document}>
+                          · {citation.document}
+                        </span>
+                      )}
                       {citation.similarity && (
                         <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                           {Math.round(citation.similarity * 100)}%

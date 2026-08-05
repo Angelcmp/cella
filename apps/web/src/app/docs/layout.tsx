@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import './styles.css'
 
 export const metadata: Metadata = {
-  title: 'Documentación | Cella',
-  description: 'Documentación de Cella - Análisis inteligente de documentos con IA: chat con RAG, resúmenes, mapas mentales y quiz.',
-  keywords: ['Cella', 'documentación', 'IA', 'RAG', 'análisis de documentos'],
+  title: 'Guía de Cella | Documentación',
+  description: 'Aprende a instalar y usar Cella, tu asistente de estudio local con IA: Ollama, API keys, chat con RAG, resúmenes, mapas mentales y quiz.',
+  keywords: ['Cella', 'documentación', 'IA', 'RAG', 'local', 'Ollama', 'análisis de documentos'],
 }
 
 export default function DocsLayout({

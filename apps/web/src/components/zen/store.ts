@@ -28,22 +28,17 @@ export interface Conversation {
   updatedAt: string;
 }
 
-export type RightTab = "document" | "summary" | "mindmap" | "quiz";
+export type RightTab = "document" | "summary" | "mindmap" | "quiz" | "guide" | "faq" | "notes";
 
-export type ModelId =
-  | "deepseek-v4-flash"
-  | "glm-4.5-flash"
-  | "glm-4.5-air"
-  | "glm-4.7"
-  | "glm-4.7-flash";
+export type ModelId = string;
 
-export const AVAILABLE_MODELS: { id: ModelId; name: string; provider: string; free: boolean }[] = [
-  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", provider: "deepseek", free: true },
-  { id: "glm-4.5-flash", name: "GLM-4.5 Flash", provider: "zhipu", free: true },
-  { id: "glm-4.5-air", name: "GLM-4.5 Air", provider: "zhipu", free: false },
-  { id: "glm-4.7", name: "GLM-4.7", provider: "zhipu", free: false },
-  { id: "glm-4.7-flash", name: "GLM-4.7 Flash", provider: "zhipu", free: true },
-];
+export interface ZenModel {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -69,9 +64,12 @@ interface ZenState {
   activeDocumentId: string | null;
   activeConversationId: string | null;
   rightTab: RightTab;
+  chatDocumentIds: string[];
 
   conversations: Conversation[];
   selectedModel: ModelId;
+  models: ZenModel[];
+  modelsModalOpen: boolean;
 
   setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
@@ -82,12 +80,16 @@ interface ZenState {
   setActiveDocument: (id: string | null) => void;
   setActiveConversation: (id: string | null) => void;
   setRightTab: (tab: RightTab) => void;
+  setChatDocumentIds: (ids: string[]) => void;
 
   addConversation: (conv: Conversation) => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   removeConversation: (id: string) => void;
   togglePinConversation: (id: string) => void;
   setSelectedModel: (model: ModelId) => void;
+  setModels: (models: ZenModel[]) => void;
+  refreshModels: () => Promise<void>;
+  setModelsModalOpen: (open: boolean) => void;
 }
 
 export const useZenStore = create<ZenState>((set, get) => ({
@@ -97,9 +99,12 @@ export const useZenStore = create<ZenState>((set, get) => ({
   activeDocumentId: null,
   activeConversationId: null,
   rightTab: "mindmap",
+  chatDocumentIds: [],
 
   conversations: loadFromStorage<Conversation[]>("doczen:conversations", []),
-  selectedModel: loadFromStorage<ModelId>("doczen:selectedModel", "deepseek-v4-flash"),
+  selectedModel: loadFromStorage<ModelId>("doczen:selectedModel", ""),
+  models: [],
+  modelsModalOpen: false,
 
   setProjects: (projects) => set({ projects }),
   addProject: (project) =>
@@ -125,6 +130,7 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setActiveDocument: (id) => set({ activeDocumentId: id }),
   setActiveConversation: (id) => set({ activeConversationId: id }),
   setRightTab: (tab) => set({ rightTab: tab }),
+  setChatDocumentIds: (ids) => set({ chatDocumentIds: ids }),
 
   addConversation: (conv) => {
     const convs = [...get().conversations, conv];
@@ -162,4 +168,21 @@ export const useZenStore = create<ZenState>((set, get) => ({
     set({ selectedModel: model });
     saveToStorage("doczen:selectedModel", model);
   },
+  setModels: (models) => {
+    set({ models });
+    const { selectedModel } = get();
+    if (!selectedModel && models.length > 0) {
+      set({ selectedModel: models[0].id });
+      saveToStorage("doczen:selectedModel", models[0].id);
+    }
+  },
+  refreshModels: async () => {
+    try {
+      const res = await fetch(`${API_URL}/models`);
+      if (!res.ok) return;
+      const models = (await res.json()) as ZenModel[];
+      get().setModels(models);
+    } catch {}
+  },
+  setModelsModalOpen: (open) => set({ modelsModalOpen: open }),
 }));

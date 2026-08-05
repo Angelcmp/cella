@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ArrowUp, Paperclip, ChevronDown, Check, Loader2 } from "lucide-react";
-import { useZenStore, AVAILABLE_MODELS, type ModelId } from "./store";
+import { useZenStore, type ModelId } from "./store";
 
 interface ChatInputProps {
   onSend: (message: string, model: ModelId) => void;
@@ -17,13 +17,13 @@ export default function ChatInput({
   isLoading,
   placeholder = "Pregunta sobre tu documento...",
 }: ChatInputProps) {
-  const { selectedModel, setSelectedModel } = useZenStore();
+  const { selectedModel, setSelectedModel, models, setModelsModalOpen } = useZenStore();
   const [message, setMessage] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentModel = AVAILABLE_MODELS.find((m) => m.id === selectedModel);
+  const currentModel = models.find((m) => m.id === selectedModel);
 
   const handleSend = () => {
     if (!message.trim() || isLoading) return;
@@ -87,30 +87,47 @@ export default function ChatInput({
                 className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
               >
                 <span className="max-w-[60px] truncate">
-                  {currentModel?.name || "Modelo"}
+                  {currentModel?.name || (models.length === 0 ? "Sin modelos" : "Modelo")}
                 </span>
                 <ChevronDown className={`w-2 h-2 transition-transform ${modelOpen ? "rotate-180" : ""}`} />
               </button>
 
               {modelOpen && (
-                <div className="absolute bottom-full right-0 mb-1 w-40 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-glow py-0.5 z-50">
-                  {AVAILABLE_MODELS.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedModel(m.id);
-                        setModelOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors ${
-                        selectedModel === m.id
-                          ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
-                      }`}
-                    >
-                      <span className="flex-1 text-left">{m.name}</span>
-                      {selectedModel === m.id && <Check className="w-2.5 h-2.5 shrink-0" />}
-                    </button>
-                  ))}
+                <div className="absolute bottom-full right-0 mb-1 w-44 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-glow py-0.5 z-50">
+                  {models.length === 0 ? (
+                    <div className="px-3 py-2 space-y-1.5">
+                      <p className="text-[10px] text-[var(--text-muted)] leading-snug">
+                        No hay modelos configurados. Añade Ollama o una API key en Ajustes.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setModelOpen(false);
+                          setModelsModalOpen(true);
+                        }}
+                        className="w-full text-left text-[10px] text-[var(--accent-primary)] hover:underline"
+                      >
+                        Abrir ajustes de modelos →
+                      </button>
+                    </div>
+                  ) : (
+                    models.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedModel(m.id);
+                          setModelOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors ${
+                          selectedModel === m.id
+                            ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
+                        }`}
+                      >
+                        <span className="flex-1 text-left truncate">{m.name}</span>
+                        {selectedModel === m.id && <Check className="w-2.5 h-2.5 shrink-0" />}
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
