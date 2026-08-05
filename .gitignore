@@ -148,6 +148,7 @@ ENV/
 *.txt
 *.md
 !README.md
+!ROADMAP_PENDIENTE.md
 
 # Dev logs
 *.log
