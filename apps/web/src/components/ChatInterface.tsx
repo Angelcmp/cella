@@ -264,7 +264,7 @@ export default function ChatInterface({
           credentials: 'include',
           body: JSON.stringify({
             message: userMessage.content,
-            model: model || "deepseek-v4-flash",
+            model: model || undefined,
             stream: true,
             document_ids: isMulti ? effectiveDocumentIds : undefined,
           }),
