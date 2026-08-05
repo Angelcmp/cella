@@ -8,6 +8,9 @@ import DocumentViewer from "@/components/DocumentViewer";
 import { DocumentSummary } from "@/components/DocumentSummary";
 import ConceptMapViewer from "@/components/ConceptMapViewer";
 import MermaidRenderer from "@/components/MermaidRenderer";
+import StudyGuideTab from "./StudyGuideTab";
+import FaqTab from "./FaqTab";
+import NotesTab from "./NotesTab";
 import { withCsrfHeaders } from "@/lib/csrf";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -17,6 +20,9 @@ const tabs: { id: RightTab; label: string }[] = [
   { id: "summary", label: "Resumen" },
   { id: "mindmap", label: "Mapa" },
   { id: "quiz", label: "Quiz" },
+  { id: "guide", label: "Guía" },
+  { id: "faq", label: "FAQ" },
+  { id: "notes", label: "Notas" },
 ];
 
 interface QuizQuestion {
@@ -249,6 +255,15 @@ export default function RightSidebar() {
             </button>
           </div>
         );
+
+      case "guide":
+        return <StudyGuideTab documentId={activeDoc.id} documentTitle={activeDoc.title} />;
+
+      case "faq":
+        return <FaqTab documentId={activeDoc.id} />;
+
+      case "notes":
+        return <NotesTab documentId={activeDoc.id} />;
     }
   };
 

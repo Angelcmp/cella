@@ -17,7 +17,6 @@ class UserResponse(BaseModel):
     username: Optional[str] = None
     profile_picture: Optional[str] = None
     last_activity: Optional[datetime] = None
-    is_demo_admin: Optional[bool] = False
 
     class Config:
         from_attributes = True

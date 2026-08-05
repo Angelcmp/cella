@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Check, ExternalLink, AlertTriangle, Info, CheckCircle } from 'lucide-react'
+import { Copy, Check, AlertTriangle, Info, CheckCircle } from 'lucide-react'
 
 interface CodeBlockProps {
   children: string
@@ -111,11 +111,17 @@ export default function DocsContent() {
         </h2>
 
         <p className="text-lg text-muted-foreground mb-6">
-          Cella es una herramienta de análisis inteligente de documentos basada en IA. Sube un PDF,
-          Word, PowerPoint o archivo de texto y conversa con su contenido de forma natural: obtén
-          respuestas precisas con citas a la página exacta, resúmenes, mapas mentales y quiz generados
-          automáticamente.
+          Cella es un asistente de estudio y análisis de documentos, estilo NotebookLM, que funciona{' '}
+          <strong>100% en tu máquina</strong>. Sube un PDF, Word, PowerPoint o texto y conversa con su
+          contenido de forma natural: respuestas con citas a la página exacta, resúmenes, mapas
+          mentales, quiz y más.
         </p>
+
+        <Callout type="success" title="100% Local">
+          Cella no requiere registro, no sube tus documentos a ninguna nube y no tiene planes de pago.
+          Tú eliges qué modelo de IA usar: modelos locales con Ollama o tu propia API key
+          (OpenAI, Claude, DeepSeek, Gemini, etc.).
+        </Callout>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
@@ -135,17 +141,12 @@ export default function DocsContent() {
             <ul className="space-y-2 text-muted-foreground">
               <li>• <strong>Frontend:</strong> Next.js 15 + TypeScript</li>
               <li>• <strong>Backend:</strong> FastAPI + Python</li>
-              <li>• <strong>Base de Datos:</strong> SQLite</li>
+              <li>• <strong>Base de Datos:</strong> SQLite (local)</li>
               <li>• <strong>Embeddings:</strong> FastEmbed local (sin API key)</li>
-              <li>• <strong>IA:</strong> DeepSeek + GLM (Zhipu)</li>
+              <li>• <strong>IA:</strong> tu modelo — Ollama local o API keys propias</li>
             </ul>
           </div>
         </div>
-
-        <Callout type="info" title="Estado Actual">
-          Cella es una aplicación funcional y lista para uso real. No requiere registro: entras
-          directamente al espacio de trabajo, subes tus documentos y empiezas a analizarlos.
-        </Callout>
       </section>
 
       {/* Quick Start */}
@@ -155,25 +156,25 @@ export default function DocsContent() {
         </h2>
 
         <p className="text-muted-foreground mb-6">
-          La forma más rápida de levantar Cella en tu máquina es usar el script de inicio, que levanta
-          API, worker y frontend juntos:
+          La forma más rápida de levantar Cella es clonar el repositorio y usar el script de inicio,
+          que levanta API, worker y frontend juntos:
         </p>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">1. Configurar claves de IA</h3>
-            <p className="text-muted-foreground mb-3">
-              Copia <code className="bg-muted px-2 py-1 rounded">apps/api/.env.example</code> a{' '}
-              <code className="bg-muted px-2 py-1 rounded">apps/api/.env</code> y completa las claves:
-            </p>
-            <CodeBlock filename="apps/api/.env">{`# DeepSeek (chat principal): https://platform.deepseek.com/api_keys
-DEEPSEEK_API_KEY=tu_clave_deepseek
+            <h3 className="text-xl font-semibold text-foreground mb-4">1. Clonar e instalar</h3>
+            <CodeBlock>{`git clone <repository-url>
+cd Cella
 
-# Zhipu / GLM (embeddings y chat): https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
-ZHIPU_API_KEY=tu_clave_zhipu
+# Backend (Python 3.11+)
+cd apps/api
+python3 -m venv .venv311
+source .venv311/bin/activate
+pip install -r requirements.txt
 
-# Embeddings: 'local' usa FastEmbed sin API key
-PROVIDER_EMBEDDINGS=local`}</CodeBlock>
+# Frontend
+cd ../web
+npm install`}</CodeBlock>
           </div>
 
           <div>
@@ -181,38 +182,25 @@ PROVIDER_EMBEDDINGS=local`}</CodeBlock>
             <CodeBlock language="bash">{`# Desde la raíz del proyecto
 ./start.sh`}</CodeBlock>
             <p className="text-muted-foreground mt-3">
-              O en modo ligero (solo Redis, sin Postgres/MinIO):{' '}
-              <code className="bg-muted px-2 py-1 rounded">INFRA=light ./start.sh</code>
+              Sin Redis en tu sistema:{' '}
+              <code className="bg-muted px-2 py-1 rounded">SKIP_REDIS=1 ./start.sh</code> (usa cache en memoria).
             </p>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">3. Verificar que funciona</h3>
-            <div className="grid md:grid-cols-3 gap-4 mb-4">
-              <a
-                href="http://localhost:3000"
-                target="_blank"
-                className="flex items-center space-x-2 p-3 bg-primary/10 border border-primary rounded-lg text-primary hover:bg-primary/15 transition-colors"
-              >
-                <span>Frontend</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <a
-                href="http://localhost:8000/docs"
-                target="_blank"
-                className="flex items-center space-x-2 p-3 bg-primary/10 border border-primary rounded-lg text-primary hover:bg-primary/15 transition-colors"
-              >
-                <span>API Docs</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <a
-                href="http://localhost:8000/health"
-                target="_blank"
-                className="flex items-center space-x-2 p-3 bg-primary/10 border border-primary rounded-lg text-primary hover:bg-primary/15 transition-colors"
-              >
-                <span>API Health</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
+            <h3 className="text-xl font-semibold text-foreground mb-4">3. Configurar modelos de IA</h3>
+            <p className="text-muted-foreground mb-3">
+              Sin un modelo configurado no puedes chatear. Abre el espacio de trabajo, pulsa el botón de
+              ajustes y elige <strong>&quot;Modelos e IA&quot;</strong> para conectar Ollama local o añadir una API key:
+            </p>
+            <div className="bg-muted p-6 rounded-lg">
+              <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
+                <li>Entra a <code className="bg-card px-2 py-1 rounded">http://localhost:3000/zen</code></li>
+                <li>Pulsa el botón de ajustes y abre <strong>&quot;Modelos e IA&quot;</strong></li>
+                <li>Añade un proveedor (por ejemplo Ollama o DeepSeek) con su API key</li>
+                <li>Pulsa <strong>&quot;Sync&quot;</strong> para cargar los modelos disponibles</li>
+                <li>Selecciona un modelo por defecto</li>
+              </ol>
             </div>
           </div>
 
@@ -220,8 +208,6 @@ PROVIDER_EMBEDDINGS=local`}</CodeBlock>
             <h3 className="text-xl font-semibold text-foreground mb-4">4. Primer flujo de usuario</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
-                <li>Entra a <code className="bg-card px-2 py-1 rounded">http://localhost:3000</code></li>
-                <li>Abre el espacio de trabajo <code className="bg-card px-2 py-1 rounded">/zen</code></li>
                 <li>Sube un documento desde la barra lateral</li>
                 <li>Espera a que termine el procesamiento</li>
                 <li>¡Pregunta lo que quieras sobre tu documento!</li>
@@ -254,11 +240,11 @@ PROVIDER_EMBEDDINGS=local`}</CodeBlock>
               </ul>
             </div>
             <div>
-              <h4 className="font-medium text-foreground mb-3">Herramientas Opcionales:</h4>
+              <h4 className="font-medium text-foreground mb-3">Opcionales:</h4>
               <ul className="space-y-2 text-muted-foreground">
-                <li>• <strong>Docker</strong> y Docker Compose</li>
-                <li>• <strong>Redis</strong> (cache; opcional en modo light)</li>
-                <li>• <strong>Postman</strong> para testear API</li>
+                <li>• <strong>Ollama</strong> para usar modelos locales sin API key</li>
+                <li>• <strong>Redis</strong> (cache; se omite con <code>SKIP_REDIS=1</code>)</li>
+                <li>• <strong>Docker</strong> para levantar Redis automáticamente</li>
               </ul>
             </div>
           </div>
@@ -275,13 +261,11 @@ cd Cella`}</CodeBlock>
 
           <div>
             <h4 className="text-lg font-medium text-foreground mb-3">2. Configurar Backend (API)</h4>
-            <CodeBlock>{`# Navegar al directorio de la API
-cd apps/api
+            <CodeBlock>{`cd apps/api
 
 # Crear entorno virtual
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# o venv\\Scripts\\activate en Windows
+python3 -m venv .venv311
+source .venv311/bin/activate  # Linux/Mac
 
 # Instalar dependencias
 pip install -r requirements.txt`}</CodeBlock>
@@ -289,50 +273,45 @@ pip install -r requirements.txt`}</CodeBlock>
 
           <div>
             <h4 className="text-lg font-medium text-foreground mb-3">3. Configurar Frontend</h4>
-            <CodeBlock>{`# Navegar al directorio web
-cd apps/web
-
-# Instalar dependencias
+            <CodeBlock>{`cd ../web
 npm install`}</CodeBlock>
           </div>
 
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">4. Configurar Variables de Entorno</h4>
+            <h4 className="text-lg font-medium text-foreground mb-3">4. Variables de Entorno (opcional)</h4>
             <p className="text-muted-foreground mb-3">
-              Copia <code className="bg-muted px-2 py-1 rounded">.env.example</code> a{' '}
-              <code className="bg-muted px-2 py-1 rounded">.env</code> dentro de{' '}
-              <code className="bg-muted px-2 py-1 rounded">apps/api/</code>:
+              Cella funciona sin tocar el <code className="bg-muted px-2 py-1 rounded">.env</code>: puedes
+              configurar tus proveedores de IA desde la interfaz. Si prefieres usar API keys desde el
+              entorno, copia <code className="bg-muted px-2 py-1 rounded">apps/api/.env.example</code> a{' '}
+              <code className="bg-muted px-2 py-1 rounded">apps/api/.env</code>:
             </p>
-            <CodeBlock filename="apps/api/.env">{`# AI Providers
+            <CodeBlock filename="apps/api/.env">{`# IA (opcional, también configurable desde la UI)
 DEEPSEEK_API_KEY=tu_clave_deepseek
-ZHIPU_API_KEY=tu_clave_zhipu
+OPENAI_API_KEY=tu_clave_openai
+ANTHROPIC_API_KEY=tu_clave_anthropic
 
-# Provider activo
-PROVIDER_LLM=deepseek
+# Embeddings: 'local' usa FastEmbed sin API key
 PROVIDER_EMBEDDINGS=local
 
 # Seguridad
 SIGNING_SECRET=tu_secret_aleatorio_de_al_menos_32_caracteres
 CSRF_SECRET_KEY=otro_secret_aleatorio
-
-# Demo / Guest
-DEMO_PUBLIC=true
-DEMO_GUEST_ENABLED=true`}</CodeBlock>
+CSRF_ENABLED=false`}</CodeBlock>
           </div>
 
           <div>
             <h4 className="text-lg font-medium text-foreground mb-3">5. Ejecutar</h4>
+            <CodeBlock>{`# Todo junto (API :8000 + Worker + Frontend :3000)
+./start.sh`}</CodeBlock>
+            <p className="text-muted-foreground mt-3">O en tres terminales separadas:</p>
             <CodeBlock>{`# Terminal 1 - Backend API (puerto 8000)
-cd apps/api
-python main.py
+cd apps/api && source .venv311/bin/activate && uvicorn main:app --reload --port 8000
 
 # Terminal 2 - Worker de procesamiento
-cd apps/worker
-python worker.py
+cd apps/worker && source ../api/.venv311/bin/activate && python worker.py
 
 # Terminal 3 - Frontend (puerto 3000)
-cd apps/web
-npm run dev`}</CodeBlock>
+cd apps/web && npm run dev`}</CodeBlock>
             <Callout type="info">
               El worker es un bucle de sondeo (polling) que procesa documentos en background. No usa
               colas externas: basta con ejecutar <code>python worker.py</code>.
@@ -348,8 +327,9 @@ npm run dev`}</CodeBlock>
         </h2>
 
         <p className="text-muted-foreground mb-6">
-          Cella funciona sin registro. Al entrar al espacio de trabajo <code className="bg-muted px-2 py-1 rounded">/zen</code> se crea una
-          sesión de invitado automáticamente.
+          Cella funciona sin registro. El espacio de trabajo vive en{' '}
+          <code className="bg-muted px-2 py-1 rounded">/zen</code>, donde se crea tu usuario local
+          automáticamente.
         </p>
 
         <div className="space-y-8">
@@ -380,16 +360,113 @@ npm run dev`}</CodeBlock>
           <div>
             <h3 className="text-xl font-semibold text-foreground mb-4">Seleccionar un Modelo</h3>
             <p className="text-muted-foreground mb-4">
-              Arriba del chat puedes elegir entre varios modelos de IA. El modelo seleccionado se guarda
-              entre sesiones:
+              Arriba del chat puedes elegir entre los modelos disponibles. El selector muestra los
+              modelos de tus proveedores configurados:
             </p>
             <div className="bg-card border border-border rounded-lg p-4">
               <ul className="space-y-2 text-muted-foreground text-sm">
-                <li>• <strong>DeepSeek V4 Flash</strong> (predeterminado, gratuito)</li>
-                <li>• <strong>GLM-4.5 Flash</strong> y <strong>GLM-4.7 Flash</strong> (gratuitos)</li>
-                <li>• <strong>GLM-4.5 Air</strong> y <strong>GLM-4.7</strong></li>
+                <li>• Si no aparece ningún modelo, verás un aviso con un acceso a <strong>&quot;Ajustes de modelos&quot;</strong></li>
+                <li>• Los modelos vienen de tus proveedores (Ollama local o API keys)</li>
+                <li>• El modelo seleccionado se guarda entre sesiones</li>
               </ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Models & AI */}
+      <section id="models-overview" className="mb-12">
+        <h2 className="text-3xl font-bold text-foreground mb-6">
+          🤖 Modelos e IA
+        </h2>
+
+        <p className="text-muted-foreground mb-6">
+          Cella no incluye un modelo por defecto: <strong>tú decides</strong>. Puedes usar modelos
+          locales con Ollama (gratis y sin conexión) o conectar tu propia API key de cualquier proveedor.
+          Todo se configura desde la interfaz, en <strong>ajustes → &quot;Modelos e IA&quot;</strong>.
+        </p>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-xl font-semibold text-foreground mb-4">Dos maneras de usar IA</h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h4 className="font-medium text-foreground mb-3">🦙 Ollama (local, sin API key)</h4>
+                <ul className="space-y-2 text-muted-foreground text-sm">
+                  <li>• Todo queda en tu máquina, sin coste</li>
+                  <li>• Requiere instalar Ollama y descargar modelos</li>
+                  <li>• Ideal para privacidad total y uso sin internet</li>
+                </ul>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h4 className="font-medium text-foreground mb-3">🔑 API keys propias</h4>
+                <ul className="space-y-2 text-muted-foreground text-sm">
+                  <li>• OpenAI, Claude, DeepSeek, Gemini, GLM, Qwen, Kimi, MiniMax</li>
+                  <li>• Las keys se guardan cifradas en la base de datos local</li>
+                  <li>• Solo tu máquina las usa</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div id="ollama">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Configurar Ollama</h3>
+            <div className="bg-muted p-6 rounded-lg">
+              <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
+                <li>Instala Ollama desde <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ollama.com</a></li>
+                <li>Descarga un modelo, por ejemplo: <code className="bg-card px-2 py-1 rounded">ollama pull qwen2.5</code></li>
+                <li>Deja Ollama corriendo (normalmente ya lo hace en <code className="bg-card px-2 py-1 rounded">http://localhost:11434</code>)</li>
+                <li>En Cella: ajustes → <strong>&quot;Modelos e IA&quot;</strong> → añade un proveedor de tipo <strong>Ollama</strong></li>
+                <li>Pulsa <strong>&quot;Sync&quot;</strong> y Cella descubrirá los modelos que tienes descargados</li>
+              </ol>
+            </div>
+            <Callout type="info">
+              Ollama expone una API compatible con OpenAI en <code>http://localhost:11434/v1</code>.
+              Si Ollama corre en otra máquina o puerto, indica la URL en el campo <strong>Base URL</strong>.
+            </Callout>
+          </div>
+
+          <div id="api-providers">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Configurar un proveedor de API</h3>
+            <div className="bg-muted p-6 rounded-lg">
+              <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
+                <li>Abre ajustes → <strong>&quot;Modelos e IA&quot;</strong> → <strong>&quot;Añadir proveedor&quot;</strong></li>
+                <li>Elige el tipo (OpenAI, DeepSeek, Claude, Gemini, etc.)</li>
+                <li>Pega tu API key (los proveedores que no son Ollama la piden)</li>
+                <li>Si quieres un endpoint alternativo, rellena la <strong>Base URL</strong></li>
+                <li>Guarda y pulsa <strong>&quot;Probar&quot;</strong> para verificar la conexión</li>
+                <li>Pulsa <strong>&quot;Sync&quot;</strong> para cargar los modelos disponibles y marca uno como <strong>Default</strong></li>
+              </ol>
+            </div>
+          </div>
+
+          <div id="provider-settings">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Gestionar proveedores</h3>
+            <div className="bg-card border border-border rounded-lg p-6">
+              <ul className="space-y-3 text-muted-foreground">
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <span><strong>Probar:</strong> envía una petición de prueba y te dice si la key o la URL funcionan</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <span><strong>Sync:</strong> consulta el catálogo real de modelos del proveedor</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <span><strong>Default:</strong> el modelo pre-seleccionado en el chat</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <span><strong>Eliminar:</strong> borra el proveedor y sus modelos asociados</span>
+                </li>
+              </ul>
+            </div>
+            <Callout type="info">
+              Las API keys se cifran (Fernet) antes de guardarse en SQLite usando tu{' '}
+              <code>LOCAL_ENCRYPTION_KEY</code> o <code>SIGNING_SECRET</code>. Nadie más que tu máquina
+              puede leerlas.
+            </Callout>
           </div>
         </div>
       </section>
@@ -487,7 +564,8 @@ npm run dev`}</CodeBlock>
             <h3 className="text-xl font-semibold text-foreground mb-4">Iniciar un Chat</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
-                <li>Selecciona un documento con estado <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">"Listo"</span> en la barra lateral</li>
+                <li>Selecciona un documento con estado <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">&quot;Listo&quot;</span> en la barra lateral</li>
+                <li>Elige un modelo en el selector del chat</li>
                 <li>Escribe tu pregunta en el campo del chat</li>
                 <li>Observa el razonamiento en tiempo real (Thinking Block)</li>
                 <li>Recibe la respuesta con citas a la página exacta</li>
@@ -498,7 +576,7 @@ npm run dev`}</CodeBlock>
           <div>
             <h3 className="text-xl font-semibold text-foreground mb-4">Razonamiento Visible</h3>
             <p className="text-muted-foreground mb-4">
-              Antes de responder, el modelo muestra su razonamiento paso a paso en un bloque de "thinking"
+              Antes de responder, el modelo muestra su razonamiento paso a paso en un bloque de &quot;thinking&quot;
               que se transmite en streaming por SSE. Esto permite entender cómo llega a la respuesta.
             </p>
           </div>
@@ -587,7 +665,7 @@ npm run dev`}</CodeBlock>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
-                <li>Abre la pestaña <strong>"Resumen"</strong> en el panel derecho</li>
+                <li>Abre la pestaña <strong>&quot;Resumen&quot;</strong> en el panel derecho</li>
                 <li>El resumen se genera con IA en tiempo real</li>
               </ol>
             </div>
@@ -638,7 +716,7 @@ npm run dev`}</CodeBlock>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
-                <li>Abre la pestaña <strong>"Mapa"</strong> en el panel derecho</li>
+                <li>Abre la pestaña <strong>&quot;Mapa&quot;</strong> en el panel derecho</li>
                 <li>La IA organiza el contenido en un grafo jerárquico</li>
                 <li>Explora nodos arrastrando e interactuando con el grafo</li>
               </ol>
@@ -670,7 +748,7 @@ npm run dev`}</CodeBlock>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
-                <li>Abre la pestaña <strong>"Quiz"</strong> en el panel derecho</li>
+                <li>Abre la pestaña <strong>&quot;Quiz&quot;</strong> en el panel derecho</li>
                 <li>La IA genera preguntas de opción múltiple desde el contenido</li>
                 <li>Responde y verifica tu comprensión al instante</li>
               </ol>
@@ -690,312 +768,6 @@ npm run dev`}</CodeBlock>
         </div>
       </section>
 
-      {/* Technical Documentation */}
-      <section id="technical" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
-          🔧 Documentación Técnica
-        </h2>
-
-        <div className="space-y-8">
-          <div id="architecture">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Arquitectura del Sistema</h3>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <CodeBlock language="text" filename="Estructura del Proyecto">{`Cella/
-├── apps/
-│   ├── api/                    # Backend FastAPI
-│   │   ├── routers/           # Endpoints organizados
-│   │   ├── database_simple.py # SQLite (base de datos activa)
-│   │   ├── services/          # Lógica de negocio
-│   │   └── main.py            # Aplicación principal
-│   ├── web/                   # Frontend Next.js
-│   │   ├── src/app/           # App Router (Next.js 15)
-│   │   ├── src/components/    # Componentes React
-│   │   └── src/lib/           # Utilidades y configuración
-│   └── worker/                # Procesamiento background (polling)
-│       ├── document_processor.py
-│       └── worker.py          # Bucle de sondeo
-├── scripts/                   # Scripts de desarrollo
-├── start.sh                   # Orquestador local
-└── docker-compose.yml`}</CodeBlock>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Stack Tecnológico</h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Backend (FastAPI)</h4>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• <strong>FastAPI</strong> + Uvicorn</li>
-                  <li>• <strong>SQLite</strong> vía SQLAlchemy (database_simple)</li>
-                  <li>• <strong>FastEmbed</strong> para embeddings locales</li>
-                  <li>• <strong>Redis</strong> opcional (cache ligera)</li>
-                  <li>• <strong>Worker</strong> de polling para procesamiento</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Frontend (Next.js)</h4>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• <strong>Next.js 15</strong> + App Router + TypeScript</li>
-                  <li>• <strong>Tailwind CSS</strong> con variables CSS</li>
-                  <li>• <strong>Zustand</strong> para estado global</li>
-                  <li>• <strong>Cytoscape</strong> para mapas mentales</li>
-                  <li>• <strong>Sonner</strong> para notificaciones toast</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div id="rag-system">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Sistema RAG</h3>
-            <div className="space-y-6">
-              <div>
-                <h4 id="document-processing" className="font-medium text-foreground mb-3">Flujo de Procesamiento</h4>
-                <div className="bg-muted p-6 rounded-lg">
-                  <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
-                    <li><strong>Upload de Documento:</strong> Validación y almacenamiento</li>
-                    <li><strong>Procesamiento en Background:</strong> Extracción de texto y chunking</li>
-                    <li><strong>Generación de Embeddings:</strong> Vectorización con FastEmbed</li>
-                    <li><strong>Búsqueda Vectorial:</strong> Similitud coseno para encontrar contexto</li>
-                    <li><strong>Generación de Respuesta:</strong> RAG con el modelo seleccionado</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div id="database">
-                <h4 className="font-medium text-foreground mb-3">Base de Datos</h4>
-                <p className="text-muted-foreground mb-3">
-                  La aplicación usa <strong>SQLite</strong> por defecto ({' '}
-                  <code className="bg-muted px-2 py-1 rounded">apps/api/docai.db</code>). Los modelos
-                  principales son usuarios, documentos, chunks y conversaciones.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Callout type="info" title="Arquitectura Modular">
-          El sistema separa claramente frontend, backend y procesamiento de documentos para facilitar el
-          mantenimiento y la escalabilidad.
-        </Callout>
-      </section>
-
-      {/* API Reference */}
-      <section id="api-reference" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
-          🔌 API Reference
-        </h2>
-
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Información General</h3>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Configuración Base</h4>
-                  <ul className="space-y-2 text-muted-foreground">
-                    <li>• <strong>Base URL:</strong> <code className="bg-muted px-2 py-1 rounded">http://localhost:8000</code> (dev)</li>
-                    <li>• <strong>Formato:</strong> JSON</li>
-                    <li>• <strong>Autenticación:</strong> cookie de sesión / token Bearer</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Documentación Interactiva</h4>
-                  <div className="space-y-2">
-                    <a 
-                      href="http://localhost:8000/docs" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-2 text-primary hover:text-primary/80"
-                    >
-                      <span>Swagger UI</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="authentication">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Autenticación</h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-2">POST /auth/guest</h4>
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-4 py-3 border-b border-border">
-                    <span className="text-sm font-medium">Crear sesión de invitado (entrada sin registro)</span>
-                  </div>
-                  <div className="p-4">
-                    <h5 className="font-medium text-muted-foreground mb-2">Response (200):</h5>
-                    <CodeBlock language="json">{`{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "user": { "id": 1, "email": null, "is_guest": true }
-}`}</CodeBlock>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h4 className="font-medium text-foreground mb-2">GET /auth/me</h4>
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-4 py-3 border-b border-border">
-                    <span className="text-sm font-medium">Obtener el usuario de la sesión actual</span>
-                  </div>
-                  <div className="p-4">
-                    <h5 className="font-medium text-muted-foreground mb-2">Response (200):</h5>
-                    <CodeBlock language="json">{`{
-  "id": 1,
-  "email": null,
-  "is_guest": true
-}`}</CodeBlock>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="documents-api">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Gestión de Documentos</h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-2">POST /documents/upload</h4>
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-4 py-3 border-b border-border">
-                    <span className="text-sm font-medium">Subir un nuevo documento</span>
-                  </div>
-                  <div className="p-4">
-                    <div>
-                      <h5 className="font-medium text-muted-foreground mb-2">Request Body (Form Data):</h5>
-                      <div className="bg-muted p-3 rounded text-sm text-muted-foreground">
-                        • <code>file</code>: Archivo (PDF/DOCX/PPTX/TXT)
-                      </div>
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-muted-foreground mb-2 mt-4">Response (201):</h5>
-                      <CodeBlock language="json">{`{
-  "id": 123,
-  "title": "Mi Documento.pdf",
-  "file_size": 2048576,
-  "status": "pending",
-  "created_at": "2026-08-02T16:00:00Z"
-}`}</CodeBlock>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-foreground mb-2">GET /documents/</h4>
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-4 py-3 border-b border-border">
-                    <span className="text-sm font-medium">Listar documentos del usuario</span>
-                  </div>
-                  <div className="p-4">
-                    <h5 className="font-medium text-muted-foreground mb-2">Response (200):</h5>
-                    <CodeBlock language="json">{`[
-  {
-    "id": 123,
-    "title": "Mi Documento.pdf",
-    "file_size": 2048576,
-    "pages": 15,
-    "status": "ready",
-    "created_at": "2026-08-02T16:00:00Z"
-  }
-]`}</CodeBlock>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-foreground mb-2">GET /documents/{`{document_id}`}/content</h4>
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-4 py-3 border-b border-border">
-                    <span className="text-sm font-medium">Obtener el contenido paginado para el visualizador</span>
-                  </div>
-                  <div className="p-4">
-                    <h5 className="font-medium text-muted-foreground mb-2">Response (200):</h5>
-                    <CodeBlock language="json">{`{
-  "document_id": 123,
-  "total_pages": 15,
-  "pages": [
-    { "page_number": 1, "chunks": [], "full_text": "..." }
-  ]
-}`}</CodeBlock>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="chat-api">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Chat y RAG</h3>
-            <div>
-              <h4 className="font-medium text-foreground mb-2">POST /chat/documents/{`{document_id}`}</h4>
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted px-4 py-3 border-b border-border">
-                  <span className="text-sm font-medium">Hacer una pregunta sobre un documento (soporta SSE)</span>
-                </div>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <h5 className="font-medium text-muted-foreground mb-2">Request Body:</h5>
-                    <CodeBlock language="json">{`{
-  "message": "¿De qué trata este documento?",
-  "model": "deepseek-v4-flash",
-  "stream": true
-}`}</CodeBlock>
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-muted-foreground mb-2">Response (200, no-stream):</h5>
-                    <CodeBlock language="json">{`{
-  "response": "Este documento trata sobre la implementación de IA en empresas...",
-  "citations": [
-    { "page": 3, "snippet": "La IA puede reducir costos operativos hasta un 40%", "similarity": 0.95 }
-  ]
-}`}</CodeBlock>
-                  </div>
-                  <Callout type="info">
-                    Con <code>stream: true</code> la respuesta llega como eventos SSE:{" "}
-                    <code>thinking_start</code>, <code>thinking_delta</code>, <code>thinking_end</code>,{" "}
-                    <code>text_delta</code> y <code>error</code>.
-                  </Callout>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="error-codes">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Códigos de Error</h3>
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Errores Comunes</h4>
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <ul className="space-y-2 text-muted-foreground">
-                    <li><strong>400 Bad Request:</strong> Datos de entrada inválidos</li>
-                    <li><strong>401 Unauthorized:</strong> Sesión inválida o expirada</li>
-                    <li><strong>404 Not Found:</strong> Recurso no encontrado</li>
-                    <li><strong>422 Unprocessable Entity:</strong> Error de validación de esquema</li>
-                    <li><strong>500 Internal Server Error:</strong> Error interno del servidor</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Ejemplo de Respuesta de Error</h4>
-                <CodeBlock language="json">{`{
-  "detail": "El documento especificado no existe o no tienes acceso"
-}`}</CodeBlock>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Callout type="info" title="API Completa">
-          Toda la documentación interactiva está disponible en{' '}
-          <code className="bg-muted px-2 py-1 rounded">/docs</code> (Swagger UI) del backend.
-        </Callout>
-      </section>
-
       {/* Troubleshooting */}
       <section id="troubleshooting" className="mb-12">
         <h2 className="text-3xl font-bold text-foreground mb-6">
@@ -1008,22 +780,37 @@ npm run dev`}</CodeBlock>
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">¿Necesito una cuenta para usar Cella?</h4>
               <p className="text-muted-foreground text-sm">
-                No. Cella funciona con sesiones de invitado: entras directo al espacio de trabajo y subes
-                tus documentos sin registrarte.
+                No. Cella es una app local de un solo usuario: tu usuario local se crea automáticamente.
+                No hay registro, ni login, ni pagos.
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
-              <h4 className="font-medium text-foreground mb-2">¿Qué modelos de IA se usan?</h4>
+              <h4 className="font-medium text-foreground mb-2">¿Mis documentos se suben a la nube?</h4>
               <p className="text-muted-foreground text-sm">
-                DeepSeek V4 Flash (predeterminado) y varios modelos GLM de Zhipu. Los embeddings se
-                generan localmente con FastEmbed, sin necesidad de otra API key.
+                No. Todo se procesa y almacena en tu máquina (SQLite + FastEmbed local). La única
+                excepción es si usas un proveedor de IA con API key, en cuyo caso los fragmentos
+                relevantes se envían a ese proveedor para generar la respuesta.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-2">¿Qué modelos de IA puedo usar?</h4>
+              <p className="text-muted-foreground text-sm">
+                Los que tú configures: modelos locales con Ollama, o API keys de OpenAI, Claude, DeepSeek,
+                GLM (Zhipu), Gemini, Qwen, Kimi y MiniMax. Los embeddings se generan localmente con
+                FastEmbed, sin necesidad de otra API key.
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">¿Dónde se guardan mis conversaciones?</h4>
               <p className="text-muted-foreground text-sm">
-                Las conversaciones se guardan en el navegador (localStorage) y se muestran en el historial
-                de la barra lateral.
+                En la base de datos local (SQLite) y se muestran en el historial de la barra lateral.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-2">¿Por qué la primera carga es lenta?</h4>
+              <p className="text-muted-foreground text-sm">
+                Al primer arranque, el modelo de embeddings local (FastEmbed) se descarga de HuggingFace
+                (~10-15 segundos). Es un proceso de una sola vez.
               </p>
             </div>
           </div>
@@ -1033,25 +820,42 @@ npm run dev`}</CodeBlock>
           <h3 className="text-xl font-semibold text-foreground mb-4">Problemas Comunes</h3>
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4">
-              <h4 className="font-medium text-foreground mb-2">El documento queda en "Pendiente"</h4>
+              <h4 className="font-medium text-foreground mb-2">El documento queda en &quot;Pendiente&quot;</h4>
               <p className="text-muted-foreground text-sm">
-                Asegúrate de que el worker esté corriendo: <code className="bg-muted px-2 py-1 rounded">cd apps/worker && python worker.py</code>
+                Asegúrate de que el worker esté corriendo. Con{' '}
+                <code className="bg-muted px-2 py-1 rounded">./start.sh</code> ya se levanta solo; a mano,
+                ejecuta <code className="bg-muted px-2 py-1 rounded">cd apps/worker && python worker.py</code>.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-2">No aparece ningún modelo en el chat</h4>
+              <p className="text-muted-foreground text-sm">
+                Necesitas al menos un proveedor configurado. Abre ajustes → &quot;Modelos e IA&quot;, añade un
+                proveedor (Ollama o API key) y pulsa &quot;Sync&quot;. Si usas Ollama, verifica que esté corriendo
+                y que tengas al menos un modelo descargado.
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">El chat devuelve errores de conexión</h4>
               <p className="text-muted-foreground text-sm">
-                Verifica que la API esté en el puerto 8000 y que la variable{' '}
-                <code className="bg-muted px-2 py-1 rounded">NEXT_PUBLIC_API_URL</code> del frontend apunte
-                a ella.
+                Verifica que la API esté en el puerto 8000 y que el proveedor esté alcanzable. Usa el
+                botón &quot;Probar&quot; del proveedor para aislar el problema.
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">Las respuestas fallan por API key</h4>
               <p className="text-muted-foreground text-sm">
-                Revisa que <code className="bg-muted px-2 py-1 rounded">DEEPSEEK_API_KEY</code> y{' '}
-                <code className="bg-muted px-2 py-1 rounded">ZHIPU_API_KEY</code> estén definidas en{' '}
-                <code className="bg-muted px-2 py-1 rounded">apps/api/.env</code>.
+                Revisa que la key esté bien escrita en ajustes → &quot;Modelos e IA&quot; y que el proveedor pase
+                la prueba de conexión. Las keys se guardan cifradas localmente.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-2">Ollama no conecta</h4>
+              <p className="text-muted-foreground text-sm">
+                Confirma que <code className="bg-muted px-2 py-1 rounded">ollama serve</code> esté
+                corriendo y comprueba{' '}
+                <code className="bg-muted px-2 py-1 rounded">curl http://localhost:11434/v1/models</code>.
+                Si el puerto cambió, indica la Base URL correcta en la configuración del proveedor.
               </p>
             </div>
           </div>
@@ -1061,24 +865,22 @@ npm run dev`}</CodeBlock>
       {/* Status Summary */}
       <div className="mt-16 p-6 bg-muted rounded-lg border border-border">
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          📚 Estado de la Documentación
+          📚 Documentación de Cella Local
         </h3>
         <p className="text-muted-foreground mb-4">
-          Documentación actualizada con las funcionalidades reales de Cella.
+          Guía completa para instalar y usar Cella como aplicación local.
         </p>
         <div className="flex flex-wrap gap-2">
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Introducción</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Inicio Rápido</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Instalación</span>
-          <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Primeros Pasos</span>
+          <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Modelos e IA</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Upload de Documentos</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Chat RAG</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Visualizador</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Resúmenes</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Mapas Mentales</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Quiz</span>
-          <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ Documentación Técnica</span>
-          <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">✅ API Reference</span>
         </div>
       </div>
     </div>

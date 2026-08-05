@@ -1,60 +1,64 @@
 #!/bin/bash
 set -e
 
-# ── Modo de infraestructura ──
-# Dev local (SQLite + embeddings locales + Redis): solo levanta Redis.
-# Uso: ./start.sh                 → light (recomendado para dev)
-#      INFRA=full ./start.sh      → PostgreSQL + Redis + MinIO
+# ── Cella Local ──
+# App 100% local: sin nube, sin auth, sin pagos.
+# Uso: ./start.sh
+#      SKIP_REDIS=1 ./start.sh   → sin Redis (cache en memoria)
 INFRA="${INFRA:-light}"
 
-echo "🚀 Iniciando Cella"
-echo "=================="
+echo "🚀 Iniciando Cella (local)"
+echo "=========================="
 
 # Check prerequisites
-command -v docker >/dev/null 2>&1 || { echo "❌ Docker no instalado"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "❌ Python 3 no instalado"; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "❌ Node.js no instalado"; exit 1; }
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+API_DIR="$ROOT_DIR/apps/api"
+WEB_DIR="$ROOT_DIR/apps/web"
+WORKER_DIR="$ROOT_DIR/apps/worker"
+
+# Elegir venv existente (.venv311 preferido, donde están las deps)
+if [ -d "$API_DIR/.venv311" ]; then
+  VENV="$API_DIR/.venv311"
+elif [ -d "$API_DIR/.venv" ]; then
+  VENV="$API_DIR/.venv"
+else
+  echo "❌ No se encontró virtualenv en apps/api (.venv311 o .venv)."
+  echo "   Crea uno con: python3 -m venv apps/api/.venv311 && pip install -r apps/api/requirements.txt"
+  exit 1
+fi
 
 cleanup() {
     echo ""
     echo "🔥 Cerrando servicios..."
     kill $BACKEND_PID $WORKER_PID $FRONTEND_PID 2>/dev/null
-    docker compose stop 2>/dev/null
+    if [ -n "${REDIS_PID:-}" ]; then kill $REDIS_PID 2>/dev/null; fi
     exit 0
 }
 trap cleanup SIGINT SIGTERM
 
-# ── 1. Infraestructura ──
-if [ "$INFRA" = "light" ]; then
-    echo "📦 Levantando Redis (modo dev light)..."
+# ── 1. Redis (opcional) ──
+if [ -n "${SKIP_REDIS:-}" ]; then
+    echo "⚠️  Redis omitido (SKIP_REDIS=1) — usando cache en memoria"
+elif command -v redis-server >/dev/null 2>&1; then
+    echo "📦 Redis local disponible — iniciando en :6379"
+    redis-server --daemonize yes --port 6379 >/dev/null 2>&1 || true
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    echo "📦 Levantando Redis vía Docker (modo light)..."
     docker compose up -d redis
 else
-    echo "📦 Levantando PostgreSQL + Redis + MinIO..."
-    docker compose up -d
-    echo "   Esperando que PostgreSQL esté listo..."
-    until docker compose exec -T postgres pg_isready -U docai -d docai 2>/dev/null; do
-      sleep 1
-    done
+    echo "⚠️  Redis no disponible — usando cache en memoria"
 fi
-echo "   ✅ Infraestructura lista"
 
 # ── 2. Backend ──
 echo ""
 echo "📡 Iniciando Backend (FastAPI)..."
-cd "$ROOT_DIR/apps/api"
-if [ ! -d .venv311 ]; then
-  python3.11 -m venv .venv311
-  source .venv311/bin/activate
-  pip install -r requirements.txt -q
-else
-  source .venv311/bin/activate
-fi
+source "$VENV/bin/activate"
 
-# Create tables if they don't exist (skip alembic for simplicity)
 python -c "
-from database_simple import Base, engine, create_tables
+from database_simple import create_tables
 try:
     create_tables()
     print('   DB tables verified')
@@ -62,43 +66,34 @@ except Exception as e:
     print(f'   DB notice: {e}')
 "
 
-uvicorn main:app --reload --port 8000 &
+(cd "$API_DIR" && uvicorn main:app --reload --port 8000) &
 BACKEND_PID=$!
-cd "$ROOT_DIR"
 echo "   ✅ Backend en :8000 (PID $BACKEND_PID)"
 
 # ── 3. Worker ──
 echo ""
-echo "⚙️  Iniciando Worker (Celery)..."
-cd "$ROOT_DIR/apps/worker"
-source "$ROOT_DIR/apps/api/.venv311/bin/activate"
-python worker.py &
+echo "⚙️  Iniciando Worker (procesamiento de documentos)..."
+(cd "$WORKER_DIR" && source "$VENV/bin/activate" && python worker.py) &
 WORKER_PID=$!
-cd "$ROOT_DIR"
 echo "   ✅ Worker (PID $WORKER_PID)"
 
 # ── 4. Frontend ──
 echo ""
 echo "🌐 Iniciando Frontend (Next.js)..."
-cd "$ROOT_DIR/apps/web"
-npm install --silent
-npm run dev &
+(cd "$WEB_DIR" && npm run dev) &
 FRONTEND_PID=$!
-cd "$ROOT_DIR"
 echo "   ✅ Frontend en :3000 (PID $FRONTEND_PID)"
 
 # ── Ready ──
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  🎉 Cella está corriendo"
+echo "  🎉 Cella Local está corriendo"
 echo ""
-echo "  Frontend : http://localhost:3000"
-echo "  Zen App  : http://localhost:3000/zen"
+echo "  App      : http://localhost:3000/zen"
 echo "  Backend  : http://localhost:8000"
 echo "  API Docs : http://localhost:8000/docs"
-if [ "$INFRA" != "light" ]; then
-echo "  MinIO    : http://localhost:9001 (minioadmin/minioadmin)"
-fi
+echo ""
+echo "  Modelos: configura Ollama (o API keys) en la UI de Ajustes"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "  Presiona Ctrl+C para detener todo"

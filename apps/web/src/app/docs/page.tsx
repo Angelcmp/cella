@@ -18,10 +18,10 @@ export default function DocsPage() {
                   Cella Docs
                 </p>
                 <h1 className="text-3xl font-semibold text-[var(--text-primary)] mt-2">
-                  Biblioteca técnica
+                  Guía de Cella
                 </h1>
                 <p className="text-[var(--text-secondary)] mt-1">
-                  Guía completa para usar Cella y su stack IA-first.
+                  Aprende a instalar y usar Cella: tu asistente de estudio local con IA.
                 </p>
               </div>
               <div className="w-full max-w-md">

@@ -4,16 +4,24 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import config as cfg
-from database_simple import Document, DocumentChunk, User, get_db
-from rag_system import MindmapGenerator, QuizGenerator, SummaryGenerator
+from database_simple import (
+    Document,
+    DocumentChunk,
+    DocumentFaq,
+    DocumentStudyGuide,
+    Note,
+    User,
+    get_db,
+)
+from rag_system import FAQGenerator, MindmapGenerator, QuizGenerator, StudyGuideGenerator, SummaryGenerator
 from routers.auth import get_current_user
 from schemas import DocumentResponse
 from security.csrf import verify_csrf as csrf_protect
@@ -83,26 +91,6 @@ async def upload_document(
     _=Depends(csrf_protect),
 ):
     """Upload a document and set status to pending"""
-    
-    # Guest quota: limit number of documents for demo/guest users
-    try:
-        if getattr(current_user, "plan", None) == "demo":
-            max_docs = int(getattr(cfg, "GUEST_MAX_DOCUMENTS", 1) or 1)
-            doc_count = (
-                db.query(func.count(Document.id))
-                .filter(Document.user_id == current_user.id)
-                .scalar() or 0
-            )
-            if doc_count >= max_docs:
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail=f"Guest limit reached: max {max_docs} document(s). Elimina un documento para subir otro."
-                )
-    except HTTPException:
-        raise
-    except Exception:
-        # Do not block if quota check fails unexpectedly; fail-open for demo robustness
-        pass
     
     # Validate file type (allowing text for development testing)
     allowed_types = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-powerpoint", "text/plain"]
@@ -506,3 +494,319 @@ async def generate_quiz(
         raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {result.get('error', 'unknown error')}")
 
     return result
+
+
+def _get_owned_document(db: Session, document_id: str, user_id: str) -> Document:
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == user_id
+    ).first()
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return document
+
+
+class StudyGuideRequest(BaseModel):
+    pages: Optional[dict] = None  # {"start": int, "end": int}
+    query: Optional[str] = None
+    output_format: Optional[str] = "json"  # json | markdown
+
+
+@router.get("/{document_id}/study-guide")
+async def get_study_guide(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a persisted study guide for a document, if available."""
+    _get_owned_document(db, document_id, current_user.id)
+    guide = db.query(DocumentStudyGuide).filter(
+        DocumentStudyGuide.document_id == document_id
+    ).first()
+    if not guide:
+        raise HTTPException(status_code=404, detail="Study guide not generated yet")
+    return {
+        "study_guide_id": guide.id,
+        "document_id": guide.document_id,
+        "guide": guide.content,
+        "markdown": guide.markdown,
+        "pages_used": guide.pages_used,
+        "created_at": guide.created_at.isoformat() if guide.created_at else None,
+        "updated_at": guide.updated_at.isoformat() if guide.updated_at else None,
+        "success": True,
+    }
+
+
+@router.post("/{document_id}/study-guide")
+async def generate_study_guide(
+    document_id: str,
+    request: StudyGuideRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Generate (and persist) a study guide for a document or page range."""
+    document = _get_owned_document(db, document_id, current_user.id)
+    if document.status != "indexed":
+        raise HTTPException(status_code=400, detail=f"Document must be indexed before generating a study guide. Current status: {document.status}")
+
+    start_page, end_page = _parse_page_range(request.pages)
+
+    generator = StudyGuideGenerator()
+    result = generator.generate_study_guide(
+        db=db,
+        document_id=document_id,
+        document_title=document.title,
+        start_page=start_page,
+        end_page=end_page,
+        user_query=request.query,
+        output_format=request.output_format or "json",
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=f"Failed to generate study guide: {result.get('error', 'unknown error')}")
+
+    # Persist (upsert) the guide
+    existing = db.query(DocumentStudyGuide).filter(
+        DocumentStudyGuide.document_id == document_id
+    ).first()
+    if existing:
+        existing.content = result.get("guide")
+        existing.markdown = result.get("markdown")
+        existing.pages_used = result.get("pages_used")
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        result["study_guide_id"] = existing.id
+    else:
+        record = DocumentStudyGuide(
+            document_id=document_id,
+            content=result.get("guide"),
+            markdown=result.get("markdown"),
+            pages_used=result.get("pages_used"),
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        result["study_guide_id"] = record.id
+
+    return result
+
+
+class FaqRequest(BaseModel):
+    pages: Optional[dict] = None  # {"start": int, "end": int}
+    query: Optional[str] = None
+    num_faqs: Optional[int] = 8
+
+
+@router.get("/{document_id}/faq")
+async def get_faqs(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get persisted FAQs for a document, if available."""
+    _get_owned_document(db, document_id, current_user.id)
+    faq = db.query(DocumentFaq).filter(
+        DocumentFaq.document_id == document_id
+    ).first()
+    if not faq:
+        raise HTTPException(status_code=404, detail="FAQ not generated yet")
+    return {
+        "faq_id": faq.id,
+        "document_id": faq.document_id,
+        "faqs": faq.faqs,
+        "markdown": faq.markdown,
+        "pages_used": faq.pages_used,
+        "created_at": faq.created_at.isoformat() if faq.created_at else None,
+        "updated_at": faq.updated_at.isoformat() if faq.updated_at else None,
+        "success": True,
+    }
+
+
+@router.post("/{document_id}/faq")
+async def generate_faqs(
+    document_id: str,
+    request: FaqRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Generate (and persist) FAQs for a document or page range."""
+    document = _get_owned_document(db, document_id, current_user.id)
+    if document.status != "indexed":
+        raise HTTPException(status_code=400, detail=f"Document must be indexed before generating FAQs. Current status: {document.status}")
+
+    start_page, end_page = _parse_page_range(request.pages)
+
+    generator = FAQGenerator()
+    result = generator.generate_faqs(
+        db=db,
+        document_id=document_id,
+        document_title=document.title,
+        start_page=start_page,
+        end_page=end_page,
+        user_query=request.query,
+        num_faqs=int(request.num_faqs or 8),
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=f"Failed to generate FAQs: {result.get('error', 'unknown error')}")
+
+    existing = db.query(DocumentFaq).filter(
+        DocumentFaq.document_id == document_id
+    ).first()
+    if existing:
+        existing.faqs = result.get("faqs")
+        existing.markdown = result.get("markdown")
+        existing.pages_used = result.get("pages_used")
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        result["faq_id"] = existing.id
+    else:
+        record = DocumentFaq(
+            document_id=document_id,
+            faqs=result.get("faqs"),
+            markdown=result.get("markdown"),
+            pages_used=result.get("pages_used"),
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        result["faq_id"] = record.id
+
+    return result
+
+
+class NoteRequest(BaseModel):
+    content: str
+
+
+@router.post("/{document_id}/notes")
+async def create_note(
+    document_id: str,
+    request: NoteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Create a note for a document."""
+    _get_owned_document(db, document_id, current_user.id)
+    content = (request.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Note content cannot be empty")
+
+    note = Note(
+        user_id=current_user.id,
+        document_id=document_id,
+        content=content,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return {
+        "id": note.id,
+        "document_id": note.document_id,
+        "content": note.content,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+    }
+
+
+@router.get("/{document_id}/notes")
+async def list_notes(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List notes for a document."""
+    _get_owned_document(db, document_id, current_user.id)
+    notes = db.query(Note).filter(
+        Note.document_id == document_id,
+        Note.user_id == current_user.id,
+    ).order_by(Note.created_at.desc()).all()
+    return [
+        {
+            "id": n.id,
+            "document_id": n.document_id,
+            "content": n.content,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+        }
+        for n in notes
+    ]
+
+
+@router.put("/{document_id}/notes/{note_id}")
+async def update_note(
+    document_id: str,
+    note_id: str,
+    request: NoteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Update a note for a document."""
+    _get_owned_document(db, document_id, current_user.id)
+    note = db.query(Note).filter(
+        Note.id == note_id,
+        Note.document_id == document_id,
+        Note.user_id == current_user.id,
+    ).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    content = (request.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Note content cannot be empty")
+
+    note.content = content
+    note.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(note)
+    return {
+        "id": note.id,
+        "document_id": note.document_id,
+        "content": note.content,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+    }
+
+
+@router.delete("/{document_id}/notes/{note_id}")
+async def delete_note(
+    document_id: str,
+    note_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Delete a note for a document."""
+    _get_owned_document(db, document_id, current_user.id)
+    note = db.query(Note).filter(
+        Note.id == note_id,
+        Note.document_id == document_id,
+        Note.user_id == current_user.id,
+    ).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    db.delete(note)
+    db.commit()
+    return {"success": True, "deleted_id": note_id}
+
+
+def _parse_page_range(pages: Optional[dict]):
+    """Parse the optional {start, end} pages dict. Returns (start_page, end_page)."""
+    start_page: Optional[int] = None
+    end_page: Optional[int] = None
+    if pages and isinstance(pages, dict):
+        try:
+            start_page = int(pages.get("start")) if pages.get("start") is not None else None
+            end_page = int(pages.get("end")) if pages.get("end") is not None else None
+            if start_page is not None and end_page is not None and start_page > end_page:
+                start_page, end_page = end_page, start_page
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid pages object. Use {start:int, end:int}")
+    return start_page, end_page

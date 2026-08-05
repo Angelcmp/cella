@@ -24,11 +24,13 @@ class ChatRequest(BaseModel):
     message: str
     model: str = "deepseek-v4-flash"
     stream: bool = False
+    document_ids: Optional[List[str]] = None
 
 class CitationResponse(BaseModel):
     page: int
     snippet: str
     similarity: Optional[float] = None
+    document: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -74,17 +76,45 @@ def _get_or_create_conversation(
     db: Session,
     user_id: str,
     document_id: str,
+    document_ids: Optional[List[str]] = None,
 ) -> Conversation:
     conversation = db.query(Conversation).filter(
         Conversation.user_id == user_id,
         Conversation.document_id == document_id
     ).first()
     if not conversation:
-        conversation = Conversation(user_id=user_id, document_id=document_id)
+        conversation = Conversation(
+            user_id=user_id,
+            document_id=document_id,
+            document_ids=document_ids,
+        )
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
     return conversation
+
+
+def _validate_documents(db: Session, user_id: str, document_ids: List[str]) -> Dict[str, str]:
+    """Validate that every document exists and belongs to the user.
+    Returns a mapping document_id -> title."""
+    titles: Dict[str, str] = {}
+    for doc_id in document_ids:
+        document = db.query(Document).filter(
+            Document.id == doc_id,
+            Document.user_id == user_id,
+        ).first()
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document {doc_id} not found or you don't have access to it"
+            )
+        if document.status != "indexed":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Document '{document.title}' is not ready for chat. Status: {document.status}"
+            )
+        titles[doc_id] = document.title
+    return titles
 
 
 @router.post("/documents/{document_id}")
@@ -102,26 +132,37 @@ async def chat_with_document(
     AI response. Otherwise returns a JSON ChatResponse.
     """
     try:
-        # Verify document exists and belongs to user
-        document = db.query(Document).filter(
-            Document.id == document_id,
-            Document.user_id == current_user.id
-        ).first()
+        # Determine target documents (multi-doc or single)
+        is_multi = bool(chat_request.document_ids and len(chat_request.document_ids) > 1)
+        if is_multi:
+            document_titles = _validate_documents(db, current_user.id, chat_request.document_ids)
+            document_id = chat_request.document_ids[0]
+            document_title = document_titles[document_id]
+        else:
+            document_id = chat_request.document_ids[0] if chat_request.document_ids else document_id
+            document = db.query(Document).filter(
+                Document.id == document_id,
+                Document.user_id == current_user.id
+            ).first()
 
-        if not document:
-            raise HTTPException(
-                status_code=404,
-                detail="Document not found or you don't have access to it"
-            )
+            if not document:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Document not found or you don't have access to it"
+                )
 
-        if document.status != "indexed":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Document is not ready for chat. Status: {document.status}"
-            )
+            if document.status != "indexed":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Document is not ready for chat. Status: {document.status}"
+                )
+            document_title = document.title
 
         # Find or create conversation and save user message
-        conversation = _get_or_create_conversation(db, current_user.id, document_id)
+        conversation = _get_or_create_conversation(
+            db, current_user.id, document_id,
+            document_ids=(chat_request.document_ids if is_multi else None),
+        )
         sanitized_message = _sanitize_message(chat_request.message)
         if not sanitized_message:
             raise HTTPException(
@@ -138,29 +179,48 @@ async def chat_with_document(
         db.commit()
 
         logger.info(
-            f"Processing chat request for document {document_id}, "
-            f"stream={chat_request.stream}, model={chat_request.model}"
+            f"Processing chat request for document {document_id} "
+            f"(multi={is_multi}), stream={chat_request.stream}, model={chat_request.model}"
         )
 
         if chat_request.stream:
+            if is_multi:
+                return _stream_multi_chat_response(
+                    db,
+                    conversation.id,
+                    chat_request.document_ids,
+                    document_titles,
+                    sanitized_message,
+                    chat_request.model,
+                    background_tasks,
+                )
             return _stream_chat_response(
                 db,
                 conversation.id,
                 document_id,
-                document.title,
+                document_title,
                 sanitized_message,
                 chat_request.model,
                 background_tasks,
             )
 
         # Non-streaming path
-        rag_result = rag_system.chat_with_document(
-            db=db,
-            document_id=document_id,
-            document_title=document.title,
-            user_query=sanitized_message,
-            model=chat_request.model,
-        )
+        if is_multi:
+            rag_result = rag_system.chat_with_documents(
+                db=db,
+                document_ids=chat_request.document_ids,
+                document_titles=document_titles,
+                user_query=sanitized_message,
+                model=chat_request.model,
+            )
+        else:
+            rag_result = rag_system.chat_with_document(
+                db=db,
+                document_id=document_id,
+                document_title=document_title,
+                user_query=sanitized_message,
+                model=chat_request.model,
+            )
 
         # Save AI response
         ai_message = Message(
@@ -178,7 +238,8 @@ async def chat_with_document(
             CitationResponse(
                 page=citation["page"],
                 snippet=citation["snippet"],
-                similarity=citation.get("similarity")
+                similarity=citation.get("similarity"),
+                document=citation.get("document"),
             )
             for citation in rag_result["citations"]
         ]
@@ -325,6 +386,117 @@ def _stream_chat_response(
             yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error(f"Streaming chat error: {e}")
+            yield f"event: error\ndata: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            background_tasks.add_task(
+                _save_ai_message,
+                conversation_id,
+                full_response,
+                citations,
+                chunks_found,
+                coverage,
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _stream_multi_chat_response(
+    db: Session,
+    conversation_id: str,
+    document_ids: List[str],
+    document_titles: Dict[str, str],
+    user_query: str,
+    model: Optional[str],
+    background_tasks: BackgroundTasks,
+) -> StreamingResponse:
+    """Build a streaming response generator for multi-document chat."""
+    try:
+        ctx = rag_system.prepare_multi_chat_prompt(
+            db=db,
+            document_ids=document_ids,
+            document_titles=document_titles,
+            user_query=user_query,
+        )
+    except Exception as e:
+        logger.error(f"Failed to prepare multi chat prompt: {e}")
+        ctx = {
+            "prompt": None,
+            "relevant_chunks": [],
+            "chunks_found": 0,
+            "coverage": 0.0,
+            "metadata_response": f"Lo siento, ocurrió un error al preparar la respuesta: {str(e)}",
+        }
+
+    citations = ctx.get("relevant_chunks", [])
+    metadata_response = ctx.get("metadata_response")
+    chunks_found = ctx.get("chunks_found")
+    coverage = ctx.get("coverage")
+
+    def event_stream() -> Iterator[str]:
+        full_response = ""
+        try:
+            meta_payload = {
+                "event": "meta",
+                "conversation_id": conversation_id,
+                "chunks_found": chunks_found,
+                "coverage": coverage,
+                "citations": [
+                    {
+                        "page": c.get("page", 0),
+                        "snippet": c.get("snippet", ""),
+                        "similarity": c.get("similarity"),
+                        "document": c.get("document_title"),
+                    }
+                    for c in citations
+                ],
+            }
+            yield f"event: meta\ndata: {json.dumps(meta_payload, ensure_ascii=False)}\n\n"
+
+            if metadata_response:
+                full_response = metadata_response
+                payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
+                yield f"event: text_delta\ndata: {payload}\n\n"
+                yield f"event: delta\ndata: {payload}\n\n"
+            else:
+                prompt = ctx.get("prompt")
+                if prompt:
+                    thinking_open = False
+                    if THINKING_ENABLED and not _is_reasoning_model(model):
+                        yield "event: thinking_start\ndata: {}\n\n"
+                        thinking_open = True
+                        for step in _synthetic_thinking():
+                            payload = json.dumps({"event": "thinking_delta", "delta": step}, ensure_ascii=False)
+                            yield f"event: thinking_delta\ndata: {payload}\n\n"
+                    try:
+                        for kind, token in rag_system.chat_stream(prompt, model=model):
+                            if kind == "thinking":
+                                if not thinking_open:
+                                    yield "event: thinking_start\ndata: {}\n\n"
+                                    thinking_open = True
+                                payload = json.dumps({"event": "thinking_delta", "delta": token}, ensure_ascii=False)
+                                yield f"event: thinking_delta\ndata: {payload}\n\n"
+                            else:
+                                if thinking_open:
+                                    yield "event: thinking_end\ndata: {}\n\n"
+                                    thinking_open = False
+                                full_response += token
+                                payload = json.dumps({"event": "text_delta", "delta": token}, ensure_ascii=False)
+                                yield f"event: text_delta\ndata: {payload}\n\n"
+                    finally:
+                        if thinking_open:
+                            yield "event: thinking_end\ndata: {}\n\n"
+
+            yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"Multi streaming chat error: {e}")
             yield f"event: error\ndata: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
         finally:
             background_tasks.add_task(

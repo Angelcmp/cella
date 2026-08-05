@@ -76,7 +76,7 @@ async def verify_csrf(
     - Validates Origin/Referer against allowed origins.
     - Implements double-submit cookie + header with HMAC token.
     """
-    if not cfg._env_bool("CSRF_ENABLED", True):
+    if not cfg.CSRF_ENABLED:
         return
 
     method = request.method.upper()

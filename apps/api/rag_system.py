@@ -8,13 +8,14 @@ Supports DeepSeek, Zhipu (GLM) and OpenAI via OpenAI-compatible APIs
 import os
 import json
 import logging
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple, Iterator
 import numpy as np
 from sqlalchemy.orm import Session
 
 from database_simple import DocumentChunk, DocumentEmbedding, DocumentSummary, Document, DocumentMindmap
-from providers import ProviderRouter
+from provider_registry import get_router
 from cache import RAGCache
 
 # Configure logging
@@ -25,7 +26,7 @@ class RAGSystem:
     """Handles retrieval-augmented generation for document chat"""
     
     def __init__(self):
-        self.router = ProviderRouter()
+        self.router = get_router()
         self.cache = RAGCache()
         # Keep a provider readout for compatibility with loggers
         chat_provider = self.router.chat_provider
@@ -288,6 +289,8 @@ RESPUESTA:"""
                 "snippet": snippet,
                 "similarity": round(chunk_data["similarity"], 3)
             }
+            if chunk_data.get("document_title"):
+                citation["document"] = chunk_data["document_title"]
             
             citations.append(citation)
         
@@ -697,6 +700,169 @@ El documento ha sido completamente procesado e indexado. Todas las páginas est�
             "metadata_response": None,
         }
 
+    # ------------------------------------------------------------------
+    # Multi-document retrieval & chat
+    # ------------------------------------------------------------------
+
+    def _retrieve_multi(
+        self,
+        db: Session,
+        document_ids: List[str],
+        document_titles: Dict[str, str],
+        user_query: str,
+        top_k_per_doc: int = 4,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve relevant chunks across multiple documents, tagging source info."""
+        all_chunks: List[Dict[str, Any]] = []
+        for doc_id in document_ids:
+            qemb = self.generate_query_embedding(user_query, doc_id)
+            if not qemb:
+                continue
+            chunks = self.search_relevant_chunks(db, doc_id, qemb, top_k=top_k_per_doc)
+            for c in chunks:
+                c["document_id"] = doc_id
+                c["document_title"] = document_titles.get(doc_id, "Documento")
+            all_chunks.extend(chunks)
+        # Global relevance ordering (MMR already applied per document)
+        all_chunks.sort(key=lambda x: x.get("similarity", 0.0), reverse=True)
+        return all_chunks
+
+    def create_multi_rag_prompt(self, query: str, relevant_chunks: List[Dict[str, Any]]) -> str:
+        """Create a RAG prompt for context spanning multiple documents."""
+        context_parts = []
+        for i, chunk_data in enumerate(relevant_chunks):
+            page_info = f"Página {chunk_data['page_start']}"
+            if chunk_data['page_end'] != chunk_data['page_start']:
+                page_info += f"-{chunk_data['page_end']}"
+            title = chunk_data.get("document_title", "Documento")
+            context_parts.append(f"[Fragmento {i+1} - {title} - {page_info}]\n{chunk_data['text']}\n")
+        context = "\n".join(context_parts)
+
+        return f"""Eres un asistente de IA experto en análisis de documentos. Responde basándote ÚNICAMENTE en la información de los fragmentos, que provienen de varios documentos.
+
+INSTRUCCIONES IMPORTANTES:
+1. Responde SOLO con información que aparece en los fragmentos proporcionados.
+2. Cuando uses información de un documento concreto, indica su título entre paréntesis.
+3. Si no hay información suficiente, responde: "No hay suficiente información en los fragmentos para responder con certeza." y sugiere qué buscar.
+4. Incluye citas indicando la página exacta en cada idea importante.
+5. Tono profesional y conciso.
+6. No inventes ni extrapoles más allá de los fragmentos.
+7. FORMATO: párrafos separados por \n\n. Al final, incluye una sección "Citas" con el formato: [Documento, Página X]: breve extracto.
+
+FRAGMENTOS DE LOS DOCUMENTOS:
+{context}
+
+PREGUNTA DEL USUARIO: {query}
+
+RESPUESTA:"""
+
+    def prepare_multi_chat_prompt(
+        self,
+        db: Session,
+        document_ids: List[str],
+        document_titles: Dict[str, str],
+        user_query: str,
+    ) -> Dict[str, Any]:
+        """Build a RAG prompt across multiple documents for streaming chat."""
+        relevant_chunks = self._retrieve_multi(db, document_ids, document_titles, user_query)
+        if not relevant_chunks:
+            return {
+                "prompt": None,
+                "relevant_chunks": [],
+                "chunks_found": 0,
+                "coverage": 0.0,
+                "metadata_response": (
+                    "Lo siento, no encontré información relevante en los documentos para responder tu pregunta. "
+                    "Intenta reformular la pregunta o verifica que los documentos contengan información relacionada con tu consulta."
+                ),
+            }
+
+        sims = [c.get("similarity", 0.0) for c in relevant_chunks]
+        sims_top = sims[: min(3, len(sims))]
+        coverage = float(sum(sims_top) / max(len(sims_top), 1))
+        min_cov = float(os.getenv("RAG_MIN_COVERAGE", "0.22"))
+
+        if coverage < min_cov:
+            safe_msg = (
+                "No hay suficiente información en los fragmentos recuperados para responder con certeza. "
+                "Prueba hacer una pregunta más específica, o amplía el contexto añadiendo más documentos."
+            )
+            return {
+                "prompt": None,
+                "relevant_chunks": relevant_chunks[:3],
+                "chunks_found": len(relevant_chunks),
+                "coverage": coverage,
+                "metadata_response": safe_msg,
+            }
+
+        prompt = self.create_multi_rag_prompt(user_query, relevant_chunks)
+        return {
+            "prompt": prompt,
+            "relevant_chunks": relevant_chunks,
+            "chunks_found": len(relevant_chunks),
+            "coverage": coverage,
+            "metadata_response": None,
+        }
+
+    def chat_with_documents(
+        self,
+        db: Session,
+        document_ids: List[str],
+        document_titles: Dict[str, str],
+        user_query: str,
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Complete non-streaming RAG pipeline across multiple documents."""
+        try:
+            relevant_chunks = self._retrieve_multi(db, document_ids, document_titles, user_query)
+            if not relevant_chunks:
+                return {
+                    "response": "Lo siento, no encontré información relevante en los documentos para responder tu pregunta. Intenta reformular la pregunta o verifica que los documentos contengan información relacionada con tu consulta.",
+                    "citations": [],
+                    "success": True,
+                    "confidence": 0.0,
+                }
+
+            sims = [c.get("similarity", 0.0) for c in relevant_chunks]
+            sims_top = sims[: min(3, len(sims))]
+            coverage = float(sum(sims_top) / max(len(sims_top), 1))
+            min_cov = float(os.getenv("RAG_MIN_COVERAGE", "0.22"))
+
+            if coverage < min_cov:
+                safe_msg = (
+                    "No hay suficiente información en los fragmentos recuperados para responder con certeza. "
+                    "Prueba hacer una pregunta más específica, o amplía el contexto añadiendo más documentos."
+                )
+                citations = self.extract_citations_from_chunks(relevant_chunks[:3])
+                return {
+                    "response": safe_msg,
+                    "citations": citations,
+                    "success": True,
+                    "confidence": round(coverage, 3),
+                    "chunks_found": len(relevant_chunks),
+                }
+
+            prompt = self.create_multi_rag_prompt(user_query, relevant_chunks)
+            response_text, _ = self.generate_response(prompt, model=model)
+            citations = self.extract_citations_from_chunks(relevant_chunks)
+
+            return {
+                "response": response_text,
+                "citations": citations,
+                "success": True,
+                "chunks_found": len(relevant_chunks),
+                "confidence": round(coverage, 3),
+                "coverage": round(coverage, 3),
+            }
+        except Exception as e:
+            logger.error(f"Multi-doc chat failed: {e}")
+            return {
+                "response": f"Lo siento, ocurrió un error al procesar tu pregunta: {str(e)}",
+                "citations": [],
+                "success": False,
+                "error": str(e),
+            }
+
     def chat_stream(
         self,
         prompt: str,
@@ -721,7 +887,7 @@ class SummaryGenerator:
     """Handles automatic document summarization using the configured LLM provider"""
 
     def __init__(self):
-        self.router = ProviderRouter()
+        self.router = get_router()
         logger.info("SummaryGenerator initialized")
     
     def create_summary_prompt(self, document_title: str, full_content: str, summary_type: str = "comprehensive") -> str:
@@ -1014,7 +1180,7 @@ class StudyGuideGenerator:
     """Genera guías de estudio a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.router = ProviderRouter()
+        self.router = get_router()
         logger.info("StudyGuideGenerator initialized")
 
     def _fetch_context(
@@ -1271,7 +1437,7 @@ class MindmapGenerator:
     """Genera mapas mentales (Mermaid) a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.router = ProviderRouter()
+        self.router = get_router()
         logger.info("MindmapGenerator initialized")
 
     def get_document_mindmap(
@@ -1576,7 +1742,7 @@ class QuizGenerator:
     """Genera cuestionarios (opción múltiple) en Markdown a partir de un documento o rango de páginas usando el LLM configurado"""
 
     def __init__(self):
-        self.router = ProviderRouter()
+        self.router = get_router()
         logger.info("QuizGenerator initialized")
 
     def _fetch_context(
@@ -1672,6 +1838,51 @@ SALIDA: (SOLO EL CUESTIONARIO EN MARKDOWN)
             logger.error(f"Quiz: LLM call failed: {e}")
             return None
 
+    @staticmethod
+    def _parse_quiz_markdown(markdown: str) -> List[Dict[str, Any]]:
+        """Parse the Markdown quiz output into structured questions."""
+        if not markdown:
+            return []
+        questions: List[Dict[str, Any]] = []
+        current: Optional[Dict[str, Any]] = None
+        option_re = re.compile(r"^\s*[-*]?\s*\(?([A-Da-d])[).]\s+(.*)$")
+        question_start_re = re.compile(r"^\s*(?:\*\*)?\s*(\d+)[).]\s*(.*)$")
+
+        for line in markdown.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            m = question_start_re.match(line)
+            if m:
+                if current and current.get("question"):
+                    questions.append(current)
+                current = {
+                    "question": m.group(2).strip(),
+                    "options": [],
+                    "correct": "",
+                    "justification": "",
+                }
+                continue
+            if current is None:
+                continue
+            lower = stripped.lower()
+            if lower.startswith("correcta:"):
+                current["correct"] = stripped.split(":", 1)[1].strip()
+                continue
+            if lower.startswith("justificaci"):
+                current["justification"] = stripped.split(":", 1)[1].strip()
+                continue
+            if lower.startswith("páginas") or lower.startswith("paginas"):
+                # "Páginas: ..." metadata lines
+                continue
+            om = option_re.match(line)
+            if om:
+                current["options"].append(om.group(2).strip())
+
+        if current and current.get("question"):
+            questions.append(current)
+        return questions
+
     def generate_quiz(
         self,
         db: Session,
@@ -1705,10 +1916,172 @@ SALIDA: (SOLO EL CUESTIONARIO EN MARKDOWN)
                 if used_range:
                     out["pages_used"] = {"start": used_range[0], "end": used_range[1]}
                 return out
-            result = {"success": True, "markdown": text}
+            result = {"success": True, "markdown": text, "questions": self._parse_quiz_markdown(text)}
             if used_range:
                 result["pages_used"] = {"start": used_range[0], "end": used_range[1]}
             return result
         except Exception as e:
             logger.error(f"Quiz: generation failed: {e}")
+            return {"success": False, "error": str(e)}
+
+
+class FAQGenerator:
+    """Genera preguntas frecuentes (FAQ) con respuestas con cita de página a partir de un documento."""
+
+    def __init__(self):
+        self.router = get_router()
+        logger.info("FAQGenerator initialized")
+
+    def _fetch_context(
+        self,
+        db: Session,
+        document_id: str,
+        start_page: Optional[int],
+        end_page: Optional[int],
+        char_limit: int = 12000,
+    ) -> Tuple[str, Optional[int], Optional[int]]:
+        try:
+            query = db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id)
+            if start_page is not None and end_page is not None:
+                query = query.filter(
+                    DocumentChunk.page_start <= end_page,
+                    DocumentChunk.page_end >= start_page,
+                )
+            chunks = query.order_by(DocumentChunk.chunk_index).all()
+            if not chunks:
+                return "", None, None
+            texts = []
+            total = 0
+            min_p = None
+            max_p = None
+            for ch in chunks:
+                t = (ch.text or "").strip()
+                if not t:
+                    continue
+                if total + len(t) > char_limit:
+                    remaining = max(char_limit - total, 0)
+                    if remaining > 0:
+                        texts.append(t[:remaining])
+                        total += remaining
+                    break
+                texts.append(t)
+                total += len(t)
+                min_p = ch.page_start if min_p is None else min(min_p, ch.page_start)
+                max_p = ch.page_end if max_p is None else max(max_p, ch.page_end)
+            return "\n\n".join(texts), min_p, max_p
+        except Exception as e:
+            logger.error(f"FAQ: error fetching context: {e}")
+            return "", None, None
+
+    def _create_prompt(
+        self,
+        document_title: str,
+        context: str,
+        pages_used: Optional[Tuple[int, int]],
+        user_query: Optional[str],
+        num_faqs: int = 8,
+    ) -> str:
+        page_hint = (
+            f"(Limítate al rango de páginas {pages_used[0]}–{pages_used[1]})"
+            if pages_used and pages_used[0] and pages_used[1]
+            else "(Limítate estrictamente al contexto proporcionado)"
+        )
+        focus = f"ENFOQUE: {user_query}\n" if user_query else ""
+        return f"""
+Eres un asistente que elabora preguntas frecuentes (FAQ) basadas en documentos.
+Trabaja ÚNICAMENTE con el CONTEXTO de "{document_title}" {page_hint}.
+
+{focus}INSTRUCCIONES:
+1) Genera {num_faqs} preguntas frecuentes relevantes y sus respuestas claras y concisas.
+2) Cada respuesta debe basarse únicamente en el contenido del contexto, sin inventar.
+3) Incluye el rango de páginas en el que se encuentra cada respuesta, formato "X–Y".
+4) Devuelve SOLO JSON válido, sin bloque de código.
+
+FORMATO JSON:
+{{
+  "faqs": [
+    {{"question": "pregunta frecuente", "answer": "respuesta concisa y precisa", "pages": "X–Y"}}
+  ]
+}}
+
+CONTEXTO DEL DOCUMENTO:
+{context}
+
+DEVUELVE SOLO EL JSON SOLICITADO.
+"""
+
+    def _call_llm(self, prompt: str) -> Optional[str]:
+        try:
+            text, _ = self.router.chat(
+                prompt,
+                temperature=0.3,
+                max_tokens=1200,
+            )
+            return (text or "").strip()
+        except Exception as e:
+            logger.error(f"FAQ: LLM call failed: {e}")
+            return None
+
+    def _faqs_to_markdown(self, faqs: List[Dict[str, Any]]) -> str:
+        if not faqs:
+            return ""
+        parts = ["## Preguntas frecuentes"]
+        for i, faq in enumerate(faqs, start=1):
+            q = faq.get("question", f"Pregunta {i}")
+            a = faq.get("answer", "")
+            pages = faq.get("pages", "")
+            parts.append(f"\n### {i}. {q}")
+            parts.append(a)
+            if pages:
+                parts.append(f"\n> Páginas: {pages}")
+        return "\n".join(parts)
+
+    def generate_faqs(
+        self,
+        db: Session,
+        document_id: str,
+        document_title: str,
+        start_page: Optional[int] = None,
+        end_page: Optional[int] = None,
+        user_query: Optional[str] = None,
+        num_faqs: int = 8,
+    ) -> Dict[str, Any]:
+        try:
+            context, min_p, max_p = self._fetch_context(db, document_id, start_page, end_page)
+            if not context:
+                return {"success": False, "error": "No context available for the requested range"}
+            used_range = (min_p, max_p) if (min_p and max_p) else None
+            prompt = self._create_prompt(document_title, context, used_range, user_query, num_faqs=num_faqs)
+            resp_text = self._call_llm(prompt)
+
+            if not resp_text:
+                # Fallback minimal FAQ
+                faqs = [
+                    {
+                        "question": "¿De qué trata el documento?",
+                        "answer": "Síntesis breve basada en el contexto disponible del documento.",
+                        "pages": f"{min_p}-{max_p}" if used_range else "",
+                    }
+                ]
+                out = {"success": True, "faqs": faqs, "markdown": self._faqs_to_markdown(faqs)}
+                if used_range:
+                    out["pages_used"] = {"start": used_range[0], "end": used_range[1]}
+                return out
+
+            text = resp_text
+            if text.startswith("```json"):
+                text = text.replace("```json", "").replace("```", "").strip()
+            data = json.loads(text)
+            faqs = data.get("faqs") or []
+
+            result = {"success": True, "faqs": faqs, "markdown": self._faqs_to_markdown(faqs)}
+            if used_range:
+                result["pages_used"] = {"start": used_range[0], "end": used_range[1]}
+            return result
+
+        except json.JSONDecodeError as e:
+            logger.error(f"FAQ: JSON parse error: {e}")
+            return {"success": False, "error": "LLM did not return valid JSON"}
+        except Exception as e:
+            logger.error(f"FAQ: generation failed: {e}")
             return {"success": False, "error": str(e)}

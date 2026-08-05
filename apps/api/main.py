@@ -17,11 +17,10 @@ except Exception:
 load_dotenv()
 
 # Import routers
-from routers import auth, documents, chat
+from routers import auth, documents, chat, providers
 
 # Database
 from database_simple import engine, Base, create_tables
-from demo import periodic_cleanup_task
 
 security = HTTPBearer()
 
@@ -31,18 +30,9 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Cella API...")
     create_tables()
     print("📊 Database tables created/verified")
-    # Start demo cleanup if enabled
-    import asyncio
-    if cfg.DEMO_PUBLIC and (cfg.DEMO_AUTO_CLEAN_HOURS or 0) > 0:
-        print("🧹 Demo cleanup task enabled")
-        app.state._cleanup_task = asyncio.create_task(periodic_cleanup_task())
     yield
     # Shutdown
-    print("⭐ Shutting down DocAI API...")
-    # Cancel cleanup task if running
-    task = getattr(app.state, "_cleanup_task", None)
-    if task:
-        task.cancel()
+    print("⭐ Shutting down Cella API...")
 
 app = FastAPI(
     title="Cella API",
@@ -89,8 +79,8 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
     else:
         response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
-    # HSTS only when secure context is expected (prod/demo)
-    if cfg.ENVIRONMENT == "production" or cfg.DEMO_PUBLIC or cfg.COOKIE_SECURE:
+    # HSTS only when secure context is expected (prod)
+    if cfg.ENVIRONMENT == "production" or cfg.COOKIE_SECURE:
         # 6 months, includeSubDomains
         response.headers.setdefault("Strict-Transport-Security", "max-age=15552000; includeSubDomains")
     # CSP (strict in prod if enabled)
@@ -119,15 +109,14 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
             response.headers.setdefault("Content-Security-Policy", csp)
     return response
 
-# Simple in-memory rate limiting (per-IP per route, 60s window)
-from time import time
-from collections import defaultdict, deque
+# Redis-backed sliding-window rate limiting (falls back to in-memory)
+from rate_limit import RateLimiter
 
-_RATE_BUCKETS = defaultdict(lambda: deque())
+_rate_limiter = RateLimiter()
 
 LIMITS = {
-    "/auth/guest": cfg.GUEST_RATE_LIMIT_PER_MIN,
     "/documents/upload": cfg.RATE_LIMIT_UPLOAD_PER_MIN,
+    "/auth/local": cfg.RATE_LIMIT_LOGIN_PER_MIN,
 }
 
 @app.middleware("http")
@@ -145,30 +134,22 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
     if not limit:
         return await call_next(request)
     ip = request.client.host if request.client else "unknown"
-    now = time()
-    window = 60.0
     key = f"{ip}:{key_path}"
-    bucket = _RATE_BUCKETS[key]
-    # Evict old timestamps
-    while bucket and now - bucket[0] > window:
-        bucket.popleft()
-    if len(bucket) >= int(limit):
+    allowed, count, retry_after = _rate_limiter.allow(key, int(limit))
+    if not allowed:
         from fastapi.responses import JSONResponse
-        retry_after = int(window - (now - bucket[0])) if bucket else 60
         return JSONResponse(
             status_code=429,
             content={"detail": "Too Many Requests"},
             headers={
-                "Retry-After": str(max(retry_after, 1)),
+                "Retry-After": str(retry_after),
                 "X-RateLimit-Limit": str(limit),
                 "X-RateLimit-Remaining": "0",
             },
         )
-    bucket.append(now)
     response = await call_next(request)
-    remaining = max(int(limit) - len(bucket), 0)
     response.headers["X-RateLimit-Limit"] = str(limit)
-    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Remaining"] = str(max(int(limit) - count, 0))
     return response
 
 @app.get("/")
@@ -183,6 +164,7 @@ async def health_check():
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(providers.router, prefix="", tags=["providers"])
 
 if __name__ == "__main__":
     uvicorn.run(

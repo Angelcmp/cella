@@ -77,10 +77,12 @@ class DocumentEmbedding(Base):
 
 class Conversation(Base):
     __tablename__ = "conversations"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, nullable=False)
     document_id = Column(String, nullable=False)
+    # Optional list of document ids for multi-document chats
+    document_ids = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Message(Base):
@@ -110,7 +112,7 @@ class DocumentSummary(Base):
 
 class DocumentMindmap(Base):
     __tablename__ = "doc_mindmaps"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String, nullable=False, unique=True)
     markdown = Column(Text, nullable=False)
@@ -118,6 +120,38 @@ class DocumentMindmap(Base):
     pages_used = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+class DocumentStudyGuide(Base):
+    __tablename__ = "doc_study_guides"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, nullable=False, unique=True)
+    content = Column(JSON)  # structured guide (objectives, key_concepts, sections, ...)
+    markdown = Column(Text)
+    pages_used = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class DocumentFaq(Base):
+    __tablename__ = "doc_faqs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, nullable=False, unique=True)
+    faqs = Column(JSON)  # list of {question, answer, pages}
+    markdown = Column(Text)
+    pages_used = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False)
+    document_id = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class RevokedToken(Base):
     __tablename__ = "revoked_tokens"
@@ -130,6 +164,35 @@ class RevokedToken(Base):
         Index("ix_revoked_tokens_expires_at", "expires_at"),
     )
 
+
+class ProviderConfig(Base):
+    __tablename__ = "provider_configs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True)
+    # provider type: openai | anthropic | openai_compat (generic OpenAI-compatible endpoint)
+    provider_type = Column(String, nullable=False)
+    # JSON string (encrypted with Fernet) with api_key, base_url, models, default_model, is_default
+    config = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 # Create tables
 def create_tables():
     Base.metadata.create_all(bind=engine)
+    _migrate()
+
+
+def _migrate():
+    """Lightweight schema migrations for SQLite (additive only)."""
+    try:
+        from sqlalchemy import inspect, text
+
+        insp = inspect(engine)
+        columns = {c["name"] for c in insp.get_columns("conversations")}
+        if "document_ids" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE conversations ADD COLUMN document_ids JSON"))
+    except Exception as e:
+        print(f"   Migration notice (non-fatal): {e}")

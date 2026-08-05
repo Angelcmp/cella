@@ -14,9 +14,7 @@ export default function LandingHeader() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-0.5">
-          <a href="#features" className="px-2.5 py-1 rounded-md text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors">Features</a>
           <Link href="/docs" className="px-2.5 py-1 rounded-md text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors">Docs</Link>
-          <Link href="/pricing" className="px-2.5 py-1 rounded-md text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors">Pricing</Link>
         </nav>
 
         <Button asChild size="sm" variant="gradient" className="text-[12px] gap-1 px-3 py-1.5 h-8">

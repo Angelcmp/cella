@@ -4,18 +4,16 @@ import { useState, useEffect } from "react";
 import LeftSidebar from "./LeftSidebar";
 import ChatPanel from "./ChatPanel";
 import RightSidebar from "./RightSidebar";
+import ProviderSettingsModal from "./ProviderSettingsModal";
 import { PanelRightOpen, PanelRightClose, PanelLeft } from "lucide-react";
 import Link from "next/link";
 import { useZenStore } from "./store";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export default function ZenLayout() {
-  const { documents } = useZenStore();
+  const { documents, refreshModels } = useZenStore();
   const hasDocuments = documents.length > 0;
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(false);
-  const [ready, setReady] = useState(false);
 
   // Open the right sidebar automatically when a document is selected/available
   useEffect(() => {
@@ -24,38 +22,10 @@ export default function ZenLayout() {
     }
   }, [hasDocuments]);
 
+  // Load available models from the backend on mount
   useEffect(() => {
-    const initSession = async () => {
-      try {
-        const meRes = await fetch(`${API_URL}/auth/me`, {
-          credentials: "include",
-        });
-        if (!meRes.ok) {
-          await fetch(`${API_URL}/auth/guest`, {
-            method: "POST",
-            credentials: "include",
-          });
-        }
-      } catch {}
-      setReady(true);
-    };
-    initSession();
-  }, []);
-
-  if (!ready) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-        <div className="text-center space-y-3">
-          <svg className="w-10 h-10" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="#9966CC" strokeLinejoin="round" />
-          </svg>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Preparando tu sesión...
-          </p>
-        </div>
-      </div>
-    );
-  }
+    refreshModels();
+  }, [refreshModels]);
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
@@ -118,6 +88,8 @@ export default function ZenLayout() {
           </div>
         )}
       </div>
+
+      <ProviderSettingsModal />
     </div>
   );
 }
