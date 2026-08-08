@@ -71,15 +71,14 @@ INFRA=light bash start.sh
 - **Mapas mentales** — Grafos interactivos con Cytoscape.js
 - **Quiz** — Preguntas de opción múltiple desde el contenido
 - **Multi-modelo** — DeepSeek V4 Flash, GLM-4.5 Flash, GLM-4.7
-- **Sesiones guest** — Sin registro, entrada directa
 - **Embeddings locales** — FastEmbed, sin API key externa
+- **Exportar conversaciones** — Markdown/JSON con citas
 - **Tema claro/oscuro** — Paleta purple + slate + white
 
 ## API
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/auth/guest` | Sesión de invitado |
 | `GET` | `/auth/me` | Usuario actual |
 | `POST` | `/documents/upload` | Subir documento |
 | `GET` | `/documents/` | Listar documentos |
@@ -89,7 +88,14 @@ INFRA=light bash start.sh
 | `POST` | `/documents/{id}/mindmap` | Mapa mental |
 | `GET` | `/documents/{id}/mindmap` | Recuperar mindmap guardado |
 | `POST` | `/documents/{id}/quiz` | Quiz |
+| `GET/POST` | `/documents/{id}/study-guide` | Guía de estudio |
+| `GET/POST` | `/documents/{id}/faq` | FAQ |
+| `GET/POST/DELETE` | `/documents/{id}/notes` | Notas por documento |
 | `POST` | `/chat/documents/{id}` | Chat RAG (SSE opcional) |
+| `GET` | `/conversations` | Listar conversaciones |
+| `GET` | `/conversations/{id}/export?format=md\|json` | Exportar conversación |
+| `GET` | `/models` | Modelos disponibles |
+| `GET` | `/providers` | Proveedores/configuración |
 | `GET` | `/health` | Estado del servicio |
 
 ## Requisitos

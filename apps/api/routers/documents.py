@@ -188,6 +188,40 @@ async def get_document(
     return document
 
 
+@router.post("/{document_id}/reprocess", response_model=DocumentResponse)
+async def reprocess_document(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _=Depends(csrf_protect),
+):
+    """Reset a failed document back to pending so the worker re-processes it."""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    if document.status == "indexed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Document is already indexed"
+        )
+
+    document.status = "pending"
+    document.attempts = 0
+    document.last_error = None
+    document.last_attempt_at = None
+    db.commit()
+    db.refresh(document)
+    return document
+
+
 @router.post("/{document_id}/summary")
 async def generate_document_summary(
     document_id: str,

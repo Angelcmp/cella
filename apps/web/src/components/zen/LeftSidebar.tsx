@@ -67,6 +67,8 @@ export default function LeftSidebar({
           pages: d.pages || 0,
           size: d.file_size || d.size || 0,
           createdAt: d.created_at || d.createdAt || new Date().toISOString(),
+          lastError: d.last_error || undefined,
+          attempts: d.attempts || 0,
         }));
         setDocuments(docs);
         return docs;

@@ -22,7 +22,7 @@ router = APIRouter(tags=["chat"])
 # Pydantic models
 class ChatRequest(BaseModel):
     message: str
-    model: str = "deepseek-v4-flash"
+    model: Optional[str] = None
     stream: bool = False
     document_ids: Optional[List[str]] = None
 
@@ -78,10 +78,15 @@ def _get_or_create_conversation(
     document_id: str,
     document_ids: Optional[List[str]] = None,
 ) -> Conversation:
-    conversation = db.query(Conversation).filter(
+    query = db.query(Conversation).filter(
         Conversation.user_id == user_id,
-        Conversation.document_id == document_id
-    ).first()
+        Conversation.document_id == document_id,
+    )
+    if document_ids:
+        query = query.filter(Conversation.document_ids == document_ids)
+    else:
+        query = query.filter(Conversation.document_ids.is_(None))
+    conversation = query.first()
     if not conversation:
         conversation = Conversation(
             user_id=user_id,
@@ -322,7 +327,9 @@ def _stream_chat_response(
             "metadata_response": f"Lo siento, ocurrió un error al preparar la respuesta: {str(e)}",
         }
 
-    citations = ctx.get("relevant_chunks", [])
+    citations = rag_system.extract_citations_from_chunks(
+        ctx.get("relevant_chunks", []), document_title
+    )
     metadata_response = ctx.get("metadata_response")
     chunks_found = ctx.get("chunks_found")
     coverage = ctx.get("coverage")
@@ -341,6 +348,7 @@ def _stream_chat_response(
                         "page": c.get("page", 0),
                         "snippet": c.get("snippet", ""),
                         "similarity": c.get("similarity"),
+                        "document": c.get("document"),
                     }
                     for c in citations
                 ],
@@ -435,7 +443,7 @@ def _stream_multi_chat_response(
             "metadata_response": f"Lo siento, ocurrió un error al preparar la respuesta: {str(e)}",
         }
 
-    citations = ctx.get("relevant_chunks", [])
+    citations = rag_system.extract_citations_from_chunks(ctx.get("relevant_chunks", []))
     metadata_response = ctx.get("metadata_response")
     chunks_found = ctx.get("chunks_found")
     coverage = ctx.get("coverage")
@@ -453,7 +461,7 @@ def _stream_multi_chat_response(
                         "page": c.get("page", 0),
                         "snippet": c.get("snippet", ""),
                         "similarity": c.get("similarity"),
-                        "document": c.get("document_title"),
+                        "document": c.get("document"),
                     }
                     for c in citations
                 ],

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, type ReactElement } from "react";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 import ChatInput from "./zen/ChatInput";
 import ThinkingBlock from "./zen/ThinkingBlock";
 import { withCsrfHeaders } from "@/lib/csrf";
@@ -264,7 +265,7 @@ export default function ChatInterface({
           credentials: 'include',
           body: JSON.stringify({
             message: userMessage.content,
-            model: model || "deepseek-v4-flash",
+            model: model || undefined,
             stream: true,
             document_ids: isMulti ? effectiveDocumentIds : undefined,
           }),
@@ -462,6 +463,128 @@ export default function ChatInterface({
     }
   };
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const toMarkdown = (msgs: Message[]): string => {
+    const lines: string[] = [`# ${documentTitle}\n`];
+    for (const m of msgs) {
+      if (m.id === "welcome") continue;
+      if (m.role === "user") {
+        lines.push(`## Usuario\n\n${m.content}\n`);
+      } else {
+        lines.push(`## Cella (IA)\n\n${m.content}\n`);
+        if (m.citations && m.citations.length > 0) {
+          lines.push("### Citas\n");
+          m.citations.forEach((c, i) => {
+            const doc = c.document ? `${c.document} ` : "";
+            const page = c.page ? `p.${c.page}` : "";
+            lines.push(`[${i + 1}] (${doc}${page}) “${c.snippet}”\n`);
+          });
+        }
+      }
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  };
+
+  const toJson = (msgs: Message[]): string =>
+    JSON.stringify(
+      {
+        document_id: documentId,
+        document_title: documentTitle,
+        document_ids: isMulti ? effectiveDocumentIds : undefined,
+        messages: msgs
+          .filter((m) => m.id !== "welcome")
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+            citations: m.citations ?? [],
+            timestamp: m.timestamp.toISOString(),
+          })),
+      },
+      null,
+      2
+    );
+
+  const exportConversation = async (format: "md" | "json") => {
+    try {
+      if (conversationId) {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/conversations/${conversationId}/export?format=${format}`,
+          { credentials: "include" }
+        );
+        if (!res.ok) {
+          throw new Error((await res.json().catch(() => null))?.detail || "Error al exportar");
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, `cella-conversation.${format === "md" ? "md" : "json"}`);
+        toast.success("Conversación exportada");
+        return;
+      }
+
+      // Fallback: export the in-memory transcript
+      const filename = `cella-transcript.${format === "md" ? "md" : "json"}`;
+      const content = format === "md" ? toMarkdown(messages) : toJson(messages);
+      downloadBlob(new Blob([content], { type: "text/plain;charset=utf-8" }), filename);
+      toast.success("Conversación exportada (local)");
+    } catch (err) {
+      console.error("Export failed", err);
+      toast.error(err instanceof Error ? err.message : "No se pudo exportar la conversación");
+    }
+  };
+
+  const exportConversationPdf = () => {
+    const md = toMarkdown(messages);
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) {
+      toast.error("El navegador bloqueó la ventana de impresión");
+      return;
+    }
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${documentTitle}</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 24px; color: #0F172A; line-height: 1.6; }
+    h1 { font-size: 22px; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; }
+    h2 { font-size: 16px; margin-top: 24px; color: #7C3AED; }
+    h3 { font-size: 13px; margin-top: 16px; color: #475569; }
+    p { font-size: 13px; margin: 8px 0; white-space: pre-wrap; }
+    pre, code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #F1F5F9; border-radius: 6px; }
+    pre { padding: 12px; overflow-x: auto; }
+    code { padding: 2px 4px; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>${escapeHtml(md)}</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
+
+  const escapeHtml = (md: string) => {
+    const escaped = md
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return escaped
+      .split(/\n\n+/)
+      .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
+      .join("\n");
+  };
+
   return (
     <div className={cn("flex flex-col h-full bg-[var(--bg-primary)]", className)}>
       <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -522,13 +645,38 @@ export default function ChatInterface({
                 </div>
               )}
 
-              <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-3">
                 <button
                   onClick={() => copyToClipboard(message.content)}
                   className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
                 >
                   Copiar
                 </button>
+                {message.role === "assistant" && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => exportConversation("md")}
+                      title="Exportar conversación (Markdown)"
+                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                    >
+                      <Download className="w-3 h-3" /> MD
+                    </button>
+                    <button
+                      onClick={() => exportConversation("json")}
+                      title="Exportar conversación (JSON)"
+                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                    >
+                      JSON
+                    </button>
+                    <button
+                      onClick={exportConversationPdf}
+                      title="Exportar conversación (PDF)"
+                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

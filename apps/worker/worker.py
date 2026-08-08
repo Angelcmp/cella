@@ -213,57 +213,113 @@ def process_document(document_id: str, file_path: str):
         print(f"❌ Document processing failed: {e}")
         return False
 
+
+def backoff_for(attempts: int, base_backoff: int = 5) -> int:
+    """Exponential backoff seconds for a given attempt count (1-based)."""
+    return base_backoff * (2 ** (max(attempts, 1) - 1))
+
+
+def due_for_retry(attempts: int, last_attempt_at, max_attempts: int, base_backoff: int = 5, now=None) -> bool:
+    """True when a failed doc's backoff window has elapsed."""
+    if attempts >= max_attempts:
+        return False
+    if last_attempt_at is None:
+        return True
+    now = now or datetime.utcnow()
+    elapsed = (now - last_attempt_at).total_seconds()
+    return elapsed >= backoff_for(attempts, base_backoff)
+
 def simulate_worker():
     """
-    Simulate a worker checking for pending documents
-    In real implementation, this would be Celery with Redis
+    Poll for pending documents and process them with retries and backoff.
+
+    Failed documents are retried up to MAX_ATTEMPTS with exponential backoff
+    derived from `attempts`. When the attempt budget is exhausted the document
+    stays in `failed` with `last_error` populated for manual reprocessing.
     """
-    print("🚀 DocAI Worker started")
-    print("📋 Checking for pending documents...")
-    
+    from database_simple import SessionLocal, Document, create_tables
+
+    max_attempts = int(os.getenv("WORKER_MAX_ATTEMPTS", "3"))
+    base_backoff = int(os.getenv("WORKER_BACKOFF_BASE_SECONDS", "5"))
+    poll_interval = int(os.getenv("WORKER_POLL_SECONDS", "10"))
+
+    print("🚀 Cella Worker started")
+    print(f"📋 Max attempts: {max_attempts}, backoff base: {base_backoff}s, poll: {poll_interval}s")
+
+    def due(doc) -> bool:
+        return due_for_retry(
+            attempts=doc.attempts or 0,
+            last_attempt_at=doc.last_attempt_at,
+            max_attempts=max_attempts,
+            base_backoff=base_backoff,
+        )
+
+    # Ensure tables exist before polling
+    create_tables()
+
     try:
-        from database_simple import SessionLocal, Document, create_tables
-        
-        # Ensure tables exist before polling
-        create_tables()
-        
         while True:
             db = SessionLocal()
             try:
-                # Find pending documents
+                # First, requeue failed docs whose backoff window has elapsed.
+                retried = 0
+                for doc in db.query(Document).filter(Document.status == "failed").all():
+                    if due(doc):
+                        doc.status = "pending"
+                        db.commit()
+                        retried += 1
+                if retried:
+                    print(f"🔁 Requeued {retried} failed document(s) after backoff")
+
+                # Then pick up pending documents
                 pending_docs = db.query(Document).filter(
                     Document.status == "pending"
                 ).limit(5).all()
-                
+
                 if pending_docs:
                     print(f"📄 Found {len(pending_docs)} pending documents")
-                    
+
                     for doc in pending_docs:
                         # Update status to processing
                         doc.status = "processing"
                         db.commit()
-                        
+
                         # Process document
                         try:
                             process_document(doc.id, doc.storage_url)
-                            
+
                             # Update status to indexed
                             doc.status = "indexed"
                             db.commit()
-                            
+
                         except Exception as e:
                             print(f"❌ Error processing document {doc.id}: {e}")
-                            doc.status = "failed"
+                            doc.attempts = (doc.attempts or 0) + 1
+                            doc.last_error = str(e)[:500]
+                            doc.last_attempt_at = datetime.utcnow()
+
+                            if doc.attempts >= max_attempts:
+                                doc.status = "failed"
+                                print(
+                                    f"   ⛔ Document {doc.id} failed after {doc.attempts} attempts: {e}"
+                                )
+                            else:
+                                # Backoff applies before the next retry
+                                doc.status = "failed"
+                                print(
+                                    f"   🔁 Retry {doc.attempts}/{max_attempts} for {doc.id} "
+                                    f"in {backoff_for(doc.attempts, base_backoff)}s"
+                                )
                             db.commit()
                 else:
                     print("💤 No pending documents, waiting...")
-                
+
             finally:
                 db.close()
-            
+
             # Wait before checking again
-            time.sleep(10)
-            
+            time.sleep(poll_interval)
+
     except KeyboardInterrupt:
         print("\n⭐ Worker shutting down...")
     except Exception as e:

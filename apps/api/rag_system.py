@@ -274,7 +274,11 @@ RESPUESTA:"""
             logger.error(f"Failed to generate chat response: {e}")
             return f"Lo siento, ocurrió un error al generar la respuesta: {str(e)}", []
     
-    def extract_citations_from_chunks(self, relevant_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def extract_citations_from_chunks(
+        self,
+        relevant_chunks: List[Dict[str, Any]],
+        document_title: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Extract citation information from relevant chunks"""
         citations = []
         
@@ -289,8 +293,9 @@ RESPUESTA:"""
                 "snippet": snippet,
                 "similarity": round(chunk_data["similarity"], 3)
             }
-            if chunk_data.get("document_title"):
-                citation["document"] = chunk_data["document_title"]
+            doc_title = chunk_data.get("document_title") or document_title
+            if doc_title:
+                citation["document"] = doc_title
             
             citations.append(citation)
         
@@ -456,7 +461,7 @@ RESPUESTA:"""
                     document_title=document_title,
                 )
                 ai_text, _ = self.generate_response(prompt, model=model)
-                citations = self.extract_citations_from_chunks(page_chunks)
+                citations = self.extract_citations_from_chunks(page_chunks, document_title)
                 return {
                     "response": ai_text,
                     "citations": citations,
@@ -535,7 +540,7 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
                     "Prueba hacer una pregunta más específica (por ejemplo, mencionando una página o sección), "
                     "o amplía el contexto subiendo más contenido relacionado."
                 )
-                citations = self.extract_citations_from_chunks(relevant_chunks[:2])
+                citations = self.extract_citations_from_chunks(relevant_chunks[:2], document_title)
                 return {
                     "response": safe_msg,
                     "citations": citations,
@@ -549,10 +554,14 @@ El documento ha sido completamente procesado y indexado. Todas las páginas est�
 
             # Step 5: Anchor sentences to retrieved chunks and derive citations
             anchored_citations, anchored_ratio = self._anchor_sentences_to_chunks(response_text, relevant_chunks)
-            chunk_citations = anchored_citations or self.extract_citations_from_chunks(relevant_chunks)
+            chunk_citations = anchored_citations or self.extract_citations_from_chunks(relevant_chunks, document_title)
 
             # Combine citations (prefer LLM citations if available, otherwise use chunk citations)
             final_citations = llm_citations if llm_citations else chunk_citations
+            # Stamp document title on every citation for single-doc chat
+            for c in final_citations:
+                if not c.get("document"):
+                    c["document"] = document_title
 
             logger.info(f"Generated response with {len(final_citations)} citations")
 
@@ -1299,12 +1308,60 @@ DEVUELVE SOLO EL {('Markdown' if output_format=='markdown' else 'JSON')} SOLICIT
             text, _ = self.router.chat(
                 prompt,
                 temperature=0.3,
-                max_tokens=1200,
+                max_tokens=3000,
             )
             return (text or "").strip()
         except Exception as e:
             logger.error(f"StudyGuide: LLM call failed: {e}")
             return None
+
+    @staticmethod
+    def _repair_truncated_json(text: str) -> Optional[Dict[str, Any]]:
+        """Salvage truncated JSON: close unterminated string/brackets, else longest valid prefix."""
+        if not text:
+            return None
+
+        stack: List[str] = []
+        in_str = False
+        esc = False
+        for ch in text:
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch in "[{":
+                stack.append(ch)
+            elif ch in "]}":
+                if stack and stack[-1] == ("[" if ch == "]" else "{"):
+                    stack.pop()
+                else:
+                    stack = []
+                    break
+
+        suffix = '"' if in_str else ""
+        for opener in reversed(stack):
+            suffix += "}" if opener == "{" else "]"
+
+        try:
+            obj = json.loads(text + suffix)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            pass
+
+        # Fall back to the longest valid JSON prefix.
+        for cut in range(len(text), 0, -1):
+            try:
+                obj = json.loads(text[:cut])
+                return obj if isinstance(obj, dict) else None
+            except Exception:
+                continue
+        return None
 
     def _json_to_markdown(self, guide: Dict[str, Any]) -> str:
         parts: List[str] = []
@@ -1418,7 +1475,12 @@ DEVUELVE SOLO EL {('Markdown' if output_format=='markdown' else 'JSON')} SOLICIT
             text = resp_text
             if text.startswith("```json"):
                 text = text.replace("```json", "").replace("```", "").strip()
-            guide = json.loads(text)
+            try:
+                guide = json.loads(text)
+            except json.JSONDecodeError:
+                guide = self._repair_truncated_json(text)
+                if guide is None:
+                    raise
 
             result = {"success": True, "guide": guide}
             if used_range:

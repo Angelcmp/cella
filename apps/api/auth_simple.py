@@ -138,6 +138,19 @@ def _decode_token_str(
 
 
 def _is_token_revoked(jti: str) -> bool:
+    # Redis fast-path (persistent across restarts); fall back to SQLite.
+    try:
+        from redis_client import get_redis_client
+
+        rclient = get_redis_client()
+        if rclient is not None:
+            if rclient.exists(f"cella:revoked:{jti}"):
+                return True
+            # Not in Redis: fall through to SQLite (legacy/backfill) and, if the
+            # record exists, mirror it into Redis with its TTL.
+    except Exception as exc:
+        logging.getLogger(__name__).warning(f"Redis revocation check failed: {exc}")
+
     with SessionLocal() as db:
         record = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
         if not record:
@@ -146,7 +159,21 @@ def _is_token_revoked(jti: str) -> bool:
             db.delete(record)
             db.commit()
             return False
+        _mirror_revocation_to_redis(jti, record.expires_at)
         return True
+
+
+def _mirror_revocation_to_redis(jti: str, expires_at) -> None:
+    try:
+        from redis_client import get_redis_client
+
+        rclient = get_redis_client()
+        if rclient is None:
+            return
+        ttl = max(int((expires_at - datetime.utcnow()).total_seconds()), 1)
+        rclient.setex(f"cella:revoked:{jti}", ttl, "1")
+    except Exception as exc:
+        logging.getLogger(__name__).warning(f"Redis revocation mirror failed: {exc}")
 
 
 def revoke_token(token: str) -> None:
@@ -161,6 +188,7 @@ def revoke_token(token: str) -> None:
         else:
             db.add(RevokedToken(jti=payload.jti, expires_at=expires_at))
         db.commit()
+    _mirror_revocation_to_redis(payload.jti, expires_at)
 
 
 def verify_token(token: str) -> Optional[TokenPayload]:

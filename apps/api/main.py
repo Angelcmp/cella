@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 import uvicorn
 import os
+import time
+import json
+import uuid
+import logging
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import Callable, Awaitable
@@ -17,7 +21,7 @@ except Exception:
 load_dotenv()
 
 # Import routers
-from routers import auth, documents, chat, providers
+from routers import auth, documents, chat, providers, exports
 
 # Database
 from database_simple import engine, Base, create_tables
@@ -111,6 +115,7 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
 
 # Redis-backed sliding-window rate limiting (falls back to in-memory)
 from rate_limit import RateLimiter
+from auth_simple import verify_token
 
 _rate_limiter = RateLimiter()
 
@@ -118,6 +123,68 @@ LIMITS = {
     "/documents/upload": cfg.RATE_LIMIT_UPLOAD_PER_MIN,
     "/auth/local": cfg.RATE_LIMIT_LOGIN_PER_MIN,
 }
+
+
+def _rate_key(request: Request, key_path: str) -> str:
+    """Build a rate-limit key. When a valid token is present and per-user limits
+    are enabled, the user id is included so users sharing an IP are isolated."""
+    ip = request.client.host if request.client else "unknown"
+    if cfg.RATE_LIMIT_PER_USER:
+        token = request.cookies.get("access_token")
+        if not token:
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.lower().startswith("bearer "):
+                token = auth_header.split()[1]
+        if token:
+            payload = verify_token(token)
+            if payload:
+                return f"user:{payload.user_id}:{ip}:{key_path}"
+    return f"{ip}:{key_path}"
+
+
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next: Callable[[Request], Awaitable]):
+    """Attach a request-id and, when enabled, structured JSON request logs."""
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    start = time.perf_counter()
+
+    response = await call_next(request)
+
+    response.headers["X-Request-ID"] = request_id
+
+    if cfg.ENABLE_METRICS:
+        try:
+            from metrics import http_requests_total, http_request_duration_seconds
+
+            http_requests_total.labels(
+                method=request.method,
+                path=request.url.path,
+                status=response.status_code,
+            ).inc()
+            http_request_duration_seconds.labels(
+                method=request.method,
+                path=request.url.path,
+            ).observe(time.perf_counter() - start)
+        except Exception:
+            pass
+
+    if cfg.ENABLE_JSON_LOGS:
+        logging.info(
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": response.status_code,
+                    "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    return response
+
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable]):
@@ -133,11 +200,17 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
         key_path = path
     if not limit:
         return await call_next(request)
-    ip = request.client.host if request.client else "unknown"
-    key = f"{ip}:{key_path}"
+    key = _rate_key(request, key_path)
     allowed, count, retry_after = _rate_limiter.allow(key, int(limit))
     if not allowed:
         from fastapi.responses import JSONResponse
+        if cfg.ENABLE_METRICS:
+            try:
+                from metrics import rate_limited_total
+
+                rate_limited_total.labels(key=key_path).inc()
+            except Exception:
+                pass
         return JSONResponse(
             status_code=429,
             content={"detail": "Too Many Requests"},
@@ -145,11 +218,13 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
                 "Retry-After": str(retry_after),
                 "X-RateLimit-Limit": str(limit),
                 "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(max(retry_after, 0)),
             },
         )
     response = await call_next(request)
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(max(int(limit) - count, 0))
+    response.headers["X-RateLimit-Reset"] = str(max(retry_after, 0))
     return response
 
 @app.get("/")
@@ -160,10 +235,23 @@ async def root():
 async def health_check():
     return {"status": "healthy", "service": "cella-api"}
 
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus metrics (enabled only when ENABLE_METRICS=true)."""
+    if not cfg.ENABLE_METRICS:
+        raise HTTPException(status_code=404, detail="Metrics not enabled")
+    from metrics import render_metrics
+    from fastapi.responses import Response
+
+    body, content_type = render_metrics()
+    return Response(content=body, media_type=content_type)
+
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(exports.router, tags=["conversations"])
 app.include_router(providers.router, prefix="", tags=["providers"])
 
 if __name__ == "__main__":

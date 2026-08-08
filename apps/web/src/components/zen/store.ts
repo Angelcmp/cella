@@ -8,6 +8,8 @@ export interface ZenDocument {
   pages: number;
   size: number;
   createdAt: string;
+  lastError?: string;
+  attempts?: number;
 }
 
 export interface Project {

@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4",
     "@types/cytoscape": "^3.21.9",
     "@types/node": "^20",

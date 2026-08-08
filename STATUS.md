@@ -1,5 +1,41 @@
 # Cella — Estado del Proyecto (Agosto 2026)
 
+## Sprint worker/observabilidad/E2E (08/08/2026)
+
+### Worker robusto (`apps/worker/worker.py`, `apps/api`)
+- Retries con backoff exponencial (`backoff_for`, `due_for_retry`), `WORKER_MAX_ATTEMPTS` (default 3), `WORKER_BACKOFF_BASE_SECONDS` (default 5), `WORKER_POLL_SECONDS` (default 10).
+- Columnas `attempts`, `last_error`, `last_attempt_at` en `Document` (migración aditiva en `database_simple.py`) + expuestas en `DocumentResponse`.
+- Reproceso manual: `POST /api/documents/{id}/reprocess` + botón en `ChatPanel.tsx`; `last_error`/`attempts` visibles en la UI (`store.ts`, `LeftSidebar.tsx`).
+- Tests: `apps/api/tests/test_worker.py`.
+
+### Observabilidad ligera (`apps/api`)
+- `metrics.py` (prometheus-client): `http_requests_total`, `http_request_duration_seconds`, `rate_limited_total`.
+- `main.py`: `request_context_middleware` (request-id, logs JSON opcionales, métricas), endpoint `/metrics` (activable con `ENABLE_METRICS`), contador de rate-limited.
+- Config: `ENABLE_METRICS`, `ENABLE_JSON_LOGS` (`.env.example`).
+
+### Blacklist de tokens con Redis (`apps/api`)
+- `redis_client.py` (helper compartido), `auth_simple.py`: `_is_token_revoked` consulta Redis con fallback SQLite; `revoke_token` escribe en Redis con TTL.
+- `rate_limit.py` reusa `redis_client`.
+
+### Export PDF (frontend)
+- `ChatInterface.tsx`: export PDF vía `window.open` + `window.print()`; botones MD/JSON/PDF.
+
+### E2E + CI/CD
+- Playwright: `playwright.config.ts` (puerto 3100) + `tests/e2e/smoke.spec.ts` (landing, /docs, /zen).
+- `package.json`: scripts `lint` (→ `eslint .`), `typecheck`, `test:e2e`, `test:e2e:install`.
+- CI: `.github/workflows/ci.yml` (backend pytest, frontend typecheck+lint+build, e2e chromium).
+
+### Docs
+- `ROADMAP_PENDIENTE.md` actualizado (worker, observabilidad, blacklist Redis, PDF, E2E/CI como implementados; pgvector y límites por plan fuera de alcance local).
+- `docs/RUNBOOKS.md` creado (arranque/parada, troubleshooting Redis/worker/doc en `failed`, métricas, migraciones inline).
+
+## Reconciliación docs ↔ código (08/08/2026)
+
+- El flujo guest/demo (rutas `/auth/guest`, `/new`, cuotas invitado, magic link, `demo.py`, flags `DEMO_PUBLIC`/`DEMO_GUEST_ENABLED`) **no existía** en el código — la app corre 100% en `LOCAL_MODE` (usuario local). Se eliminó de `ROADMAP_PENDIENTE.md`, `README.md` y `.env.example`.
+- El rate limit ya es **Redis-backed con fallback en memoria** (`rate_limit.py`) y emite headers `X-RateLimit-*`; se corrigió el roadmap que lo describía como "en memoria".
+- El scan antivirus (`_av_scan_ok` + `ENABLE_FILE_AV_SCAN`) **ya está integrado** en `documents.py`; se corrigió el roadmap.
+- La blacklist de tokens ya está en SQLite (`RevokedToken`); pendiente solo migrarla a Redis.
+
 ## Limpieza de código muerto y features sin uso
 
 ### Backend — Eliminado
@@ -161,7 +197,7 @@ PROVIDER_EMBEDDINGS=local
 DEEPSEEK_API_KEY=sk-...
 ZHIPU_API_KEY=...
 DATABASE_URL=sqlite:///./docai.db
-DEMO_PUBLIC=true
-DEMO_GUEST_ENABLED=true
+LOCAL_MODE=true
+RATE_LIMIT_ENABLED=false
 INFRA=light  # start.sh: solo Redis
 ```
