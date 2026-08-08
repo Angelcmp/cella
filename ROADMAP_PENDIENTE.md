@@ -87,6 +87,7 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 
 ## 8) Documentación (B)
 - [x] STATUS.md actualizado con la limpieza y el rediseño
+- [x] README.md actualizado con el sprint (stack, funcionalidades, API, testing/CI, docs adicionales)
 - [x] Runbooks de incidentes en `docs/RUNBOOKS.md` (arranque/parada, troubleshooting Redis, worker, doc en `failed`)
 
 ## Estado actual del hito de seguridad

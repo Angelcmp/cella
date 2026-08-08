@@ -28,6 +28,11 @@
 ### Docs
 - `ROADMAP_PENDIENTE.md` actualizado (worker, observabilidad, blacklist Redis, PDF, E2E/CI como implementados; pgvector y límites por plan fuera de alcance local).
 - `docs/RUNBOOKS.md` creado (arranque/parada, troubleshooting Redis/worker/doc en `failed`, métricas, migraciones inline).
+- `README.md` actualizado (stack, funcionalidades, API, testing/CI y docs adicionales).
+
+### Fix de CI (`7f16ba7`)
+- `requirements.txt`: `fastembed==0.3.6→0.8.0` y `pillow==10.1.0→12.3.0` (fastembed 0.3.6 exigía `pillow>=10.3,<11`, incompatible con el pin de 10.1.0; los nuevos pins coinciden con el venv local).
+- `.gitignore`: `lib/` y `lib64/` pasan a root-only (`/lib/`, `/lib64/`), des-ignorando `apps/web/src/lib/` — `utils.ts`, `csrf.ts` y `metadata.ts` no estaban trackeados, lo que rompía `tsc` en CI.
 
 ## Reconciliación docs ↔ código (08/08/2026)
 
@@ -184,8 +189,11 @@ Dark mode: fondos slate-900/800, texto slate-100, accent violet-300/400.
 ## Verificación
 
 - `py_compile`: ✅ todos los `.py` del backend y worker OK
+- `pytest`: ✅ 20 tests verdes (seguridad, RAG, worker)
 - `tsc --noEmit`: ✅ sin errores
 - `next build`: ✅ 13 páginas estáticas, 100KB first load JS
+- `playwright test`: ✅ 3 specs E2E verdes (landing, /docs, /zen)
+- CI/CD: ✅ los 3 jobs verdes (backend, frontend, e2e) en GitHub Actions
 
 ---
 
@@ -199,5 +207,8 @@ ZHIPU_API_KEY=...
 DATABASE_URL=sqlite:///./docai.db
 LOCAL_MODE=true
 RATE_LIMIT_ENABLED=false
+RATE_LIMIT_PER_USER=true
+ENABLE_METRICS=false    # activar para exponer /metrics
+ENABLE_JSON_LOGS=false  # activar para logs JSON + request-id
 INFRA=light  # start.sh: solo Redis
 ```
