@@ -54,6 +54,10 @@ class Document(Base):
     status = Column(String, default="pending")  # pending, processing, indexed, failed
     created_at = Column(DateTime, default=datetime.utcnow)
     doc_metadata = Column(JSON)
+    # Worker reliability: retry bookkeeping
+    attempts = Column(Integer, default=0)
+    last_error = Column(Text)
+    last_attempt_at = Column(DateTime)
 
 class DocumentChunk(Base):
     __tablename__ = "doc_chunks"
@@ -190,9 +194,19 @@ def _migrate():
         from sqlalchemy import inspect, text
 
         insp = inspect(engine)
-        columns = {c["name"] for c in insp.get_columns("conversations")}
-        if "document_ids" not in columns:
+        conv_columns = {c["name"] for c in insp.get_columns("conversations")}
+        if "document_ids" not in conv_columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE conversations ADD COLUMN document_ids JSON"))
+
+        doc_columns = {c["name"] for c in insp.get_columns("documents")}
+        for col, ddl in (
+            ("attempts", "ALTER TABLE documents ADD COLUMN attempts INTEGER DEFAULT 0"),
+            ("last_error", "ALTER TABLE documents ADD COLUMN last_error TEXT"),
+            ("last_attempt_at", "ALTER TABLE documents ADD COLUMN last_attempt_at DATETIME"),
+        ):
+            if col not in doc_columns:
+                with engine.begin() as conn:
+                    conn.execute(text(ddl))
     except Exception as e:
         print(f"   Migration notice (non-fatal): {e}")

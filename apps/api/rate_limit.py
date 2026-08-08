@@ -70,16 +70,11 @@ class RedisRateStore:
 
 
 def _redis_client() -> Optional[Any]:
-    """Return a Redis client if REDIS_URL is set and reachable."""
-    redis_url = os.getenv("REDIS_URL")
-    if not redis_url:
-        return None
+    """Return a shared Redis client if available (see redis_client.py)."""
     try:
-        import redis as _redis
+        from redis_client import get_redis_client
 
-        client = _redis.from_url(redis_url, decode_responses=True)
-        client.ping()
-        return client
+        return get_redis_client()
     except Exception as exc:
         logger.warning(f"Redis unavailable for rate limiting: {exc}")
         return None

@@ -541,6 +541,50 @@ export default function ChatInterface({
     }
   };
 
+  const exportConversationPdf = () => {
+    const md = toMarkdown(messages);
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) {
+      toast.error("El navegador bloqueó la ventana de impresión");
+      return;
+    }
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${documentTitle}</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 24px; color: #0F172A; line-height: 1.6; }
+    h1 { font-size: 22px; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; }
+    h2 { font-size: 16px; margin-top: 24px; color: #7C3AED; }
+    h3 { font-size: 13px; margin-top: 16px; color: #475569; }
+    p { font-size: 13px; margin: 8px 0; white-space: pre-wrap; }
+    pre, code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #F1F5F9; border-radius: 6px; }
+    pre { padding: 12px; overflow-x: auto; }
+    code { padding: 2px 4px; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>${escapeHtml(md)}</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
+
+  const escapeHtml = (md: string) => {
+    const escaped = md
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return escaped
+      .split(/\n\n+/)
+      .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
+      .join("\n");
+  };
+
   return (
     <div className={cn("flex flex-col h-full bg-[var(--bg-primary)]", className)}>
       <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -623,6 +667,13 @@ export default function ChatInterface({
                       className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
                     >
                       JSON
+                    </button>
+                    <button
+                      onClick={exportConversationPdf}
+                      title="Exportar conversación (PDF)"
+                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                    >
+                      PDF
                     </button>
                   </div>
                 )}

@@ -30,6 +30,9 @@ class DocumentResponse(BaseModel):
     pages: Optional[int]
     status: str
     created_at: datetime
+    attempts: Optional[int] = 0
+    last_error: Optional[str] = None
+    last_attempt_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -59,8 +59,13 @@ RATE_LIMIT_CHAT_PER_MIN = int(os.getenv("RATE_LIMIT_CHAT_PER_MIN", "30"))
 # token is present), so users sharing an IP don't block each other.
 RATE_LIMIT_PER_USER = _env_bool("RATE_LIMIT_PER_USER", True)
 
-# Files / AV
+# Antivirus (opcional)
 ENABLE_FILE_AV_SCAN = _env_bool("ENABLE_FILE_AV_SCAN", False)
+
+# Observabilidad
+ENABLE_METRICS = _env_bool("ENABLE_METRICS", False)
+# Structured JSON logs + request-id correlation
+ENABLE_JSON_LOGS = _env_bool("ENABLE_JSON_LOGS", False)
 
 # Cookies (kept for compatibility; not used in LOCAL_MODE)
 COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "Lax")

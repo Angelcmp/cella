@@ -155,3 +155,13 @@ ENV/
 
 # Public root dir (not the app public/)
 /public/
+
+# Redis dump
+dump.rdb
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/

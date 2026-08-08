@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 import uvicorn
 import os
+import time
+import json
+import uuid
+import logging
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import Callable, Awaitable
@@ -139,6 +143,50 @@ def _rate_key(request: Request, key_path: str) -> str:
 
 
 @app.middleware("http")
+async def request_context_middleware(request: Request, call_next: Callable[[Request], Awaitable]):
+    """Attach a request-id and, when enabled, structured JSON request logs."""
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    start = time.perf_counter()
+
+    response = await call_next(request)
+
+    response.headers["X-Request-ID"] = request_id
+
+    if cfg.ENABLE_METRICS:
+        try:
+            from metrics import http_requests_total, http_request_duration_seconds
+
+            http_requests_total.labels(
+                method=request.method,
+                path=request.url.path,
+                status=response.status_code,
+            ).inc()
+            http_request_duration_seconds.labels(
+                method=request.method,
+                path=request.url.path,
+            ).observe(time.perf_counter() - start)
+        except Exception:
+            pass
+
+    if cfg.ENABLE_JSON_LOGS:
+        logging.info(
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": response.status_code,
+                    "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    return response
+
+
+@app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable]):
     if not cfg.RATE_LIMIT_ENABLED:
         return await call_next(request)
@@ -156,6 +204,13 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
     allowed, count, retry_after = _rate_limiter.allow(key, int(limit))
     if not allowed:
         from fastapi.responses import JSONResponse
+        if cfg.ENABLE_METRICS:
+            try:
+                from metrics import rate_limited_total
+
+                rate_limited_total.labels(key=key_path).inc()
+            except Exception:
+                pass
         return JSONResponse(
             status_code=429,
             content={"detail": "Too Many Requests"},
@@ -179,6 +234,18 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "cella-api"}
+
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus metrics (enabled only when ENABLE_METRICS=true)."""
+    if not cfg.ENABLE_METRICS:
+        raise HTTPException(status_code=404, detail="Metrics not enabled")
+    from metrics import render_metrics
+    from fastapi.responses import Response
+
+    body, content_type = render_metrics()
+    return Response(content=body, media_type=content_type)
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

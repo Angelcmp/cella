@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Files, Check } from "lucide-react";
+import { Loader2, Files, Check, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { useZenStore, type ZenDocument } from "./store";
 import ChatInterface from "@/components/ChatInterface";
 import ChatInput from "./ChatInput";
 import UploadModal from "./UploadModal";
 import ZenUploadZone from "./ZenUploadZone";
 import TimelineRenderer from "./TimelineRenderer";
+import { withCsrfHeaders } from "@/lib/csrf";
 import { cn } from "@/lib/utils";
 
 export default function ChatPanel() {
@@ -48,6 +50,31 @@ export default function ChatPanel() {
     state.setActiveProject(defaultProject.id);
     setActiveDocument(doc.id);
     setShowUpload(false);
+  };
+
+  const handleReprocess = async () => {
+    if (!activeDoc) return;
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/documents/${activeDoc.id}/reprocess`,
+        withCsrfHeaders({ method: "POST", credentials: "include" })
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.detail || "Error al reprocesar");
+      }
+      const updated = (await res.json()) as ZenDocument;
+      useZenStore.setState((state) => ({
+        documents: state.documents.map((d) =>
+          d.id === updated.id
+            ? { ...d, status: "pending", lastError: undefined }
+            : d
+        ),
+      }));
+      toast.success("Documento en cola para reprocesar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al reprocesar");
+    }
   };
 
   // Empty state: no documents uploaded yet
@@ -179,10 +206,22 @@ export default function ChatPanel() {
               </h2>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 El documento <span className="font-medium text-[var(--text-primary)]">{activeDoc.title}</span> no
-                pudo ser indexado. Intenta subirlo nuevamente o usa otro archivo.
+                pudo ser indexado. Intenta reprocesarlo o usa otro archivo.
               </p>
+              {activeDoc.lastError && (
+                <p className="mt-2 text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-muted)] rounded-md px-2 py-1.5 break-words text-left">
+                  {activeDoc.lastError}
+                </p>
+              )}
             </div>
             <TimelineRenderer status="failed" title={activeDoc.title} />
+            <button
+              onClick={handleReprocess}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white text-[11px] font-medium hover:opacity-90 transition-opacity"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reprocesar documento
+            </button>
           </div>
         </div>
       </div>

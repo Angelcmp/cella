@@ -152,3 +152,45 @@ def test_rate_limit_isolates_users_by_token(client: TestClient):
         app_main.LIMITS["/documents/upload"] = original_limit
         cfg.RATE_LIMIT_ENABLED = False
         cfg.RATE_LIMIT_PER_USER = True
+
+
+def test_metrics_endpoint_404_when_disabled(client: TestClient):
+    cfg.ENABLE_METRICS = False
+    resp = client.get("/metrics")
+    assert resp.status_code == 404
+
+
+def test_metrics_endpoint_when_enabled(client: TestClient):
+    cfg.ENABLE_METRICS = True
+    try:
+        client.get("/health")
+        resp = client.get("/metrics")
+        assert resp.status_code == 200
+        assert "cella_http_requests_total" in resp.text
+        assert "cella_http_request_duration_seconds" in resp.text
+    finally:
+        cfg.ENABLE_METRICS = False
+
+
+def test_request_id_header_present(client: TestClient):
+    resp = client.get("/health")
+    assert resp.headers.get("X-Request-ID")
+
+
+def test_token_revoked_redis_fallback(monkeypatch):
+    """revoke_token writes to Redis; verify_token rejects the revoked token."""
+    from auth_simple import create_access_token, revoke_token, verify_token
+
+    cfg.ACCESS_TOKEN_EXPIRE_MINUTES = 30
+    try:
+        token = create_access_token("u-redis-test")
+        assert verify_token(token) is not None
+
+        # Simulate Redis unavailable -> falls back to SQLite (still revokes).
+        monkeypatch.setattr(
+            "auth_simple._mirror_revocation_to_redis", lambda *a, **k: None
+        )
+        revoke_token(token)
+        assert verify_token(token) is None
+    finally:
+        cfg.ACCESS_TOKEN_EXPIRE_MINUTES = 1440
