@@ -1,5 +1,12 @@
 # Cella — Estado del Proyecto (Agosto 2026)
 
+## Reconciliación docs ↔ código (08/08/2026)
+
+- El flujo guest/demo (rutas `/auth/guest`, `/new`, cuotas invitado, magic link, `demo.py`, flags `DEMO_PUBLIC`/`DEMO_GUEST_ENABLED`) **no existía** en el código — la app corre 100% en `LOCAL_MODE` (usuario local). Se eliminó de `ROADMAP_PENDIENTE.md`, `README.md` y `.env.example`.
+- El rate limit ya es **Redis-backed con fallback en memoria** (`rate_limit.py`) y emite headers `X-RateLimit-*`; se corrigió el roadmap que lo describía como "en memoria".
+- El scan antivirus (`_av_scan_ok` + `ENABLE_FILE_AV_SCAN`) **ya está integrado** en `documents.py`; se corrigió el roadmap.
+- La blacklist de tokens ya está en SQLite (`RevokedToken`); pendiente solo migrarla a Redis.
+
 ## Limpieza de código muerto y features sin uso
 
 ### Backend — Eliminado
@@ -161,7 +168,7 @@ PROVIDER_EMBEDDINGS=local
 DEEPSEEK_API_KEY=sk-...
 ZHIPU_API_KEY=...
 DATABASE_URL=sqlite:///./docai.db
-DEMO_PUBLIC=true
-DEMO_GUEST_ENABLED=true
+LOCAL_MODE=true
+RATE_LIMIT_ENABLED=false
 INFRA=light  # start.sh: solo Redis
 ```

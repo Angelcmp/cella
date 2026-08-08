@@ -17,7 +17,7 @@ except Exception:
 load_dotenv()
 
 # Import routers
-from routers import auth, documents, chat, providers
+from routers import auth, documents, chat, providers, exports
 
 # Database
 from database_simple import engine, Base, create_tables
@@ -111,6 +111,7 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
 
 # Redis-backed sliding-window rate limiting (falls back to in-memory)
 from rate_limit import RateLimiter
+from auth_simple import verify_token
 
 _rate_limiter = RateLimiter()
 
@@ -118,6 +119,24 @@ LIMITS = {
     "/documents/upload": cfg.RATE_LIMIT_UPLOAD_PER_MIN,
     "/auth/local": cfg.RATE_LIMIT_LOGIN_PER_MIN,
 }
+
+
+def _rate_key(request: Request, key_path: str) -> str:
+    """Build a rate-limit key. When a valid token is present and per-user limits
+    are enabled, the user id is included so users sharing an IP are isolated."""
+    ip = request.client.host if request.client else "unknown"
+    if cfg.RATE_LIMIT_PER_USER:
+        token = request.cookies.get("access_token")
+        if not token:
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.lower().startswith("bearer "):
+                token = auth_header.split()[1]
+        if token:
+            payload = verify_token(token)
+            if payload:
+                return f"user:{payload.user_id}:{ip}:{key_path}"
+    return f"{ip}:{key_path}"
+
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable]):
@@ -133,8 +152,7 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
         key_path = path
     if not limit:
         return await call_next(request)
-    ip = request.client.host if request.client else "unknown"
-    key = f"{ip}:{key_path}"
+    key = _rate_key(request, key_path)
     allowed, count, retry_after = _rate_limiter.allow(key, int(limit))
     if not allowed:
         from fastapi.responses import JSONResponse
@@ -145,11 +163,13 @@ async def rate_limit_middleware(request: Request, call_next: Callable[[Request],
                 "Retry-After": str(retry_after),
                 "X-RateLimit-Limit": str(limit),
                 "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(max(retry_after, 0)),
             },
         )
     response = await call_next(request)
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(max(int(limit) - count, 0))
+    response.headers["X-RateLimit-Reset"] = str(max(retry_after, 0))
     return response
 
 @app.get("/")
@@ -164,6 +184,7 @@ async def health_check():
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(exports.router, tags=["conversations"])
 app.include_router(providers.router, prefix="", tags=["providers"])
 
 if __name__ == "__main__":

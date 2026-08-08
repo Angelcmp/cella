@@ -61,7 +61,6 @@ def _is_exempt_path(path: str) -> bool:
         "/auth/refresh",
         "/auth/logout",
         "/auth/register",
-        "/auth/guest",
     }
     # Prefix-based exemptions can be added here if needed
     return path in EXEMPT

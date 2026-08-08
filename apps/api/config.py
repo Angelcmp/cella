@@ -55,6 +55,9 @@ RATE_LIMIT_ENABLED = _env_bool("RATE_LIMIT_ENABLED", False)
 RATE_LIMIT_LOGIN_PER_MIN = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "5"))
 RATE_LIMIT_UPLOAD_PER_MIN = int(os.getenv("RATE_LIMIT_UPLOAD_PER_MIN", "10"))
 RATE_LIMIT_CHAT_PER_MIN = int(os.getenv("RATE_LIMIT_CHAT_PER_MIN", "30"))
+# When true, the rate-limit key also includes the authenticated user id (when a
+# token is present), so users sharing an IP don't block each other.
+RATE_LIMIT_PER_USER = _env_bool("RATE_LIMIT_PER_USER", True)
 
 # Files / AV
 ENABLE_FILE_AV_SCAN = _env_bool("ENABLE_FILE_AV_SCAN", False)
