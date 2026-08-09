@@ -22,9 +22,9 @@ test.describe("Cella E2E", () => {
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   });
 
-  test("zen empty state shows welcome notebook", async ({ page }) => {
+  test("zen empty state shows welcome", async ({ page }) => {
     await page.goto("/zen");
-    await expect(page.getByText("Iniciemos tu cuaderno")).toBeVisible();
+    await expect(page.getByText("Iniciemos tu biblioteca")).toBeVisible();
     await expect(page.getByRole("button", { name: "Aprender un tema nuevo" })).toBeVisible();
   });
 });
