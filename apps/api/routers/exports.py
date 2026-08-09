@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -141,6 +141,27 @@ async def get_conversation(
             for m in messages
         ],
     )
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a conversation and all its messages."""
+    conv = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id,
+    ).first()
+
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.query(Message).filter(Message.conversation_id == conv.id).delete()
+    db.delete(conv)
+    db.commit()
+    return Response(status_code=204)
 
 
 def _build_markdown(conv: ConversationDetailOut) -> str:

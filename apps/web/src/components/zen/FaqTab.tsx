@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, HelpCircle } from "lucide-react";
+import { Loader2, Sparkles, HelpCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { withCsrfHeaders } from "@/lib/csrf";
 
@@ -106,9 +106,10 @@ export default function FaqTab({ documentId }: { documentId: string }) {
         <button
           onClick={generate}
           disabled={generating}
-          className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)] transition-colors"
+          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+          title="Regenerar"
         >
-          {generating ? "..." : "Regenerar"}
+          {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
         </button>
       </div>
 

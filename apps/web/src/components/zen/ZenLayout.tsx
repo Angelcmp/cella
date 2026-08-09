@@ -5,11 +5,10 @@ import LeftSidebar from "./LeftSidebar";
 import ChatPanel from "./ChatPanel";
 import RightSidebar from "./RightSidebar";
 import ProviderSettingsModal from "./ProviderSettingsModal";
-import { Settings } from "lucide-react";
 import { useZenStore, hydrateZenStore } from "./store";
 
 export default function ZenLayout() {
-  const { refreshModels, setModelsModalOpen } = useZenStore();
+  const { refreshModels } = useZenStore();
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export default function ZenLayout() {
 
       {/* Right aside: Studio */}
       <aside
-        className={`fixed right-0 top-0 h-full bg-[var(--surface-container-lowest)]/80 backdrop-blur-xl z-50 flex flex-col border-l border-[var(--outline-variant)]/20 transition-[width] duration-300 ${
+        className={`fixed right-0 top-0 h-full bg-[var(--surface-container-lowest)]/80 backdrop-blur-xl z-50 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.02)] transition-[width] duration-300 ${
           rightCollapsed ? "w-[72px]" : "w-[620px]"
         }`}
       >
@@ -49,32 +48,7 @@ export default function ZenLayout() {
           rightCollapsed ? "pl-72 pr-[72px]" : "pl-72 pr-[620px]"
         }`}
       >
-        <header
-          className={`fixed top-0 left-72 h-16 bg-[var(--surface-container)]/60 backdrop-blur-2xl z-40 flex items-center justify-between px-8 border-b border-[var(--outline-variant)]/20 transition-[right] duration-300 ${
-            rightCollapsed ? "right-[72px]" : "right-[620px]"
-          }`}
-        >
-          <div className="flex items-center gap-6">
-            <button
-              className="font-label-mono bg-[var(--primary-fixed)] text-white px-4 py-2 rounded-lg flex items-center gap-2 text-(length:--zen-fs-body) hover:opacity-90 transition-opacity"
-              title="Nueva conversación"
-            >
-              <span className="text-[14px] leading-none font-medium">+</span>
-              Nueva Conversación
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setModelsModalOpen(true)}
-              className="p-2 text-[var(--on-surface-variant)] hover:text-[var(--primary)] transition-colors"
-              title="Ajustes de modelos"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-
-        <main className="relative pt-16 min-h-0 flex-1 flex flex-col">
+        <main className="relative pt-0 min-h-0 flex-1 flex flex-col">
           <ChatPanel />
         </main>
       </div>

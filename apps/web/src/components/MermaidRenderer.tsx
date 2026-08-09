@@ -1,194 +1,312 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Transformer } from "markmap-lib";
+import { Markmap } from "markmap-view";
+import { toast } from "sonner";
 
-interface MermaidRendererProps {
-  code: string; // full markdown or mermaid code block
+interface MindmapRendererProps {
+  code: string;
   onNodeClick?: (info: { label: string; startPage?: number; endPage?: number }) => void;
 }
 
-// Extract mermaid code from markdown
-function extractMermaid(code: string): string {
-  const start = code.indexOf("```mermaid");
-  if (start >= 0) {
-    const end = code.indexOf("```", start + 3);
-    if (end > start) {
-      return code.substring(start + "```mermaid".length, end).trim();
+const transformer = new Transformer();
+
+function extractNodeText(text: string): string {
+  // Strip icon / class directives
+  text = text.replace(/\s*::icon\([^)]*\)/g, "");
+  text = text.replace(/\s*:::\S+/g, "");
+  text = text.trim();
+  if (!text) return "";
+
+  // ((text)) circle
+  let m = text.match(/^\(\((.*)\)\)$/);
+  if (m) return m[1].trim();
+
+  // {{text}} hexagon
+  m = text.match(/^\{\{(.*)\}\}$/);
+  if (m) return m[1].trim();
+
+  // [text] rect
+  m = text.match(/^\[(.*)\]$/);
+  if (m) return m[1].trim();
+
+  // (text) rounded
+  m = text.match(/^\((.*)\)$/);
+  if (m) return m[1].trim();
+
+  // root(...) / root[...] / root{{...}} / root((...))
+  m = text.match(/^root\s*[\(\[\{]?\(?\s*(.*?)\s*\)?[\)\]\}]?$/i);
+  if (m) return m[1].trim();
+
+  return text;
+}
+
+function mermaidToMarkdown(code: string): string {
+  const fenced = code.match(/```mermaid\s*([\s\S]*?)\s*```/);
+  const raw = fenced ? fenced[1] : code;
+  const lines = raw.split("\n").map((l) => l.replace(/\r$/, ""));
+
+  let mindmapIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().toLowerCase().startsWith("mindmap")) {
+      mindmapIdx = i;
+      break;
     }
   }
-  // if no fence, assume the entire content is mermaid code
-  return code.trim().replace(/^```|```$/g, "");
+
+  let rootText = "Diagrama";
+  const nodes: { depth: number; text: string }[] = [];
+  let rootIndent = -1;
+  let indentUnit = 2;
+
+  for (let i = (mindmapIdx >= 0 ? mindmapIdx : -1) + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === "") continue;
+    if (line.trim().startsWith(":::")) continue;
+    if (line.trim().startsWith("::icon")) continue;
+
+    const indent = line.search(/\S/);
+    if (indent === -1) continue;
+
+    const text = extractNodeText(line.trim());
+    if (!text) continue;
+
+    if (rootIndent === -1) {
+      // First meaningful node is the root
+      rootText = text;
+      rootIndent = indent;
+      continue;
+    }
+
+    if (nodes.length === 0) {
+      indentUnit = Math.max(1, indent - rootIndent);
+    }
+
+    const depth = Math.max(1, Math.round((indent - rootIndent) / indentUnit));
+    nodes.push({ depth, text });
+  }
+
+  const out: string[] = [`# ${rootText}`];
+  for (const node of nodes) {
+    const level = Math.min(node.depth + 1, 6);
+    out.push(`${"#".repeat(level)} ${node.text}`);
+  }
+  return out.join("\n");
 }
 
-declare global {
-  interface Window { mermaid?: any }
+function parsePages(label: string): { start?: number; end?: number } {
+  const s = label.toLowerCase();
+  const m = s.match(/p[aá]g(?:\.|ina|inas)?\s*(\d+)(?:\s*[–\-]\s*(\d+))?/i);
+  if (!m) return {};
+  const a = parseInt(m[1], 10);
+  const b = m[2] ? parseInt(m[2], 10) : undefined;
+  if (!a) return {};
+  return b ? { start: Math.min(a, b), end: Math.max(a, b) } : { start: a, end: a };
 }
 
-export default function MermaidRenderer({ code, onNodeClick }: MermaidRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [loaded, setLoaded] = useState(false);
+function attachNodeListeners(svg: SVGSVGElement | null, onNodeClick?: MindmapRendererProps["onNodeClick"]) {
+  if (!svg || !onNodeClick) return;
+  const nodes = svg.querySelectorAll("g.markmap-node");
+  nodes.forEach((node) => {
+    const g = node as SVGGElement;
+    g.style.cursor = "pointer";
+    const textEl = g.querySelector("text");
+    const label = textEl ? (textEl.textContent || "").trim() : "";
+    if (!label) return;
+
+    const handler = (e: Event) => {
+      e.stopPropagation();
+      const pages = parsePages(label);
+      onNodeClick({ label, startPage: pages.start, endPage: pages.end });
+    };
+    g.addEventListener("click", handler);
+    // Store handler for cleanup
+    (g as any).__mindmapClick = handler;
+  });
+}
+
+export default function MindmapRenderer({ code, onNodeClick }: MindmapRendererProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const mmRef = useRef<Markmap | null>(null);
   const [scale, setScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  const markdown = useMemo(() => mermaidToMarkdown(code), [code]);
+  const { root } = useMemo(() => {
+    try {
+      return transformer.transform(markdown);
+    } catch (e) {
+      return { root: null };
+    }
+  }, [markdown]);
+
+  const renderMap = useCallback(async () => {
+    if (!svgRef.current) return;
+    if (!root) {
+      setError("No se pudo interpretar el diagrama");
+      return;
+    }
+    setError(null);
+
+    try {
+      if (!mmRef.current) {
+        const mm = Markmap.create(svgRef.current, { autoFit: true, fitRatio: 0.9, zoom: true, pan: true }, root);
+        mmRef.current = mm;
+      } else {
+        await mmRef.current.setData(root);
+        await mmRef.current.fit();
+      }
+      // Re-attach click listeners after render
+      setTimeout(() => attachNodeListeners(svgRef.current, onNodeClick), 50);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al renderizar el mapa");
+    }
+  }, [root, onNodeClick]);
 
   useEffect(() => {
-    // Load mermaid from CDN if not present
-    if (window.mermaid) { setLoaded(true); return; }
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-    script.async = true;
-    script.onload = () => { setLoaded(true); };
-    script.onerror = () => { setLoaded(false); };
-    document.body.appendChild(script);
-    return () => { script.remove(); };
+    renderMap();
+  }, [renderMap]);
+
+  useEffect(() => {
+    return () => {
+      mmRef.current?.destroy();
+      mmRef.current = null;
+    };
   }, []);
 
-  useEffect(() => {
-    if (!loaded || !containerRef.current || !window.mermaid) return;
-    try {
-      setError(null);
-      // Conceptual map theme: dark text on white, pastel nodes, rounded corners, thicker lines
-      window.mermaid.initialize({
-        startOnLoad: false,
-        theme: 'neutral',
-        themeVariables: {
-          background: '#ffffff',
-          primaryTextColor: '#111827',
-          textColor: '#111827',
-          lineColor: '#334155',
-          fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial',
-          fontSize: '14px',
-          primaryColor: '#E0F2FE',   // light blue
-          secondaryColor: '#DCFCE7', // light green
-          tertiaryColor: '#FEF9C3',  // light yellow
-        },
-        themeCSS: `
-          .mermaid, .mermaid svg { background: #ffffff !important; }
-          .mermaid text, .mermaid tspan { fill: #111827 !important; }
-          .mermaid .edgePaths path { stroke: #334155 !important; stroke-width: 1.5px; }
-          .mermaid g.node rect, .mermaid g.node polygon, .mermaid g.node circle { stroke: #334155 !important; stroke-width: 1.5px; }
-          .mermaid g.node rect { rx: 10px; ry: 10px; }
-        `,
-      });
-      const codeOnly = extractMermaid(code);
-      // Build a <pre class="mermaid"> node with textContent (no HTML) and let mermaid run
-      const host = containerRef.current;
-      host.innerHTML = "";
-      const pre = document.createElement('pre');
-      pre.className = 'mermaid';
-      // Ensure starts with 'mindmap' line
-      pre.textContent = codeOnly.startsWith('mindmap') ? codeOnly : `mindmap\n${codeOnly}`;
-      host.appendChild(pre);
-      // Run mermaid on the container
-      if (typeof window.mermaid.run === 'function') {
-        window.mermaid.run({ querySelector: host });
-      } else if (typeof window.mermaid.init === 'function') {
-        window.mermaid.init(undefined, host);
-      }
+  const zoomIn = () => setScale((s) => Math.min(2, +(s + 0.1).toFixed(2)));
+  const zoomOut = () => setScale((s) => Math.max(0.5, +(s - 0.1).toFixed(2)));
+  const fit = async () => {
+    setScale(1);
+    await mmRef.current?.fit();
+  };
 
-      // Bind interactions: tooltips and click
-      const parsePages = (label: string): { start?: number; end?: number } => {
-        const s = label.toLowerCase();
-        const m = s.match(/p[aá]g(?:\.|ina|inas)?\s*(\d+)(?:\s*[–\-]\s*(\d+))?/i);
-        if (!m) return {};
-        const a = parseInt(m[1], 10);
-        const b = m[2] ? parseInt(m[2], 10) : undefined;
-        if (!a) return {};
-        return b ? { start: Math.min(a,b), end: Math.max(a,b) } : { start: a, end: a };
-      };
-      const nodes = host.querySelectorAll('g.node');
-      nodes.forEach((node: any) => {
-        const textEl = node.querySelector('text');
-        const label = textEl ? (textEl.textContent || '').trim() : '';
-        node.style.cursor = 'pointer';
-        node.addEventListener('mouseenter', (ev: MouseEvent) => {
-          const pages = parsePages(label);
-          const tip = label + (pages.start ? `\nPáginas: ${pages.start}${pages.end && pages.end !== pages.start ? '–'+pages.end : ''}` : '');
-          setTooltip({ x: ev.clientX + 10, y: ev.clientY + 10, text: tip });
-        });
-        node.addEventListener('mousemove', (ev: MouseEvent) => {
-          setTooltip(prev => prev ? { ...prev, x: ev.clientX + 10, y: ev.clientY + 10 } : prev);
-        });
-        node.addEventListener('mouseleave', () => setTooltip(null));
-        node.addEventListener('click', () => {
-          const pages = parsePages(label);
-          onNodeClick?.({ label, startPage: pages.start, endPage: pages.end });
-        });
-      });
-    } catch (e: any) {
-      setError(e?.message || 'No se pudo renderizar el diagrama');
-      if (containerRef.current) {
-        containerRef.current.innerHTML = `<pre>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`;
+  const sanitizeSvg = (svgEl: SVGSVGElement, sz: { w: number; h: number }): SVGSVGElement => {
+    const clone = svgEl.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("width", String(sz.w));
+    clone.setAttribute("height", String(sz.h));
+
+    // Remove all style elements (font-face etc taint canvas)
+    clone.querySelectorAll("style").forEach((el) => el.remove());
+
+    // Remove any <image> elements with external href
+    clone.querySelectorAll("image").forEach((el) => {
+      const href = el.getAttribute("href") || el.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+      if (href && !href.startsWith("#") && !href.startsWith("data:")) {
+        el.remove();
       }
-    }
-  }, [loaded, code]);
+    });
+
+    // Override font-family on all text elements to safe system font
+    clone.querySelectorAll("text, tspan").forEach((el) => {
+      const t = el as SVGTextElement;
+      t.style.fontFamily = "sans-serif";
+      t.setAttribute("font-family", "sans-serif");
+    });
+
+    return clone;
+  };
+
+  const svgToDataUri = (svgEl: SVGSVGElement): string => {
+    const svg = new XMLSerializer().serializeToString(svgEl);
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  };
 
   const exportSvg = () => {
-    const el = containerRef.current?.querySelector('svg');
+    const el = svgRef.current;
     if (!el) return;
-    const svg = new XMLSerializer().serializeToString(el);
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const vb = el.viewBox.baseVal;
+    const w = vb?.width || el.clientWidth || 800;
+    const h = vb?.height || el.clientHeight || 600;
+    const clone = sanitizeSvg(el, { w: Math.ceil(w), h: Math.ceil(h) });
+    const svg = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'mindmap.svg';
-    document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "diagrama.svg";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   };
 
-  const exportPng = async () => {
-    const el = containerRef.current?.querySelector('svg') as SVGSVGElement | null;
+  const exportPng = () => {
+    const el = svgRef.current;
     if (!el) return;
-    const svg = new XMLSerializer().serializeToString(el);
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
+    const vb = el.viewBox.baseVal;
+    const w = Math.ceil(vb?.width || el.clientWidth || 800);
+    const h = Math.ceil(vb?.height || el.clientHeight || 600);
+    const clone = sanitizeSvg(el, { w, h });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    const svg = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
     const img = new Image();
     img.onload = () => {
-      const vb = el.viewBox.baseVal;
-      const width = vb && vb.width ? vb.width : el.clientWidth || 1200;
-      const height = vb && vb.height ? vb.height : el.clientHeight || 800;
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(width);
-      canvas.height = Math.ceil(height);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0,0,canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
-      canvas.toBlob((b) => {
-        if (!b) return;
-        const dl = URL.createObjectURL(b);
-        const a = document.createElement('a'); a.href = dl; a.download = 'mindmap.png';
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(dl);
-      }, 'image/png');
+      try {
+        canvas.toBlob((b) => {
+          if (!b) return;
+          const dl = URL.createObjectURL(b);
+          const a = document.createElement("a");
+          a.href = dl;
+          a.download = "diagrama.png";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(dl);
+        }, "image/png");
+      } catch {
+        downloadAsSvg(clone);
+      }
       URL.revokeObjectURL(url);
     };
-    img.onerror = () => URL.revokeObjectURL(url);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      downloadAsSvg(clone);
+    };
     img.src = url;
   };
 
-  const zoomIn = () => setScale(s => Math.min(2, +(s + 0.1).toFixed(2)));
-  const zoomOut = () => setScale(s => Math.max(0.5, +(s - 0.1).toFixed(2)));
-  const fit = () => setScale(1);
+  const downloadAsSvg = (clone: SVGSVGElement) => {
+    const svg = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "diagrama.svg";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("PNG no disponible — descargado como SVG", { description: "El renderizador usa fuentes externas" });
+  };
 
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2 justify-end">
-        <button onClick={zoomOut} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">-</button>
-        <button onClick={fit} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Ajustar</button>
-        <button onClick={zoomIn} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">+</button>
-        <button onClick={exportSvg} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Exportar SVG</button>
-        <button onClick={exportPng} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Exportar PNG</button>
+    <div className="space-y-1 h-full flex flex-col">
+      <div className="flex gap-1 justify-end px-1">
+        <button onClick={zoomOut} className="w-6 h-6 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors text-sm">−</button>
+        <button onClick={fit} className="px-2 h-6 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors font-label-mono text-(length:--zen-fs-label)">Ajustar</button>
+        <button onClick={zoomIn} className="w-6 h-6 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors text-sm">+</button>
+        <button onClick={exportSvg} className="px-2 h-6 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors font-label-mono text-(length:--zen-fs-label)">SVG</button>
+        <button onClick={exportPng} className="px-2 h-6 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors font-label-mono text-(length:--zen-fs-label)">PNG</button>
       </div>
-      {!loaded && (<div className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">Cargando motor de visualización…</div>)}
-      {error && (<div className="font-label-mono text-(length:--zen-fs-secondary) text-red-400">{error}</div>)}
-      <div className="relative overflow-auto border rounded bg-white text-[#111827]" style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
-        <div ref={containerRef} className="p-2" />
-        {tooltip && (
-          <div style={{ position: 'fixed', left: tooltip.x, top: tooltip.y, zIndex: 50 }} className="pointer-events-none bg-black/80 text-white text-(length:--zen-fs-label) px-2 py-1 rounded shadow">
-            {tooltip.text.split('\n').map((l, i) => (<div key={i}>{l}</div>))}
-          </div>
-        )}
+      {error && <div className="font-label-mono text-(length:--zen-fs-secondary) text-red-400 px-2">{error}</div>}
+      <div className="flex-1 min-h-0 relative overflow-hidden rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="absolute inset-0 overflow-auto" style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+          <svg ref={svgRef} className="w-full h-full" style={{ minHeight: "100%", minWidth: "100%" }} />
+        </div>
       </div>
     </div>
   );

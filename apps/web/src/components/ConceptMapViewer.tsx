@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import fcose from "cytoscape-fcose";
 
-// Register the fcose layout plugin once
 try {
   cytoscape.use(fcose);
 } catch {
@@ -12,11 +11,11 @@ try {
 }
 
 interface ConceptMapViewerProps {
-  code: string; // mermaid mindmap markdown
+  code: string;
   onNodeClick?: (info: { label: string; startPage?: number; endPage?: number }) => void;
   nodesMeta?: { label: string; clean_label?: string; pages?: { start?: number; end?: number }; snippet?: string }[] | null;
-  height?: string; // CSS height, e.g., '65vh'
-  initialZoom?: number; // optional persisted zoom
+  height?: string;
+  initialZoom?: number;
   onZoomChange?: (zoom: number) => void;
 }
 
@@ -76,7 +75,16 @@ export default function ConceptMapViewer({
 }: ConceptMapViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<CyInstance | null>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const onNodeClickRef = useRef(onNodeClick);
+  onNodeClickRef.current = onNodeClick;
+
+  const [tooltip, setTooltip] = useState<{
+    x: number;
+    y: number;
+    label: string;
+    snippet?: string;
+    pages?: { start?: number; end?: number };
+  } | null>(null);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -111,34 +119,53 @@ export default function ConceptMapViewer({
             shape: "round-rectangle",
             "background-color": ((ele: cytoscape.NodeSingular) => {
               const lvl = ele.data("level") || 0;
-              return lvl === 0 ? "#bae6fd" : lvl === 1 ? "#dcfce7" : "#fef9c3";
+              if (lvl === 0) return "var(--primary-container)";
+              if (lvl === 1) return "var(--secondary-container)";
+              return "var(--tertiary-container)";
             }) as any,
-            "border-color": "#334155",
-            "border-width": 2,
+            "border-color": ((ele: cytoscape.NodeSingular) => {
+              const lvl = ele.data("level") || 0;
+              if (lvl === 0) return "var(--primary)";
+              if (lvl === 1) return "var(--secondary)";
+              return "var(--tertiary)";
+            }) as any,
+            "border-width": 1.5,
             label: "data(label)",
-            color: "#111827",
-            "font-weight": 700,
+            color: "var(--on-surface)",
+            "font-size": 13,
+            "font-weight": 600,
+            "font-family": "var(--font-sans, Inter)",
             "text-wrap": "wrap",
-            "text-max-width": 160,
-            padding: "10px",
+            "text-max-width": 180,
+            padding: 14,
             width: "label" as any,
             height: "label" as any,
             "text-valign": "center",
             "text-halign": "center",
-            "shadow-blur": 12,
-            "shadow-color": "#94a3b8",
-            "shadow-opacity": 0.4,
+            "shadow-blur": 8,
+            "shadow-color": "#000",
+            "shadow-opacity": 0.04,
+            "transition-property": "border-width, shadow-opacity",
+            "transition-duration": 150,
           } as any,
+        },
+        {
+          selector: "node:active",
+          style: {
+            "border-width": 2.5,
+            "shadow-opacity": 0.12,
+            "shadow-blur": 16,
+          },
         },
         {
           selector: "edge",
           style: {
             "curve-style": "bezier",
-            "line-color": "#334155",
-            width: 2,
+            "line-color": "var(--outline-variant)",
+            width: 1.5,
             "target-arrow-shape": "triangle",
-            "target-arrow-color": "#334155",
-            "arrow-scale": 1.2,
+            "target-arrow-color": "var(--outline-variant)",
+            "arrow-scale": 1,
           } as any,
         },
       ],
@@ -151,93 +178,58 @@ export default function ConceptMapViewer({
         animate: false,
         randomize: true,
         packComponents: true,
-        nodeRepulsion: 4500,
-        idealEdgeLength: 120,
-        edgeElasticity: 0.45,
-        gravity: 0.25,
+        nodeRepulsion: 6000,
+        idealEdgeLength: 140,
+        edgeElasticity: 0.4,
+        gravity: 0.3,
         gravityRange: 3.8,
-        gravityCompound: 1.0,
-        gravityRangeCompound: 1.5,
         tile: true,
-        tilingPaddingVertical: 20,
-        tilingPaddingHorizontal: 20,
+        tilingPaddingVertical: 24,
+        tilingPaddingHorizontal: 24,
       } as any);
       layout.run();
-    } catch (e) {
+    } catch {
       const layout = cy.layout({
         name: "breadthfirst",
         directed: true,
-        spacingFactor: 1.2,
-        padding: 20,
+        spacingFactor: 1.3,
+        padding: 24,
         avoidOverlap: true,
         circle: false,
       } as any);
       layout.run();
     }
 
-    cy.fit(undefined, 30);
-    if (typeof initialZoom === "number" && initialZoom > 0) {
-      cy.zoom(initialZoom);
-      cy.center();
-    }
-
-    const parsePages = (label: string): { start?: number; end?: number } => {
-      const s = label.toLowerCase();
-      const m = s.match(/p[aá]g(?:\.|ina|inas)?\s*(\d+)(?:\s*[–\-]\s*(\d+))?/i);
-      if (!m) return {};
-      const a = parseInt(m[1], 10);
-      const b = m[2] ? parseInt(m[2], 10) : undefined;
-      if (!a) return {};
-      return b ? { start: Math.min(a, b), end: Math.max(a, b) } : { start: a, end: a };
-    };
-
-    cy.on("mouseover", "node", (e: cytoscape.EventObject) => {
-      const n = e.target as cytoscape.NodeSingular;
-      const label: string = n.data("label") || "";
-      const meta = n.data("_meta");
-      const pages = meta && meta.pages ? meta.pages : parsePages(label);
-      const rp = n.renderedPosition();
-      let tip = label;
-      if (meta && meta.snippet) tip += `\n${meta.snippet}`;
-      if (pages && pages.start)
-        tip += `\nPáginas: ${pages.start}${pages.end && pages.end !== pages.start ? "–" + pages.end : ""}`;
-      setTooltip({ x: rp.x + 12, y: rp.y + 12, text: tip });
-    });
-    cy.on("mouseout", "node", () => setTooltip(null));
-    cy.on("mousemove", "node", (e: cytoscape.EventObject) => {
-      const n = e.target as cytoscape.NodeSingular;
-      const rp = n.renderedPosition();
-      setTooltip((prev) => (prev ? { ...prev, x: rp.x + 12, y: rp.y + 12 } : prev));
-    });
-    cy.on("tap", "node", (e: cytoscape.EventObject) => {
-      const n = e.target as cytoscape.NodeSingular;
-      const label: string = n.data("label") || "";
-      const meta = n.data("_meta");
-      const pages = meta && meta.pages ? meta.pages : parsePages(label);
-      onNodeClick?.({ label, startPage: pages?.start, endPage: pages?.end });
-    });
+    cy.fit(undefined, 40);
 
     cyRef.current = cy;
     return () => {
       cy.destroy();
       cyRef.current = null;
     };
-  }, [code, nodesMeta, onNodeClick]);
+  }, [code, nodesMeta]);
+
+  useEffect(() => {
+    if (typeof initialZoom === "number" && initialZoom > 0 && cyRef.current) {
+      cyRef.current.zoom(initialZoom);
+      cyRef.current.center();
+    }
+  }, [initialZoom]);
 
   const fit = () => {
     if (!cyRef.current) return;
-    cyRef.current.fit(undefined, 30);
+    cyRef.current.fit(undefined, 40);
     onZoomChange?.(cyRef.current.zoom());
   };
   const zoomIn = () => {
     if (!cyRef.current) return;
-    const z = cyRef.current.zoom() * 1.1;
+    const z = Math.min(cyRef.current.zoom() * 1.15, 3);
     cyRef.current.zoom(z);
     onZoomChange?.(z);
   };
   const zoomOut = () => {
     if (!cyRef.current) return;
-    const z = cyRef.current.zoom() * 0.9;
+    const z = Math.max(cyRef.current.zoom() * 0.85, 0.3);
     cyRef.current.zoom(z);
     onZoomChange?.(z);
   };
@@ -246,36 +238,40 @@ export default function ConceptMapViewer({
     const dataUrl = cyRef.current.png({ bg: "white", full: true, scale: 2 });
     const a = document.createElement("a");
     a.href = dataUrl as string;
-    a.download = "concept-map.png";
+    a.download = "grafo-ideas.png";
     document.body.appendChild(a);
     a.click();
     a.remove();
   };
 
   return (
-    <div className="border rounded bg-white relative" style={{ height }}>
-      <div className="absolute right-2 top-2 z-10 flex gap-1 bg-white/95 border border-gray-300 rounded shadow-md p-1">
+    <div className="rounded-xl overflow-hidden bg-[var(--surface-container-low)] relative" style={{ height }}>
+      <div className="absolute right-2 top-2 z-10 flex gap-1 bg-[var(--surface-container-lowest)]/95 backdrop-blur-sm rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-1">
         <button
           onClick={zoomOut}
-          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="w-7 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors text-sm"
+          title="Alejar"
         >
-          -
+          −
         </button>
         <button
           onClick={fit}
-          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors font-label-mono text-(length:--zen-fs-label)"
+          title="Ajustar vista"
         >
           Ajustar
         </button>
         <button
           onClick={zoomIn}
-          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="w-7 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors text-sm"
+          title="Acercar"
         >
           +
         </button>
         <button
           onClick={exportPng}
-          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-colors font-label-mono text-(length:--zen-fs-label)"
+          title="Exportar PNG"
         >
           PNG
         </button>
@@ -284,11 +280,19 @@ export default function ConceptMapViewer({
       {tooltip && (
         <div
           style={{ position: "absolute", left: tooltip.x, top: tooltip.y, zIndex: 50 }}
-          className="pointer-events-none bg-black/80 text-white text-(length:--zen-fs-label) px-2 py-1 rounded shadow"
+          className="pointer-events-none bg-white rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.1)] px-3 py-2 max-w-[240px] border border-[var(--outline-variant)]/20"
         >
-          {tooltip.text.split("\n").map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
+          <div className="font-semibold zen-text-body zen-read-text">{tooltip.label}</div>
+          {tooltip.snippet && (
+            <div className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] mt-0.5 leading-snug">
+              {tooltip.snippet}
+            </div>
+          )}
+          {tooltip.pages && tooltip.pages.start && (
+            <div className="mt-1 inline-block px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label)">
+              Páginas: {tooltip.pages.start}{tooltip.pages.end && tooltip.pages.end !== tooltip.pages.start ? "–" + tooltip.pages.end : ""}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef, type ReactElement } from "react";
+import React, { useState, useEffect, useRef, type ReactElement, useCallback } from "react";
 import { toast } from "sonner";
-import { Copy, FileText, Braces } from "lucide-react";
+import { Copy, FileText, Braces, ChevronDown, ChevronUp } from "lucide-react";
 import ChatInput from "./zen/ChatInput";
 import ThinkingBlock from "./zen/ThinkingBlock";
 import { withCsrfHeaders } from "@/lib/csrf";
 import { cn } from "@/lib/utils";
 import type { ModelId } from "./zen/store";
+import { useZenStore } from "./zen/store";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface Message {
   id: string;
@@ -32,6 +35,7 @@ interface ChatInterfaceProps {
   documentTitle: string;
   documentIds?: string[];
   model?: ModelId;
+  conversationId?: string;
   onCitationClick?: (page: number) => void;
   onUploadClick?: () => void;
   className?: string;
@@ -42,6 +46,7 @@ export default function ChatInterface({
   documentTitle,
   documentIds,
   model,
+  conversationId,
   onCitationClick,
   onUploadClick,
   className = "" 
@@ -50,8 +55,77 @@ export default function ChatInterface({
   const effectiveDocumentIds = isMulti ? documentIds : [documentId];
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [backendConversationId, setBackendConversationId] = useState<string | null>(null);
+  const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const zenStoreActiveDoc = useZenStore((s) => s.activeDocumentId);
+  const activeConversationId = useZenStore((s) => s.activeConversationId);
+  const addConversation = useZenStore((s) => s.addConversation);
+  const setActiveConversation = useZenStore((s) => s.setActiveConversation);
+  const updateConversation = useZenStore((s) => s.updateConversation);
+
+  // Fetch messages when conversationId prop changes (only for externally loaded conversations)
+  useEffect(() => {
+    if (!conversationId || conversationId === backendConversationId) return;
+    setMessages([]);
+    fetch(`${API_URL}/conversations/${conversationId}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.messages) return;
+        const msgs: Message[] = data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          citations: m.citations,
+          timestamp: new Date(m.created_at || Date.now()),
+        }));
+        setMessages(msgs);
+        setBackendConversationId(data.id);
+      })
+      .catch(() => {});
+  }, [conversationId, backendConversationId]);
+
+  const registerConversationInStore = useCallback(
+    (text: string) => {
+      if (!zenStoreActiveDoc || activeConversationId) return;
+      const title = text.slice(0, 40) + (text.length > 40 ? "…" : "");
+      const convId = crypto.randomUUID();
+      const state = useZenStore.getState();
+      state.addConversation({
+        id: convId,
+        title,
+        pinned: false,
+        projectId: state.activeProjectId,
+        documentId: zenStoreActiveDoc,
+        documentIds: isMulti ? effectiveDocumentIds : undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      state.setActiveConversation(convId);
+    },
+    [zenStoreActiveDoc, activeConversationId, isMulti, effectiveDocumentIds, addConversation, setActiveConversation]
+  );
+
+  const syncBackendId = useCallback(
+    (conversation_id: string) => {
+      const state = useZenStore.getState();
+      const active = state.conversations.find((c) => c.id === state.activeConversationId);
+      if (active && !active.backendId) {
+        updateConversation(active.id, { backendId: conversation_id, updatedAt: new Date().toISOString() });
+      }
+      setBackendConversationId(conversation_id);
+    },
+    [updateConversation]
+  );
+
+  const toggleCitations = (msgId: string) => {
+    setExpandedCitations((prev) => {
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId);
+      else next.add(msgId);
+      return next;
+    });
+  };
 
   const quickPrompts = [
     "¿Cuál es la idea principal del documento?",
@@ -65,7 +139,9 @@ export default function ChatInterface({
     if (!content) return null;
 
     // Clean up the content first
-    const cleanContent = content.trim();
+    const cleanContent = content
+      .replace(/\n*Citas?:\s*\[Página\s+\d+\](?:\s*:?\s*"[^"]*")?(\s*\[Página\s+\d+\](?:\s*:?\s*"[^"]*")?)*\s*$/gi, '')
+      .trim();
 
     // Helper: render inline rich text (bold **...**, italic *...*, code `...`, page refs)
     const renderInlineRich = (text: string) => {
@@ -97,7 +173,7 @@ export default function ChatInterface({
             boldSplit.forEach((boldPart, bj) => {
               if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
                 segments2.push(
-                  <strong key={`b-${si}-${ci}-${bj}`} className="font-semibold text-[var(--on-surface)]">
+                  <strong key={`b-${si}-${ci}-${bj}`} className="font-semibold zen-read-text">
                     {boldPart.slice(2, -2)}
                   </strong>
                 );
@@ -106,7 +182,7 @@ export default function ChatInterface({
                 italicSplit.forEach((italicSub, ik) => {
                   if (ik % 2 === 1) {
                     segments2.push(
-                      <em key={`i-${si}-${ci}-${bj}-${ik}`} className="italic text-[var(--on-surface)]">
+                      <em key={`i-${si}-${ci}-${bj}-${ik}`} className="italic zen-read-text">
                         {italicSub}
                       </em>
                     );
@@ -195,7 +271,7 @@ export default function ChatInterface({
         const headingMatch = paragraph.match(/^\s*(#{1,6})\s+(.+?)\s*$/m);
         if (headingMatch) {
           const level = headingMatch[1].length;
-          const headingClasses = "font-zen-heading text-(length:--zen-fs-read-heading) font-semibold text-[var(--on-surface)] mt-3 mb-1.5 leading-tight";
+          const headingClasses = "font-zen-heading zen-text-heading font-semibold zen-read-text mt-3 mb-1.5 leading-tight";
           const headingContent = renderInlineRich(headingMatch[2].trim());
           if (level === 1) return <h1 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h1>;
           if (level === 2) return <h2 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h2>;
@@ -227,7 +303,7 @@ export default function ChatInterface({
           return (
             <ul key={`${seedKey}-ul-${idx}`} className="list-disc pl-5 my-2 space-y-1">
               {ulItems.map((l, i3) => (
-                <li key={`${seedKey}-uli-${idx}-${i3}`} className="text-(length:--zen-fs-read) leading-relaxed">
+                <li key={`${seedKey}-uli-${idx}-${i3}`} className="zen-text-body leading-relaxed zen-read-text">
                   {renderInlineRich(l.replace(/^\s*(?:[-*•])\s+/, ''))}
                 </li>
               ))}
@@ -238,7 +314,7 @@ export default function ChatInterface({
           return (
             <ol key={`${seedKey}-ol-${idx}`} className="list-decimal pl-5 my-2 space-y-1">
               {olItems.map((l, i4) => (
-                <li key={`${seedKey}-oli-${idx}-${i4}`} className="text-(length:--zen-fs-read) leading-relaxed">
+                <li key={`${seedKey}-oli-${idx}-${i4}`} className="zen-text-body leading-relaxed zen-read-text">
                   {renderInlineRich(l.replace(/^\s*\d+\.\s+/, ''))}
                 </li>
               ))}
@@ -247,7 +323,7 @@ export default function ChatInterface({
         }
 
         return (
-          <p key={`${seedKey}-p-${idx}`} className="mb-2 text-(length:--zen-fs-read) leading-relaxed">
+          <p key={`${seedKey}-p-${idx}`} className="mb-2 zen-text-body leading-relaxed zen-read-text">
             {renderInlineRich(cleanParagraph)}
           </p>
         );
@@ -286,6 +362,9 @@ export default function ChatInterface({
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+
+    // Register conversation in sidebar store if this is the first message
+    registerConversationInStore(text);
 
     try {
       const response = await fetch(
@@ -328,11 +407,8 @@ export default function ChatInterface({
   };
 
   const handleNonStreamingResponse = (chatResponse: any) => {
-    console.log("📨 Full chat response:", chatResponse);
-
-    if (chatResponse.conversation_id && !conversationId) {
-      console.log("🔄 Setting conversation ID:", chatResponse.conversation_id);
-      setConversationId(chatResponse.conversation_id);
+    if (chatResponse.conversation_id) {
+      syncBackendId(chatResponse.conversation_id);
     }
 
     const assistantMessage: Message = {
@@ -460,8 +536,8 @@ export default function ChatInterface({
     } finally {
       reader.releaseLock();
       setIsLoading(false);
-      if (pendingConversationId && !conversationId) {
-        setConversationId(pendingConversationId);
+      if (pendingConversationId) {
+        syncBackendId(pendingConversationId);
       }
     }
   };
@@ -547,9 +623,9 @@ export default function ChatInterface({
 
   const exportConversation = async (format: "md" | "json") => {
     try {
-      if (conversationId) {
+      if (backendConversationId) {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/conversations/${conversationId}/export?format=${format}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/conversations/${backendConversationId}/export?format=${format}`,
           { credentials: "include" }
         );
         if (!res.ok) {
@@ -575,7 +651,7 @@ export default function ChatInterface({
   return (
     <div       className={cn("flex flex-col h-full bg-transparent", className)}>
       <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-[792px] mx-auto space-y-6">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -588,44 +664,70 @@ export default function ChatInterface({
           >
             <div
               className={cn(
-                "max-w-[85%] rounded-xl px-4 py-3 text-(length:--zen-fs-read) leading-relaxed text-[var(--on-surface)]",
-                message.role === "user" &&
-                  "bg-[var(--surface-container-high)]/60 border border-[var(--outline-variant)]/30"
+                "flex flex-col",
+                message.role === "user" ? "items-end" : "items-start"
               )}
             >
-              {message.role === "assistant" && message.thinkingStartedAt && (
-                <ThinkingBlock
-                  content={message.thinking ?? ""}
-                  startedAt={message.thinkingStartedAt}
-                  streaming={!message.thinkingDone}
-                />
-              )}
-              <div className="break-words">
-                {formatMessageContent(message.content)}
+              <div
+                className={cn(
+                  "max-w-[700px] rounded-xl px-4 py-3 zen-text-body leading-relaxed zen-read-text",
+                  message.role === "user" &&
+                    "bg-[var(--surface-container-high)]/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+                )}
+              >
+                {message.role === "assistant" && message.thinkingStartedAt && (
+                  <ThinkingBlock
+                    content={message.thinking ?? ""}
+                    startedAt={message.thinkingStartedAt}
+                    streaming={!message.thinkingDone}
+                  />
+                )}
+                <div className="break-words">
+                  {formatMessageContent(message.content)}
+                </div>
+
+                {message.citations && message.citations.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--outline-variant)]/50">
+                    <button
+                      onClick={() => toggleCitations(message.id)}
+                      className="flex items-center gap-1.5 w-full text-left zen-text-body zen-read-text hover:opacity-70 transition-opacity"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--primary-fixed)" }} />
+                      <span className="font-label-mono font-medium">
+                        Citas ({message.citations.length})
+                      </span>
+                      {expandedCitations.has(message.id) ? (
+                        <ChevronUp className="w-3.5 h-3.5 ml-auto" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 ml-auto" />
+                      )}
+                    </button>
+
+                    {expandedCitations.has(message.id) && (
+                      <div className="mt-2 space-y-2">
+                        {message.citations.map((citation, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start gap-2 pl-2 border-l-2 border-[var(--outline-variant)]/30"
+                          >
+                            <button
+                              onClick={() => onCitationClick?.(citation.page)}
+                              className="shrink-0 px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium hover:bg-[var(--primary-fixed)]/20 transition-colors cursor-pointer"
+                            >
+                              P.{citation.page}
+                            </button>
+                            <span className="zen-text-body zen-read-text leading-relaxed">
+                              {citation.snippet}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {message.citations && message.citations.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-[var(--outline-variant)]/50 flex flex-wrap gap-1.5">
-                  {message.citations.map((citation, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onCitationClick?.(citation.page)}
-                      title={`${citation.snippet}\n${citation.document || ""}`}
-                      className="inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: "var(--primary-fixed)" }}
-                      />
-                      <span className="px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium hover:bg-[var(--primary-fixed)]/20 transition-colors">
-                        p.{citation.page}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+              <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                 <button
                   onClick={() => copyToClipboard(message.content)}
                   className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"

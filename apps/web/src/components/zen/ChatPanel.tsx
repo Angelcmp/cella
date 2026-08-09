@@ -49,7 +49,7 @@ function WelcomeState({ onUpload }: { onUpload: () => void }) {
 
         {/* Hero typography */}
         <h1 className="font-zen-heading text-(length:--zen-fs-title) text-transparent bg-clip-text bg-gradient-to-b from-[var(--on-surface)] to-[var(--on-surface-variant)] mb-4 text-center tracking-tight">
-          Iniciemos tu cuaderno
+          Iniciemos tu biblioteca
         </h1>
         <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/70 text-center max-w-lg mb-10 leading-relaxed bg-[var(--surface)]/30 backdrop-blur-sm p-3 rounded-lg border border-black/5 font-normal">
           Este es tu lienzo en blanco para comprender, crear o avanzar en algún
@@ -88,6 +88,10 @@ export default function ChatPanel() {
     activeDocumentId,
     documents,
     selectedModel,
+    activeConversationId,
+    activeProjectId,
+    projects,
+    conversations,
     addDocument,
     setActiveDocument,
     ensureDefaultProject,
@@ -98,6 +102,8 @@ export default function ChatPanel() {
   const [showUpload, setShowUpload] = useState(false);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
   const activeDoc = documents.find((d) => d.id === activeDocumentId);
+  const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null;
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   const indexedDocs = documents.filter((d) => d.status === "indexed");
 
@@ -112,13 +118,22 @@ export default function ChatPanel() {
 
   const handleUploadComplete = (doc: ZenDocument) => {
     addDocument(doc);
-    const defaultProject = ensureDefaultProject();
     const state = useZenStore.getState();
-    const updatedProjects = state.projects.map((p) =>
-      p.id === defaultProject.id ? { ...p, documents: [...p.documents, doc.id] } : p
-    );
-    state.setProjects(updatedProjects);
-    state.setActiveProject(defaultProject.id);
+    const projectId = state.activeProjectId;
+
+    if (projectId) {
+      const updatedProjects = state.projects.map((p) =>
+        p.id === projectId ? { ...p, documents: [...p.documents, doc.id] } : p
+      );
+      state.setProjects(updatedProjects);
+    } else {
+      const defaultProject = ensureDefaultProject();
+      const updatedProjects = state.projects.map((p) =>
+        p.id === defaultProject.id ? { ...p, documents: [...p.documents, doc.id] } : p
+      );
+      state.setProjects(updatedProjects);
+      state.setActiveProject(defaultProject.id);
+    }
     setActiveDocument(doc.id);
     setShowUpload(false);
   };
@@ -263,10 +278,10 @@ export default function ChatPanel() {
         <button
           onClick={() => setDocPickerOpen((v) => !v)}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-label-mono text-(length:--zen-fs-label) uppercase tracking-[0.12em] transition-colors",
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full [font-size:10px] font-label-mono uppercase tracking-[0.12em] transition-colors",
             isMultiChat
-              ? "border-[var(--primary-fixed)]/40 bg-[var(--primary)]/10 text-[var(--primary-fixed)]"
-              : "border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
+              ? "bg-[var(--primary)]/10 text-[var(--primary-fixed)]"
+              : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
           )}
           title="Seleccionar documentos para el chat"
         >
@@ -276,7 +291,9 @@ export default function ChatPanel() {
             : "Chat con 1 documento"}
         </button>
         <span className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] truncate">
-          {activeDoc.title}
+          {activeProject
+            ? `${activeProject.name} / ${activeDoc.title}`
+            : activeDoc.title}
         </span>
 
         {docPickerOpen && (
@@ -325,6 +342,7 @@ export default function ChatPanel() {
         documentId={activeDoc.id}
         documentTitle={activeDoc.title}
         documentIds={isMultiChat ? chatDocumentIds : undefined}
+        conversationId={activeConversation?.backendId}
         model={selectedModel}
         onCitationClick={() => {}}
         onUploadClick={() => setShowUpload(true)}

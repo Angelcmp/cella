@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  FileText,
-  Presentation,
-  File,
-  Loader2,
-  RotateCcw,
-  Check,
-} from "lucide-react";
+import { Loader2, RotateCcw, Check } from "lucide-react";
 import type { ZenDocument } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -17,20 +10,6 @@ const DOT_COLORS: Record<string, string> = {
   pending: "var(--zen-dot-pending)",
   failed: "var(--zen-dot-failed)",
 };
-
-const STATUS_LABEL: Record<string, string> = {
-  indexed: "Indexado",
-  processing: "Procesando",
-  pending: "En cola",
-  failed: "Error",
-};
-
-function typeIcon(filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pptx" || ext === "ppt") return Presentation;
-  if (ext === "txt" || ext === "md") return File;
-  return FileText;
-}
 
 interface SourceCardProps {
   doc: ZenDocument;
@@ -49,7 +28,6 @@ export default function SourceCard({
   onToggleChat,
   onReprocess,
 }: SourceCardProps) {
-  const Icon = typeIcon(doc.filename);
   const isProcessing = doc.status === "pending" || doc.status === "processing";
   const dotColor = DOT_COLORS[doc.status] ?? "var(--zen-dot-indexed)";
 
@@ -57,36 +35,22 @@ export default function SourceCard({
     <div
       onClick={onSelect}
       className={cn(
-        "group flex items-center gap-2 px-3 py-2 rounded-md border transition-colors cursor-pointer",
+        "group flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
         active
-          ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] border-[var(--primary-fixed)]/30"
-          : "border-transparent text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+          ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+          : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
       )}
     >
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ backgroundColor: dotColor }}
-        title={STATUS_LABEL[doc.status] ?? doc.status}
+        title={doc.status}
       />
 
-      <span className="w-6 h-6 rounded-md bg-[var(--surface-container-highest)]/60 flex items-center justify-center shrink-0">
-        <Icon className="w-3 h-3 text-[var(--on-surface-variant)]" />
-      </span>
-
       <span className="flex-1 min-w-0">
-        <span className="block truncate font-label-mono text-(length:--zen-fs-secondary) leading-tight">
+        <span className="block truncate font-label-mono [font-size:10px] leading-tight">
           {doc.title}
         </span>
-        {isProcessing ? (
-          <span className="flex items-center gap-1 font-label-mono text-(length:--zen-fs-label) text-[var(--primary-fixed)]">
-            <Loader2 className="w-2 h-2 animate-spin" />
-            {doc.status === "pending" ? "En cola" : "Procesando"}
-          </span>
-        ) : (
-          <span className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/50">
-            {doc.pages > 0 ? `${doc.pages} pág.` : STATUS_LABEL[doc.status] ?? doc.status}
-          </span>
-        )}
       </span>
 
       <div className="flex items-center gap-0.5 shrink-0">
@@ -103,28 +67,32 @@ export default function SourceCard({
           </button>
         )}
 
-        <label
-          onClick={(e) => e.stopPropagation()}
-          className="flex items-center cursor-pointer"
-          title="Incluir en el chat"
-        >
-          <input
-            type="checkbox"
-            checked={chatChecked}
-            onChange={onToggleChat}
-            className="sr-only"
-          />
-          <span
-            className={cn(
-              "w-3 h-3 rounded border flex items-center justify-center transition-colors",
-              chatChecked
-                ? "bg-[var(--primary-fixed)] border-[var(--primary-fixed)]"
-                : "border-[var(--outline-variant)]"
-            )}
+        {isProcessing ? (
+          <Loader2 className="w-2.5 h-2.5 animate-spin text-[var(--primary-fixed)]" />
+        ) : (
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center cursor-pointer"
+            title="Incluir en el chat"
           >
-            {chatChecked && <Check className="w-2 h-2 text-[var(--on-primary-container)]" />}
-          </span>
-        </label>
+            <input
+              type="checkbox"
+              checked={chatChecked}
+              onChange={onToggleChat}
+              className="sr-only"
+            />
+            <span
+              className={cn(
+                "w-3 h-3 rounded border flex items-center justify-center transition-colors",
+                chatChecked
+                  ? "bg-[var(--primary-fixed)] border-[var(--primary-fixed)]"
+                  : "border-[var(--outline-variant)]"
+              )}
+            >
+              {chatChecked && <Check className="w-2 h-2 text-[var(--on-primary-container)]" />}
+            </span>
+          </label>
+        )}
       </div>
     </div>
   );

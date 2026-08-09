@@ -217,7 +217,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
             </div>
 
             {/* Summary Preview */}
-            <div className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)] leading-relaxed">
+            <div className="zen-text-body zen-read-text leading-relaxed">
               {isExpanded ? summary.summary : `${summary.summary.substring(0, 150)}${summary.summary.length > 150 ? '...' : ''}`}
             </div>
 
@@ -237,8 +237,8 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Key Points */}
                 {summary.keyPoints && summary.keyPoints.length > 0 && (
                   <div>
-                    <h4 className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)] mb-2">Puntos clave:</h4>
-                    <ul className="space-y-1 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
+                    <h4 className="font-label-mono zen-text-heading font-medium zen-read-text mb-2">Puntos clave:</h4>
+                    <ul className="space-y-1 zen-text-body zen-read-text">
                       {summary.keyPoints.map((point, index) => (
                         <li key={index} className="flex items-start space-x-2">
                           <span className="text-[var(--primary-fixed)] mt-1">•</span>
@@ -252,7 +252,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Topics */}
                 {summary.topics && summary.topics.length > 0 && (
                   <div>
-                    <h4 className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)] mb-2">Temas principales:</h4>
+                    <h4 className="font-label-mono zen-text-heading font-medium zen-read-text mb-2">Temas principales:</h4>
                     <div className="flex flex-wrap gap-1">
                       {summary.topics.map((topic, index) => (
                         <Badge
