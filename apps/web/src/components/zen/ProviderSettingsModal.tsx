@@ -184,17 +184,17 @@ export default function ProviderSettingsModal() {
       maxWidth="620px"
     >
       <div className="space-y-4">
-        <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+        <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] leading-relaxed">
           Conecta Ollama (local) o un proveedor con tu API key. Todo se guarda
           cifrado en tu máquina.
         </p>
 
         {message && (
           <div
-            className={`text-[11px] px-3 py-2 rounded-lg border ${
+            className={`text-(length:--zen-fs-secondary) px-3 py-2 rounded-lg border ${
               message.kind === "ok"
-                ? "text-emerald-600 border-emerald-500/30 bg-emerald-500/5"
-                : "text-red-600 border-red-500/30 bg-red-500/5"
+                ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5"
+                : "text-red-400 border-red-500/30 bg-red-500/5"
             }`}
           >
             {message.text}
@@ -206,50 +206,50 @@ export default function ProviderSettingsModal() {
           {providers.map((p) => (
             <div
               key={p.id}
-              className="border border-[var(--border-subtle)] rounded-lg p-3 flex items-start gap-3"
+              className="border border-[var(--outline-variant)] rounded-lg p-3 flex items-start gap-3"
             >
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-semibold text-[var(--text-primary)]">{p.name}</span>
+                  <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)]">{p.name}</span>
                   {p.is_default && (
-                    <span className="flex items-center gap-0.5 text-[9px] text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded-full">
+                    <span className="flex items-center gap-0.5 text-(length:--zen-fs-label) text-[var(--primary-fixed)] bg-[var(--primary-fixed)]/10 px-1.5 py-0.5 rounded-full">
                       <Star className="w-2 h-2" /> default
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-[var(--text-muted)] truncate">
+                <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 truncate">
                   {p.label}
                   {p.base_url ? ` · ${p.base_url}` : ""}
                   {p.has_api_key ? "" : " · sin API key"}
                 </p>
-                <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)] truncate">
                   {p.models.length > 0 ? p.models.join(", ") : "Sin modelos — sincroniza"}
                 </p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
                 <button
                   onClick={() => handleTest(p)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-(length:--zen-fs-label) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors"
                 >
                   <Zap className="w-2.5 h-2.5" /> Probar
                 </button>
                 <button
                   onClick={() => handleSync(p)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-(length:--zen-fs-label) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors"
                 >
                   <RefreshCw className="w-2.5 h-2.5" /> Sync
                 </button>
                 {!p.is_default && (
                   <button
                     onClick={() => handleDefault(p)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-(length:--zen-fs-label) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors"
                   >
                     <Star className="w-2.5 h-2.5" /> Default
                   </button>
                 )}
                 <button
                   onClick={() => handleDelete(p)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-red-500 hover:bg-red-500/10 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-(length:--zen-fs-label) text-red-500 hover:bg-red-500/10 transition-colors"
                 >
                   <Trash2 className="w-2.5 h-2.5" /> Eliminar
                 </button>
@@ -258,7 +258,7 @@ export default function ProviderSettingsModal() {
           ))}
 
           {!loading && providers.length === 0 && (
-            <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
+            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/60 text-center py-4">
               No hay proveedores configurados todavía.
             </p>
           )}
@@ -268,28 +268,28 @@ export default function ProviderSettingsModal() {
         {!adding ? (
           <button
             onClick={() => setAdding(true)}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/40 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[var(--outline-variant)] text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:border-[var(--primary-fixed)]/40 transition-colors"
           >
             <Plus className="w-3 h-3" /> Añadir proveedor
           </button>
         ) : (
-          <div className="border border-[var(--border-subtle)] rounded-lg p-3 space-y-2">
+          <div className="border border-[var(--outline-variant)] rounded-lg p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-[var(--text-muted)] block mb-1">Nombre</label>
+                <label className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 block mb-1">Nombre</label>
                 <input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="ej. mi-ollama"
-                  className="w-full text-[11px] bg-[var(--bg-muted)]/50 border border-[var(--border-subtle)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--accent-primary)]/50"
+                  className="w-full text-(length:--zen-fs-secondary) bg-[var(--surface-container-high)]/50 border border-[var(--outline-variant)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--primary-fixed)]/50"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[var(--text-muted)] block mb-1">Proveedor</label>
+                <label className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 block mb-1">Proveedor</label>
                 <select
                   value={newType}
                   onChange={(e) => setNewType(e.target.value)}
-                  className="w-full text-[11px] bg-[var(--bg-muted)]/50 border border-[var(--border-subtle)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--accent-primary)]/50"
+                  className="w-full text-(length:--zen-fs-secondary) bg-[var(--surface-container-high)]/50 border border-[var(--outline-variant)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--primary-fixed)]/50"
                 >
                   <option value="ollama">Ollama (local)</option>
                   {Object.entries(catalog).map(([key, entry]) => (
@@ -303,25 +303,25 @@ export default function ProviderSettingsModal() {
 
             {newType === "openai_compat" && (
               <div>
-                <label className="text-[10px] text-[var(--text-muted)] block mb-1">Base URL (ej. LM Studio http://localhost:1234/v1)</label>
+                <label className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 block mb-1">Base URL (ej. LM Studio http://localhost:1234/v1)</label>
                 <input
                   value={newBaseUrl}
                   onChange={(e) => setNewBaseUrl(e.target.value)}
                   placeholder="http://localhost:1234/v1"
-                  className="w-full text-[11px] bg-[var(--bg-muted)]/50 border border-[var(--border-subtle)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--accent-primary)]/50"
+                  className="w-full text-(length:--zen-fs-secondary) bg-[var(--surface-container-high)]/50 border border-[var(--outline-variant)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--primary-fixed)]/50"
                 />
               </div>
             )}
 
             {newType !== "ollama" && (
               <div>
-                <label className="text-[10px] text-[var(--text-muted)] block mb-1">API key</label>
+                <label className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 block mb-1">API key</label>
                 <input
                   type="password"
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full text-[11px] bg-[var(--bg-muted)]/50 border border-[var(--border-subtle)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--accent-primary)]/50"
+                  className="w-full text-(length:--zen-fs-secondary) bg-[var(--surface-container-high)]/50 border border-[var(--outline-variant)] rounded-md px-2 py-1.5 outline-none focus:border-[var(--primary-fixed)]/50"
                 />
               </div>
             )}
@@ -330,14 +330,14 @@ export default function ProviderSettingsModal() {
               <button
                 onClick={handleCreate}
                 disabled={saving || !newName.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] bg-[var(--accent-primary)] text-white disabled:opacity-40 hover:bg-[var(--accent-brand)] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-(length:--zen-fs-secondary) bg-[var(--primary-fixed)] text-white disabled:opacity-40 hover:bg-[var(--primary-fixed)] transition-colors"
               >
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
                 Guardar
               </button>
               <button
                 onClick={() => setAdding(false)}
-                className="px-3 py-1.5 rounded-md text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"
+                className="px-3 py-1.5 rounded-md text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] transition-colors"
               >
                 Cancelar
               </button>

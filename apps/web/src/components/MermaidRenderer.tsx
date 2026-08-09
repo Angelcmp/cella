@@ -174,18 +174,18 @@ export default function MermaidRenderer({ code, onNodeClick }: MermaidRendererPr
   return (
     <div className="space-y-2">
       <div className="flex gap-2 justify-end">
-        <button onClick={zoomOut} className="px-2 py-1 text-xs border rounded">-</button>
-        <button onClick={fit} className="px-2 py-1 text-xs border rounded">Ajustar</button>
-        <button onClick={zoomIn} className="px-2 py-1 text-xs border rounded">+</button>
-        <button onClick={exportSvg} className="px-2 py-1 text-xs border rounded">Exportar SVG</button>
-        <button onClick={exportPng} className="px-2 py-1 text-xs border rounded">Exportar PNG</button>
+        <button onClick={zoomOut} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">-</button>
+        <button onClick={fit} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Ajustar</button>
+        <button onClick={zoomIn} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">+</button>
+        <button onClick={exportSvg} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Exportar SVG</button>
+        <button onClick={exportPng} className="px-2 py-1 font-label-mono text-(length:--zen-fs-label) border rounded">Exportar PNG</button>
       </div>
-      {!loaded && (<div className="text-xs text-gray-400">Cargando motor de visualización…</div>)}
-      {error && (<div className="text-xs text-red-400">{error}</div>)}
+      {!loaded && (<div className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">Cargando motor de visualización…</div>)}
+      {error && (<div className="font-label-mono text-(length:--zen-fs-secondary) text-red-400">{error}</div>)}
       <div className="relative overflow-auto border rounded bg-white text-[#111827]" style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
         <div ref={containerRef} className="p-2" />
         {tooltip && (
-          <div style={{ position: 'fixed', left: tooltip.x, top: tooltip.y, zIndex: 50 }} className="pointer-events-none bg-black/80 text-white text-[11px] px-2 py-1 rounded shadow">
+          <div style={{ position: 'fixed', left: tooltip.x, top: tooltip.y, zIndex: 50 }} className="pointer-events-none bg-black/80 text-white text-(length:--zen-fs-label) px-2 py-1 rounded shadow">
             {tooltip.text.split('\n').map((l, i) => (<div key={i}>{l}</div>))}
           </div>
         )}

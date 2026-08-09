@@ -58,7 +58,7 @@ export default function CellaDialog({
     >
       {title != null && (
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)]">
-          <div className="text-base font-semibold text-[var(--text-primary)]">{title}</div>
+          <div className="text-(length:--zen-fs-title) font-semibold text-[var(--text-primary)]">{title}</div>
           <button
             onClick={onClose}
             className="p-1 rounded-lg hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors"

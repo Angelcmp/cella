@@ -110,7 +110,7 @@ export default function DocsSidebar() {
       >
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-9 h-9 bg-[var(--gradient-zen-glow)] rounded-2xl text-white flex items-center justify-center font-semibold">
+            <div className="w-9 h-9 bg-[var(--gradient-zen-glow)] rounded-2xl text-[#003739] flex items-center justify-center font-semibold">
               C
             </div>
             <span className="font-semibold text-[var(--text-primary)]">Cella Docs</span>

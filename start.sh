@@ -57,14 +57,14 @@ echo ""
 echo "📡 Iniciando Backend (FastAPI)..."
 source "$VENV/bin/activate"
 
-python -c "
+(cd "$API_DIR" && python -c "
 from database_simple import create_tables
 try:
     create_tables()
     print('   DB tables verified')
 except Exception as e:
     print(f'   DB notice: {e}')
-"
+")
 
 (cd "$API_DIR" && uvicorn main:app --reload --port 8000) &
 BACKEND_PID=$!
@@ -80,6 +80,9 @@ echo "   ✅ Worker (PID $WORKER_PID)"
 # ── 4. Frontend ──
 echo ""
 echo "🌐 Iniciando Frontend (Next.js)..."
+# Asegurar que no haya instancias previas de next dev ocupando :3000
+pkill -f "next dev --turbopack" 2>/dev/null || true
+sleep 1
 (cd "$WEB_DIR" && npm run dev) &
 FRONTEND_PID=$!
 echo "   ✅ Frontend en :3000 (PID $FRONTEND_PID)"

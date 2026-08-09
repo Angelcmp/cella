@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,8 @@ import {
 import { toast } from "sonner";
 import styles from "./DocumentViewer.module.css";
 import { cn } from "@/lib/utils";
+
+const PdfViewer = dynamic(() => import("./PdfViewer"), { ssr: false });
 
 interface Document {
   id: string;
@@ -320,13 +323,13 @@ export default function DocumentViewer({
 
   if (isLoading) {
     return (
-      <Card className={cn("shadow-soft border border-[var(--border-subtle)] bg-[var(--bg-surface)]", className)}>
+      <Card className={cn("shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]", className)}>
         <CardContent className="p-6 text-center animate-fade-in">
           <div className="relative mb-4 inline-flex">
             <div className="absolute inset-0 bg-[var(--gradient-zen-glow)] rounded-2xl blur-lg opacity-40"></div>
-            <FileText className="relative h-12 w-12 text-[var(--accent-primary)] mx-auto animate-pulse" />
+            <FileText className="relative h-12 w-12 text-[var(--primary-fixed)] mx-auto animate-pulse" />
           </div>
-          <p className="text-[var(--text-secondary)]">Cargando documento...</p>
+          <p className="text-[var(--on-surface-variant)]">Cargando documento...</p>
         </CardContent>
       </Card>
     );
@@ -334,17 +337,31 @@ export default function DocumentViewer({
 
   if (!document) {
     return (
-      <Card className={cn("shadow-soft border border-[var(--border-subtle)] bg-[var(--bg-surface)]", className)}>
+      <Card className={cn("shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]", className)}>
         <CardContent className="p-6 text-center">
-          <FileText className="h-12 w-12 text-[var(--text-muted)] mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          <FileText className="h-12 w-12 text-[var(--on-surface-variant)]/60 mx-auto mb-4" />
+          <h3 className="text-(length:--zen-fs-title) font-semibold text-[var(--on-surface)] mb-2">
             Documento no encontrado
           </h3>
-          <p className="text-[var(--text-muted)]">
+          <p className="text-[var(--on-surface-variant)]/60">
             No se pudo cargar la información del documento
           </p>
         </CardContent>
       </Card>
+    );
+  }
+
+  const isPdf = document.filename?.toLowerCase().endsWith(".pdf");
+  const fileUrl = `${process.env.NEXT_PUBLIC_API_URL}/documents/${documentId}/file`;
+
+  if (isPdf) {
+    return (
+      <PdfViewer
+        fileUrl={fileUrl}
+        title={document.title}
+        pages={document.pages}
+        className={className}
+      />
     );
   }
 
@@ -355,17 +372,17 @@ export default function DocumentViewer({
         <div className="w-16 flex-shrink-0 space-y-4">
           {/* Page Navigation */}
           {documentContent && documentContent.pages.length > 1 && (
-            <Card className="shadow-soft border border-[var(--border-subtle)] bg-[var(--bg-surface)]/90 h-fit sticky top-2">
+            <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]/90 h-fit sticky top-2">
               <CardContent className="p-2 max-h-96 overflow-y-auto">
                 <div className="space-y-1">
                   {documentContent.pages.map((page) => (
                     <div
                       key={page.page_number}
                       className={cn(
-                        "flex items-center justify-center w-12 h-8 rounded-md cursor-pointer transition-all text-xs font-medium border",
+                        "flex items-center justify-center w-12 h-8 rounded-md cursor-pointer transition-all text-(length:--zen-fs-label) font-medium border",
                         currentPage === page.page_number
-                          ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-[var(--accent-primary)] shadow-soft"
-                          : "text-[var(--text-secondary)] border-transparent hover:bg-[var(--bg-muted)]/70"
+                          ? "bg-[var(--primary-fixed)]/20 border-[var(--primary-fixed)] text-[var(--primary-fixed)] shadow-soft"
+                          : "text-[var(--on-surface-variant)] border-transparent hover:bg-[var(--surface-container-high)]/70"
                       )}
                       onClick={() => goToPage(page.page_number)}
                       title={`Página ${page.page_number}`}
@@ -379,7 +396,7 @@ export default function DocumentViewer({
           )}
           
           {/* Controls Card */}
-          <Card className="shadow-soft border border-[var(--border-subtle)] bg-[var(--bg-surface)]/90 h-fit sticky top-2">
+          <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]/90 h-fit sticky top-2">
             <CardContent className="p-2">
               <div className="space-y-2">
                 {/* Page Navigation */}
@@ -415,7 +432,7 @@ export default function DocumentViewer({
                     size="sm"
                     onClick={control.action}
                     disabled={control.disabled}
-                    className="w-9 h-9 p-0 border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]/80"
+                    className="w-9 h-9 p-0 border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]/80"
                     title={control.title}
                   >
                     <control.icon className="h-3.5 w-3.5" />
@@ -426,7 +443,7 @@ export default function DocumentViewer({
                   variant={readingMode ? "gradient" : "outline"}
                   size="sm"
                   onClick={() => setReadingMode(!readingMode)}
-                  className={readingMode ? "w-9 h-9 p-0 text-white" : "w-9 h-9 p-0 border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]/80"}
+                  className={readingMode ? "w-9 h-9 p-0 text-[var(--on-primary)]" : "w-9 h-9 p-0 border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]/80"}
                   title={readingMode ? "Modo Normal" : "Modo Lectura"}
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -442,33 +459,33 @@ export default function DocumentViewer({
 
         {/* Document Viewer */}
         {document.status === 'indexed' && (
-          <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background p-6 overflow-auto' : ''}`}>
+          <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-[var(--surface-container-lowest)] p-6 overflow-auto' : ''}`}>
             {/* Document Content - Directly visible */}
-            <Card className="shadow-soft border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+            <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]">
               <CardContent className="p-0">
                 {isLoadingContent ? (
                   <div className="text-center py-12">
-                    <Loader2 className="h-8 w-8 text-primary mx-auto mb-4 animate-spin" />
-                    <p className="text-muted-foreground">Cargando contenido del documento...</p>
+                    <Loader2 className="h-8 w-8 text-[var(--primary-fixed)] mx-auto mb-4 animate-spin" />
+                    <p className="text-[var(--on-surface-variant)]">Cargando contenido del documento...</p>
                   </div>
                 ) : (
                   <div className="min-h-96">
                     {getCurrentPageData() ? (
                       <div className="relative">
                         {/* Page Header */}
-                        <div className="bg-[var(--bg-muted)] px-6 py-3 border-b border-[var(--border-subtle)]">
+                        <div className="bg-[var(--surface-container-high)] px-6 py-3 border-b border-[var(--outline-variant)]">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
-                              <span className="text-sm font-medium text-muted-foreground">
+                              <span className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)]">
                                 Página {currentPage} de {documentContent?.total_pages}
                               </span>
-                              <Badge variant="outline" className="border-[var(--accent-primary)] text-[var(--accent-primary)] bg-[var(--accent-primary)]/10">
+                              <Badge variant="outline" className="border-[var(--primary-fixed)] text-[var(--primary-fixed)] bg-[var(--primary-fixed)]/10">
                                 {getCurrentPageData()?.chunks.reduce((total, chunk) => total + chunk.tokens, 0)} tokens
                               </Badge>
                             </div>
                             
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs text-muted-foreground">
+                              <span className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]">
                                 Zoom: {Math.round(zoom * 100)}%
                               </span>
                             </div>
@@ -476,11 +493,11 @@ export default function DocumentViewer({
                         </div>
                         
                         {/* Document Paper */}
-                        <div className={`${readingMode ? 'bg-[var(--bg-muted)]' : 'bg-[var(--bg-muted)]/50'} p-6 min-h-[600px]`}>
+                        <div className={`${readingMode ? 'bg-[var(--surface-container-high)]' : 'bg-[var(--surface-container-high)]/50'} p-6 min-h-[600px]`}>
                           <div 
-                            className={`bg-[var(--bg-card)] text-[var(--text-primary)] mx-auto transition-all duration-200 ${
+                            className={`bg-[var(--surface-container-lowest)] text-[var(--on-surface)] mx-auto transition-all duration-200 ${
                               readingMode 
-                                ? 'shadow-2xl border border-[var(--border-subtle)]'
+                                ? 'shadow-2xl border border-[var(--outline-variant)]'
                                 : `${styles.paperShadow} ${styles.paperTexture} rounded-lg`
                             }`}
                             style={{ 
@@ -493,7 +510,7 @@ export default function DocumentViewer({
                             }}
                           >
                             <div className={styles.documentContent} style={{
-                              fontSize: readingMode ? '18px' : undefined,
+                              fontSize: readingMode ? '12px' : undefined,
                               lineHeight: readingMode ? '1.8' : undefined,
                             }}>
                               {formatDocumentContent(getCurrentPageData()?.full_text || '', externalSearchTerm)}
@@ -502,9 +519,9 @@ export default function DocumentViewer({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-gray-50">
-                        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">No hay contenido disponible para esta página</p>
+                      <div className="text-center py-12 bg-[var(--surface-container-high)]">
+                        <FileText className="h-12 w-12 text-[var(--on-surface-variant)]/60 mx-auto mb-4" />
+                        <p className="text-[var(--on-surface-variant)]/60">No hay contenido disponible para esta página</p>
                       </div>
                     )}
                   </div>
@@ -523,10 +540,10 @@ export default function DocumentViewer({
                   <ExternalLink className="h-4 w-4 text-orange-400" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-orange-400 mb-1">
+                  <h4 className="font-label-mono text-(length:--zen-fs-heading) font-medium text-orange-400 mb-1">
                     Documento en proceso
                   </h4>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
                     {document.status === 'processing' 
                       ? 'Este documento se está procesando. Una vez completado, podrás chatear con él.'
                       : document.status === 'pending'

@@ -106,11 +106,11 @@ export default function DocsContent() {
     <div className="prose max-w-none text-foreground">
       {/* Introduction */}
       <section id="introduction" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           🚀 Introducción a Cella
         </h2>
 
-        <p className="text-lg text-muted-foreground mb-6">
+        <p className="text-base text-muted-foreground mb-5">
           Cella es un asistente de estudio y análisis de documentos, estilo NotebookLM, que funciona{' '}
           <strong>100% en tu máquina</strong>. Sube un PDF, Word, PowerPoint o texto y conversa con su
           contenido de forma natural: respuestas con citas a la página exacta, resúmenes, mapas
@@ -151,7 +151,7 @@ export default function DocsContent() {
 
       {/* Quick Start */}
       <section id="quick-start" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           ⚡ Inicio Rápido
         </h2>
 
@@ -162,7 +162,7 @@ export default function DocsContent() {
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">1. Clonar e instalar</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">1. Clonar e instalar</h3>
             <CodeBlock>{`git clone <repository-url>
 cd Cella
 
@@ -178,7 +178,7 @@ npm install`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">2. Levantar todo</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">2. Levantar todo</h3>
             <CodeBlock language="bash">{`# Desde la raíz del proyecto
 ./start.sh`}</CodeBlock>
             <p className="text-muted-foreground mt-3">
@@ -188,7 +188,7 @@ npm install`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">3. Configurar modelos de IA</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">3. Configurar modelos de IA</h3>
             <p className="text-muted-foreground mb-3">
               Sin un modelo configurado no puedes chatear. Abre el espacio de trabajo, pulsa el botón de
               ajustes y elige <strong>&quot;Modelos e IA&quot;</strong> para conectar Ollama local o añadir una API key:
@@ -205,7 +205,7 @@ npm install`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">4. Primer flujo de usuario</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">4. Primer flujo de usuario</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Sube un documento desde la barra lateral</li>
@@ -223,11 +223,11 @@ npm install`}</CodeBlock>
 
       {/* Installation */}
       <section id="installation" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           📦 Instalación Completa
         </h2>
 
-        <h3 className="text-xl font-semibold text-foreground mb-4">Requisitos del Sistema</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Requisitos del Sistema</h3>
         <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
@@ -250,17 +250,17 @@ npm install`}</CodeBlock>
           </div>
         </div>
 
-        <h3 className="text-xl font-semibold text-foreground mb-4">Proceso de Instalación Manual</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Proceso de Instalación Manual</h3>
 
         <div className="space-y-6">
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">1. Clonar el Repositorio</h4>
+            <h4 className="text-base font-medium text-foreground mb-2.5">1. Clonar el Repositorio</h4>
             <CodeBlock>{`git clone <repository-url>
 cd Cella`}</CodeBlock>
           </div>
 
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">2. Configurar Backend (API)</h4>
+            <h4 className="text-base font-medium text-foreground mb-2.5">2. Configurar Backend (API)</h4>
             <CodeBlock>{`cd apps/api
 
 # Crear entorno virtual
@@ -272,13 +272,13 @@ pip install -r requirements.txt`}</CodeBlock>
           </div>
 
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">3. Configurar Frontend</h4>
+            <h4 className="text-base font-medium text-foreground mb-2.5">3. Configurar Frontend</h4>
             <CodeBlock>{`cd ../web
 npm install`}</CodeBlock>
           </div>
 
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">4. Variables de Entorno (opcional)</h4>
+            <h4 className="text-base font-medium text-foreground mb-2.5">4. Variables de Entorno (opcional)</h4>
             <p className="text-muted-foreground mb-3">
               Cella funciona sin tocar el <code className="bg-muted px-2 py-1 rounded">.env</code>: puedes
               configurar tus proveedores de IA desde la interfaz. Si prefieres usar API keys desde el
@@ -300,7 +300,7 @@ CSRF_ENABLED=false`}</CodeBlock>
           </div>
 
           <div>
-            <h4 className="text-lg font-medium text-foreground mb-3">5. Ejecutar</h4>
+            <h4 className="text-base font-medium text-foreground mb-2.5">5. Ejecutar</h4>
             <CodeBlock>{`# Todo junto (API :8000 + Worker + Frontend :3000)
 ./start.sh`}</CodeBlock>
             <p className="text-muted-foreground mt-3">O en tres terminales separadas:</p>
@@ -322,7 +322,7 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* First Steps */}
       <section id="first-steps" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           👨‍💻 Primeros Pasos
         </h2>
 
@@ -334,7 +334,7 @@ cd apps/web && npm run dev`}</CodeBlock>
 
         <div className="space-y-8">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Explorar el Espacio de Trabajo</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Explorar el Espacio de Trabajo</h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-card border border-border rounded-lg p-4">
                 <h4 className="font-medium text-foreground mb-3">📁 Barra Lateral</h4>
@@ -358,7 +358,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Seleccionar un Modelo</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Seleccionar un Modelo</h3>
             <p className="text-muted-foreground mb-4">
               Arriba del chat puedes elegir entre los modelos disponibles. El selector muestra los
               modelos de tus proveedores configurados:
@@ -376,7 +376,7 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Models & AI */}
       <section id="models-overview" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           🤖 Modelos e IA
         </h2>
 
@@ -388,7 +388,7 @@ cd apps/web && npm run dev`}</CodeBlock>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Dos maneras de usar IA</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Dos maneras de usar IA</h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-card border border-border rounded-lg p-6">
                 <h4 className="font-medium text-foreground mb-3">🦙 Ollama (local, sin API key)</h4>
@@ -410,7 +410,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div id="ollama">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Configurar Ollama</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Configurar Ollama</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Instala Ollama desde <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ollama.com</a></li>
@@ -427,7 +427,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div id="api-providers">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Configurar un proveedor de API</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Configurar un proveedor de API</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Abre ajustes → <strong>&quot;Modelos e IA&quot;</strong> → <strong>&quot;Añadir proveedor&quot;</strong></li>
@@ -441,7 +441,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div id="provider-settings">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Gestionar proveedores</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Gestionar proveedores</h3>
             <div className="bg-card border border-border rounded-lg p-6">
               <ul className="space-y-3 text-muted-foreground">
                 <li className="flex items-start space-x-3">
@@ -473,13 +473,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Uploading Documents */}
       <section id="uploading" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           📤 Subir Documentos
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Formatos Soportados</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Formatos Soportados</h3>
             <div className="bg-card border border-border rounded-lg p-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-3">
@@ -507,7 +507,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Proceso de Upload</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Proceso de Upload</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Clic en <strong>Subir</strong> en la barra lateral</li>
@@ -519,7 +519,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Estados del Documento</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Estados del Documento</h3>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <div className="grid divide-y divide-border">
                 <div className="p-4 flex items-center space-x-4">
@@ -555,13 +555,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Chat RAG */}
       <section id="chat-rag" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           💬 Chat con Documentos (RAG)
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Iniciar un Chat</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Iniciar un Chat</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento con estado <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">&quot;Listo&quot;</span> en la barra lateral</li>
@@ -574,7 +574,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Razonamiento Visible</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Razonamiento Visible</h3>
             <p className="text-muted-foreground mb-4">
               Antes de responder, el modelo muestra su razonamiento paso a paso en un bloque de &quot;thinking&quot;
               que se transmite en streaming por SSE. Esto permite entender cómo llega a la respuesta.
@@ -582,7 +582,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Interpretar Respuestas</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Interpretar Respuestas</h3>
             <p className="text-muted-foreground mb-4">Las respuestas del chat incluyen:</p>
             <div className="bg-card border border-border rounded-lg p-6">
               <ul className="space-y-3 text-muted-foreground">
@@ -611,13 +611,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Document Viewer */}
       <section id="document-viewer" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           📖 Visualizador de Documentos
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Características del Viewer</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Características del Viewer</h3>
             <div className="bg-card border border-border rounded-lg p-6">
               <ul className="space-y-3 text-muted-foreground">
                 <li className="flex items-center space-x-3">
@@ -641,7 +641,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Navegación Rápida</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Navegación Rápida</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ul className="space-y-3 text-muted-foreground">
                 <li>• Al hacer clic en una cita del chat, el viewer <strong>salta a la página</strong> del fragmento</li>
@@ -655,13 +655,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Summaries */}
       <section id="summaries" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           📋 Resúmenes Automáticos
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Acceso a Resúmenes</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Acceso a Resúmenes</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
@@ -672,7 +672,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Estructura del Resumen</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Estructura del Resumen</h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-card border border-border rounded-lg p-6">
                 <ul className="space-y-3 text-muted-foreground">
@@ -706,13 +706,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Mindmap */}
       <section id="mindmap" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           🧠 Mapas Mentales
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Generar un Mapa Mental</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Generar un Mapa Mental</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
@@ -724,7 +724,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Navegación</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Navegación</h3>
             <div className="bg-card border border-border rounded-lg p-6">
               <ul className="space-y-3 text-muted-foreground">
                 <li>• <strong>Arrastra</strong> el fondo para mover el lienzo</li>
@@ -738,13 +738,13 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Quiz */}
       <section id="quiz" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           📝 Quiz Generados
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Crear un Quiz</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Crear un Quiz</h3>
             <div className="bg-muted p-6 rounded-lg">
               <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
                 <li>Selecciona un documento procesado</li>
@@ -756,7 +756,7 @@ cd apps/web && npm run dev`}</CodeBlock>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Retroalimentación</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Retroalimentación</h3>
             <div className="bg-card border border-border rounded-lg p-6">
               <ul className="space-y-3 text-muted-foreground">
                 <li>• Respuestas <strong>correctas/incorrectas</strong> con feedback inmediato</li>
@@ -770,12 +770,12 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Troubleshooting */}
       <section id="troubleshooting" className="mb-12">
-        <h2 className="text-3xl font-bold text-foreground mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-5">
           🔧 Solución de Problemas
         </h2>
 
         <div id="faq">
-          <h3 className="text-xl font-semibold text-foreground mb-4">FAQ</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-3">FAQ</h3>
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">¿Necesito una cuenta para usar Cella?</h4>
@@ -817,7 +817,7 @@ cd apps/web && npm run dev`}</CodeBlock>
         </div>
 
         <div id="common-issues" className="mt-8">
-          <h3 className="text-xl font-semibold text-foreground mb-4">Problemas Comunes</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-3">Problemas Comunes</h3>
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4">
               <h4 className="font-medium text-foreground mb-2">El documento queda en &quot;Pendiente&quot;</h4>
@@ -864,7 +864,7 @@ cd apps/web && npm run dev`}</CodeBlock>
 
       {/* Status Summary */}
       <div className="mt-16 p-6 bg-muted rounded-lg border border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-2">
+        <h3 className="text-base font-semibold text-foreground mb-2">
           📚 Documentación de Cella Local
         </h3>
         <p className="text-muted-foreground mb-4">

@@ -19,7 +19,7 @@ const buttonVariants = cva(
           "bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-muted)]/60",
         link: "text-[var(--accent-primary)] underline-offset-4 hover:underline hover:text-[var(--accent-highlight)]",
         gradient:
-          "bg-[var(--gradient-zen-glow)] text-white shadow-glow hover:opacity-95",
+          "bg-[var(--gradient-zen-glow)] text-[var(--primary-foreground)] shadow-glow hover:opacity-95",
         destructive:
           "bg-destructive text-white shadow-soft hover:bg-destructive/90 focus-visible:ring-destructive/20",
       },

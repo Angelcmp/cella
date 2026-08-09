@@ -67,6 +67,11 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - [x] Exportación de conversaciones y resúmenes en Markdown/JSON (`routers/exports.py`)
 - [x] Export PDF vía frontend (`window.open` + `window.print()` en `ChatInterface.tsx`) — botones MD/JSON/PDF en la UI
 - [x] OCR integrado y activable (pytesseract en `document_processor.py`)
+- [x] Modo lectura en `/zen`: fondo blanco (`--zen-read-bg`), texto 14px (Inter), headings 16px serif con parsing de markdown `#` a `<h1>`…`<h6>` (`ChatInterface.tsx`, `globals.css`)
+- [x] Chat input compacto: consola blanca, sin banner ni metadatos (Fuentes/Tkn), toolbar única con selector de modelo + iconos + enviar; textarea 14px auto-expande hasta 200px (`ChatInput.tsx`)
+- [x] Visor PDF inline con react-pdf v10 + pdfjs-dist 5.4.296, `ssr: false`, navegación de páginas, endpoint `GET /documents/{id}/file` con `content_disposition_type=inline` (`PdfViewer.tsx`, `documents.py`)
+- [x] Studio 3-columnas: rail 72px / aside 620px, cards glass sin borde, botones CTAs fondo `--primary-fixed` (`RightSidebar.tsx`, `ZenLayout.tsx`)
+- [x] Docs y landing: escala tipográfica reducida en `/docs`, logo actualizado a `#A7D8DE`
 
 ### Pendiente
 - [ ] OCR: idiomas configurable, colas y calidad medible
@@ -87,6 +92,7 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 
 ## 8) Documentación (B)
 - [x] STATUS.md actualizado con la limpieza y el rediseño
+- [x] README.md actualizado con el sprint (stack, funcionalidades, API, testing/CI, docs adicionales)
 - [x] Runbooks de incidentes en `docs/RUNBOOKS.md` (arranque/parada, troubleshooting Redis, worker, doc en `failed`)
 
 ## Estado actual del hito de seguridad

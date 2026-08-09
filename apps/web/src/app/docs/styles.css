@@ -18,6 +18,8 @@ html {
   max-width: none;
   color: var(--text-primary);
   font-family: var(--font-body);
+  font-size: 0.925rem;
+  line-height: 1.65;
 }
 
 .prose h1,

@@ -3,8 +3,8 @@ import { FileText, Sparkles, ChevronRight } from "lucide-react";
 /** ─── Panel wrapper (mini app window) ─── */
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-sm ${className}`}>
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-muted)]/50">
+    <div className={`glass rounded-xl border border-white/50 overflow-hidden shadow-sm ${className}`}>
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/40 bg-white/20">
         <span className="w-1.5 h-1.5 rounded-full bg-red-400/60" />
         <span className="w-1.5 h-1.5 rounded-full bg-yellow-400/60" />
         <span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />
@@ -43,7 +43,7 @@ export function ChatCitationsPanel() {
         {/* AI response */}
         <div className="flex items-start gap-1.5">
           <div className="w-4 h-4 rounded-full bg-[var(--gradient-zen-glow)] shrink-0 flex items-center justify-center mt-0.5">
-            <Sparkles className="w-2 h-2 text-white" />
+            <Sparkles className="w-2 h-2 text-[#003739]" />
           </div>
           <div className="space-y-1">
             <div className="bg-[var(--bubble-ai)] border border-[var(--border-subtle)] rounded-lg rounded-bl-sm px-2.5 py-1.5 text-[11px] text-[var(--text-primary)] leading-snug">
@@ -51,8 +51,8 @@ export function ChatCitationsPanel() {
             </div>
             {/* Citations */}
             <div className="flex gap-1">
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-muted)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-mono">p.4</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-muted)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-mono">p.7 · 91%</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">p.4</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">p.7 · 91%</span>
             </div>
           </div>
         </div>
@@ -70,8 +70,8 @@ export function SummaryPanel() {
           <FileText className="w-3 h-3 text-[var(--accent-primary)]" />
           <span className="text-[10px] font-mono text-[var(--text-muted)]">resumen_ejecutivo</span>
         </div>
-        <div className="bg-[var(--bg-muted)] rounded-lg p-2 space-y-1.5">
-          <div className="h-1.5 bg-[var(--accent-primary)]/20 rounded w-3/4" />
+        <div className="glass-chip rounded-lg p-2 space-y-1.5">
+          <div className="h-1.5 bg-[var(--accent-primary)]/30 rounded w-3/4" />
           <div className="h-1.5 bg-[var(--border-subtle)] rounded w-full" />
           <div className="h-1.5 bg-[var(--border-subtle)] rounded w-5/6" />
         </div>
@@ -101,7 +101,7 @@ export function MindmapPanel() {
       <div className="flex items-center justify-center py-2">
         <svg viewBox="0 0 160 80" className="w-full max-w-[160px]" xmlns="http://www.w3.org/2000/svg">
           {/* Central node */}
-          <circle cx="80" cy="40" r="12" fill="#8B5CF6" opacity="0.9" />
+          <circle cx="80" cy="40" r="12" fill="#A7D8DE" opacity="0.9" />
           <text x="80" y="43" textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace">Cella</text>
 
           {/* Connections + child nodes */}
@@ -149,17 +149,17 @@ export function QuizPanel() {
           ¿Cuál fue el principal motor del crecimiento en 2025?
         </p>
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/30">
             <span className="w-3 h-3 rounded-full bg-[var(--accent-primary)] flex items-center justify-center shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-white" />
             </span>
-            <span className="text-[10px] text-[var(--accent-primary)] font-medium">Expansión en APAC</span>
+            <span className="text-[10px] text-[var(--accent-strong)] font-medium">Expansión en APAC</span>
           </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-[var(--bg-muted)] text-[10px] text-[var(--text-muted)]">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded glass-chip text-[10px] text-[var(--text-secondary)]">
             <span className="w-3 h-3 rounded-full border border-[var(--border-strong)] shrink-0" />
             <span>Reducción de costos</span>
           </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-[var(--bg-muted)] text-[10px] text-[var(--text-muted)]">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded glass-chip text-[10px] text-[var(--text-secondary)]">
             <span className="w-3 h-3 rounded-full border border-[var(--border-strong)] shrink-0" />
             <span>Nuevas contrataciones</span>
           </div>
@@ -219,7 +219,7 @@ export function ModelPanel() {
               className={`text-[9px] px-2 py-1 rounded-md font-mono border ${
                 m.active
                   ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]"
-                  : "bg-[var(--bg-muted)] border-[var(--border-subtle)] text-[var(--text-muted)]"
+                  : "glass-chip text-[var(--text-secondary)]"
               }`}
             >
               {m.name}
@@ -290,17 +290,17 @@ export function ChatExplorePanel() {
         </div>
         <div className="flex items-start gap-1">
           <div className="w-3.5 h-3.5 rounded-full bg-[var(--gradient-zen-glow)] shrink-0 flex items-center justify-center mt-0.5">
-            <Sparkles className="w-2 h-2 text-white" />
+            <Sparkles className="w-2 h-2 text-[#003739]" />
           </div>
           <div className="bg-[var(--bubble-ai)] border border-[var(--border-subtle)] rounded-lg rounded-bl-sm px-2 py-1 text-[10px] text-[var(--text-primary)] leading-snug max-w-[80%]">
             <span className="text-[var(--accent-primary)] font-medium">18.4%</span> — récord histórico, superando proyecciones
           </div>
         </div>
         <div className="flex gap-1 ml-4">
-          <span className="text-[8px] px-1 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-muted)] font-mono">p.7</span>
-          <span className="text-[8px] px-1 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-muted)] font-mono">Resumen</span>
-          <span className="text-[8px] px-1 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-muted)] font-mono">Mapa</span>
-          <span className="text-[8px] px-1 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-muted)] font-mono">Quiz</span>
+          <span className="text-[8px] px-1 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">p.7</span>
+          <span className="text-[8px] px-1 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">Resumen</span>
+          <span className="text-[8px] px-1 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">Mapa</span>
+          <span className="text-[8px] px-1 py-0.5 rounded glass-chip text-[var(--text-secondary)] font-mono">Quiz</span>
         </div>
       </div>
     </Panel>

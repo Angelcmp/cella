@@ -1,92 +1,82 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import LeftSidebar from "./LeftSidebar";
 import ChatPanel from "./ChatPanel";
 import RightSidebar from "./RightSidebar";
 import ProviderSettingsModal from "./ProviderSettingsModal";
-import { PanelRightOpen, PanelRightClose, PanelLeft } from "lucide-react";
-import Link from "next/link";
-import { useZenStore } from "./store";
+import { Settings } from "lucide-react";
+import { useZenStore, hydrateZenStore } from "./store";
 
 export default function ZenLayout() {
-  const { documents, refreshModels } = useZenStore();
-  const hasDocuments = documents.length > 0;
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(false);
+  const { refreshModels, setModelsModalOpen } = useZenStore();
+  const [rightCollapsed, setRightCollapsed] = useState(false);
 
-  // Open the right sidebar automatically when a document is selected/available
   useEffect(() => {
-    if (hasDocuments) {
-      setRightOpen(true);
-    }
-  }, [hasDocuments]);
-
-  // Load available models from the backend on mount
-  useEffect(() => {
+    hydrateZenStore();
     refreshModels();
   }, [refreshModels]);
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
-      <header className="h-10 flex items-center justify-between px-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
-        <div className="flex items-center gap-2">
-          {hasDocuments && (
+    <div className="cyber h-screen flex flex-col bg-[var(--background)] relative overflow-hidden">
+      {/* ── Cyber gradient background ── */}
+      <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
+        <div className="absolute inset-0 technical-grid" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--primary-fixed)]/5 blur-[120px] rounded-full opacity-70" />
+        <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.15)_50%)] bg-[size:100%_4px] opacity-40 mix-blend-overlay" />
+      </div>
+
+      {/* Left aside: Sources */}
+      <aside className="fixed left-0 top-0 h-full w-72 bg-[var(--surface-container)]/60 backdrop-blur-2xl z-50 flex flex-col border-r border-[var(--outline-variant)]/20">
+        <LeftSidebar />
+      </aside>
+
+      {/* Right aside: Studio */}
+      <aside
+        className={`fixed right-0 top-0 h-full bg-[var(--surface-container-lowest)]/80 backdrop-blur-xl z-50 flex flex-col border-l border-[var(--outline-variant)]/20 transition-[width] duration-300 ${
+          rightCollapsed ? "w-[72px]" : "w-[620px]"
+        }`}
+      >
+        <RightSidebar
+          collapsed={rightCollapsed}
+          onToggleCollapse={() => setRightCollapsed(!rightCollapsed)}
+        />
+      </aside>
+
+      {/* Center */}
+      <div
+        className={`relative z-10 flex flex-col h-full bg-[var(--zen-read-bg)] transition-[padding] duration-300 ${
+          rightCollapsed ? "pl-72 pr-[72px]" : "pl-72 pr-[620px]"
+        }`}
+      >
+        <header
+          className={`fixed top-0 left-72 h-16 bg-[var(--surface-container)]/60 backdrop-blur-2xl z-40 flex items-center justify-between px-8 border-b border-[var(--outline-variant)]/20 transition-[right] duration-300 ${
+            rightCollapsed ? "right-[72px]" : "right-[620px]"
+          }`}
+        >
+          <div className="flex items-center gap-6">
             <button
-              onClick={() => setLeftOpen(!leftOpen)}
-              className="p-1 rounded-md hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors"
-              title={leftOpen ? "Colapsar panel" : "Expandir panel"}
+              className="font-label-mono bg-[var(--primary-fixed)] text-white px-4 py-2 rounded-lg flex items-center gap-2 text-(length:--zen-fs-body) hover:opacity-90 transition-opacity"
+              title="Nueva conversación"
             >
-              <PanelLeft className="w-4 h-4" />
+              <span className="text-[14px] leading-none font-medium">+</span>
+              Nueva Conversación
             </button>
-          )}
-          <Link href="/" className="flex items-center gap-1.5">
-            <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="#9966CC" strokeLinejoin="round" />
-            </svg>
-            <span className="text-xs text-[var(--text-secondary)]">Cella</span>
-          </Link>
-        </div>
-        {hasDocuments && (
-          <button
-            onClick={() => setRightOpen(!rightOpen)}
-            className="p-1 rounded-md hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors"
-            title={rightOpen ? "Cerrar visor" : "Abrir visor"}
-          >
-            {rightOpen ? (
-              <PanelRightClose className="w-4 h-4" />
-            ) : (
-              <PanelRightOpen className="w-4 h-4" />
-            )}
-          </button>
-        )}
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        {hasDocuments && (
-          <div
-            className={`${
-              leftOpen ? "w-[280px]" : "w-[52px]"
-            } transition-all duration-200 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shrink-0`}
-          >
-            <LeftSidebar
-              onClose={() => setLeftOpen(!leftOpen)}
-              collapsed={!leftOpen}
-            />
           </div>
-        )}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setModelsModalOpen(true)}
+              className="p-2 text-[var(--on-surface-variant)] hover:text-[var(--primary)] transition-colors"
+              title="Ajustes de modelos"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <main className="relative pt-16 min-h-0 flex-1 flex flex-col">
           <ChatPanel />
-        </div>
-
-        {hasDocuments && rightOpen && (
-          <div className={`${
-            rightOpen ? "w-[380px]" : "w-0"
-          } transition-all duration-200 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shrink-0`}>
-            <RightSidebar />
-          </div>
-        )}
+        </main>
       </div>
 
       <ProviderSettingsModal />

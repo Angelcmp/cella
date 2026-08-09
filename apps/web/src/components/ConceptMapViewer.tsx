@@ -257,25 +257,25 @@ export default function ConceptMapViewer({
       <div className="absolute right-2 top-2 z-10 flex gap-1 bg-white/95 border border-gray-300 rounded shadow-md p-1">
         <button
           onClick={zoomOut}
-          className="px-2 py-1 text-[11px] border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
         >
           -
         </button>
         <button
           onClick={fit}
-          className="px-2 py-1 text-[11px] border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
         >
           Ajustar
         </button>
         <button
           onClick={zoomIn}
-          className="px-2 py-1 text-[11px] border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
         >
           +
         </button>
         <button
           onClick={exportPng}
-          className="px-2 py-1 text-[11px] border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
+          className="px-2 py-1 text-(length:--zen-fs-label) border border-gray-300 rounded bg-white text-gray-800 hover:bg-gray-100"
         >
           PNG
         </button>
@@ -284,7 +284,7 @@ export default function ConceptMapViewer({
       {tooltip && (
         <div
           style={{ position: "absolute", left: tooltip.x, top: tooltip.y, zIndex: 50 }}
-          className="pointer-events-none bg-black/80 text-white text-[11px] px-2 py-1 rounded shadow"
+          className="pointer-events-none bg-black/80 text-white text-(length:--zen-fs-label) px-2 py-1 rounded shadow"
         >
           {tooltip.text.split("\n").map((l, i) => (
             <div key={i}>{l}</div>

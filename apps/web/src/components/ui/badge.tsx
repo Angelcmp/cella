@@ -18,7 +18,7 @@ const badgeVariants = cva(
         outline:
           "border-[var(--border-subtle)] text-[var(--text-secondary)]",
         glow:
-          "border-0 bg-[var(--gradient-zen-glow)] text-white shadow-glow",
+          "border-0 bg-[var(--gradient-zen-glow)] text-[var(--primary-foreground)] shadow-glow",
       },
     },
     defaultVariants: {

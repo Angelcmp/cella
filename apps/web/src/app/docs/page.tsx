@@ -8,7 +8,7 @@ export default function DocsPage() {
   return (
     <>
       <ReadingProgress />
-      <div className="flex min-h-screen bg-[var(--bg-primary)]">
+      <div className="cyber flex min-h-screen bg-[var(--bg-primary)]">
         <DocsSidebar />
         <div className="flex-1 lg:ml-80">
           <header className="sticky top-0 z-20 bg-[var(--bg-surface)]/80 backdrop-blur-lg border-b border-[var(--border-subtle)]">
@@ -17,7 +17,7 @@ export default function DocsPage() {
                 <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">
                   Cella Docs
                 </p>
-                <h1 className="text-3xl font-semibold text-[var(--text-primary)] mt-2">
+                <h1 className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
                   Guía de Cella
                 </h1>
                 <p className="text-[var(--text-secondary)] mt-1">

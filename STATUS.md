@@ -28,6 +28,11 @@
 ### Docs
 - `ROADMAP_PENDIENTE.md` actualizado (worker, observabilidad, blacklist Redis, PDF, E2E/CI como implementados; pgvector y límites por plan fuera de alcance local).
 - `docs/RUNBOOKS.md` creado (arranque/parada, troubleshooting Redis/worker/doc en `failed`, métricas, migraciones inline).
+- `README.md` actualizado (stack, funcionalidades, API, testing/CI y docs adicionales).
+
+### Fix de CI (`7f16ba7`)
+- `requirements.txt`: `fastembed==0.3.6→0.8.0` y `pillow==10.1.0→12.3.0` (fastembed 0.3.6 exigía `pillow>=10.3,<11`, incompatible con el pin de 10.1.0; los nuevos pins coinciden con el venv local).
+- `.gitignore`: `lib/` y `lib64/` pasan a root-only (`/lib/`, `/lib64/`), des-ignorando `apps/web/src/lib/` — `utils.ts`, `csrf.ts` y `metadata.ts` no estaban trackeados, lo que rompía `tsc` en CI.
 
 ## Reconciliación docs ↔ código (08/08/2026)
 
@@ -181,11 +186,44 @@ Dark mode: fondos slate-900/800, texto slate-100, accent violet-300/400.
 
 ---
 
+## Rediseño modo lectura + input compacto + PDF inline (08/08/2026)
+
+### Modo lectura `/zen` (`globals.css`, `ZenLayout.tsx`, `ChatInterface.tsx`)
+- Token `--zen-read-bg: #FFFFFF` aplicado a la columna central → página blanca tipo lector.
+- Token `--zen-fs-read: 14px` para párrafos y burbujas del chat (Inter).
+- Token `--zen-fs-read-heading: 16px` para headings h1-h6 (Source Serif 4), con parser de markdown `#` → `<h1>`…`<h6>` en `renderTextSegment` (`ChatInterface.tsx`).
+- Texto `--on-surface: #0B1515` (casi negro) para máximo contraste.
+
+### Chat input compacto (`ChatInput.tsx`)
+- Eliminado banner "Cella Notebooks ahora es más inteligente" y fila de metadatos (Fuentes Activas, Tkn_Usage).
+- Consola `bg-[var(--zen-read-bg)]` blanca con borde fino `outline-variant/40`, sin backdrop blur.
+- Toolbar única: selector de modelo (chip compacto) a la izquierda, iconos (📎 🎙 ⌨) + botón enviar a la derecha.
+- Textarea `--zen-fs-read` (14px), placeholder oscuro, `max-h-[200px] overflow-y-auto`, JS sincronizado a 200px.
+- Wrapper reducido a `pb-2`.
+
+### Visor PDF inline
+- `PdfViewer.tsx` (nuevo): react-pdf v10 con `dynamic(ssr: false)`, header con título + navegación de páginas.
+- Endpoint API `GET /api/documents/{id}/file` con `FileResponse(content_disposition_type="inline")`.
+- Dependencias: `pdfjs-dist@5.4.296` (bundleado con react-pdf), `react-pdf@10.4.1`.
+
+### Studio 3-columnas (`RightSidebar.tsx`, `ZenLayout.tsx`)
+- Rail colapsado 72px, aside expandido 620px, grid de 3 columnas.
+- Cards glass sin borde, hover pastel, botones CTAs con `bg-[var(--primary-fixed)] text-white`.
+
+### Docs y landing
+- Escala tipográfica reducida en `DocsContent.tsx` (h2: text-3xl→text-2xl, h3: text-xl→text-lg, h4: text-lg→text-base).
+- Logo actualizado a `#A7D8DE` en favicon + apple-icon + icon.svg.
+
+---
+
 ## Verificación
 
 - `py_compile`: ✅ todos los `.py` del backend y worker OK
+- `pytest`: ✅ 20 tests verdes (seguridad, RAG, worker)
 - `tsc --noEmit`: ✅ sin errores
 - `next build`: ✅ 13 páginas estáticas, 100KB first load JS
+- `playwright test`: ✅ 4 specs E2E verdes (landing, /docs, /zen empty state, root redirect)
+- CI/CD: ✅ los 3 jobs verdes (backend, frontend, e2e) en GitHub Actions
 
 ---
 
@@ -199,5 +237,8 @@ ZHIPU_API_KEY=...
 DATABASE_URL=sqlite:///./docai.db
 LOCAL_MODE=true
 RATE_LIMIT_ENABLED=false
+RATE_LIMIT_PER_USER=true
+ENABLE_METRICS=false    # activar para exponer /metrics
+ENABLE_JSON_LOGS=false  # activar para logs JSON + request-id
 INFRA=light  # start.sh: solo Redis
 ```

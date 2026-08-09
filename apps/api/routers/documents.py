@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -186,6 +187,47 @@ async def get_document(
         )
     
     return document
+
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Serve the original uploaded file (e.g. PDF) for the native browser viewer."""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    local_path = document.storage_url or os.path.join(UPLOAD_DIR, document.filename or "")
+    if not os.path.exists(local_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on server"
+        )
+
+    media_type = "application/pdf"
+    if local_path.lower().endswith((".docx", ".doc")):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif local_path.lower().endswith(".pptx"):
+        media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    elif local_path.lower().endswith(".txt"):
+        media_type = "text/plain"
+
+    return FileResponse(
+        local_path,
+        media_type=media_type,
+        filename=os.path.basename(local_path),
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/{document_id}/reprocess", response_model=DocumentResponse)

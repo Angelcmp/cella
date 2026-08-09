@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Biblioteca IA — Análisis Inteligente de Documentos",
     start_url: "/zen",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#9966CC",
+    background_color: "#cedade",
+    theme_color: "#A7D8DE",
     icons: [
       {
         src: "/icon.svg",

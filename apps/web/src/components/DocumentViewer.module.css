@@ -3,7 +3,7 @@
 .documentContent {
   /* Typography */
   font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--foreground);
   text-align: justify;
@@ -47,9 +47,9 @@
   color: var(--foreground);
 }
 
-.documentContent h1 { font-size: 1.5rem; }
-.documentContent h2 { font-size: 1.3rem; }
-.documentContent h3 { font-size: 1.1rem; }
+.documentContent h1 { font-size: 14px; }
+.documentContent h2 { font-size: 14px; }
+.documentContent h3 { font-size: 14px; }
 
 /* Lists */
 .documentContent ul,
@@ -80,7 +80,7 @@
 }
 
 .documentContent .footnote {
-  font-size: 0.875rem;
+  font-size: 12px;
   vertical-align: super;
   color: var(--muted-foreground);
 }
@@ -105,7 +105,7 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .documentContent {
-    font-size: 15px;
+    font-size: 12px;
     line-height: 1.6;
   }
   

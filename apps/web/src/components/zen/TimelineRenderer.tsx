@@ -22,7 +22,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
   return (
     <div className="w-full max-w-sm mx-auto">
       {title && (
-        <p className="text-xs text-[var(--text-secondary)] text-center mb-5 truncate px-2">
+        <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] text-center mb-5 truncate px-2">
           {title}
         </p>
       )}
@@ -32,7 +32,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
             "absolute left-[16.66%] right-[16.66%] top-[11px] h-0.5",
             failed
               ? "bg-red-500/30"
-              : "bg-[var(--border-subtle)]"
+              : "bg-[var(--outline-variant)]"
           )}
         />
         <div
@@ -40,7 +40,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
             "absolute left-[16.66%] top-[11px] h-0.5 transition-all duration-700",
             failed
               ? "w-0 bg-red-500"
-              : "bg-[var(--accent-primary)]",
+              : "bg-[var(--primary-fixed)]",
             currentIndex > 0 && !failed && "w-[33.33%]",
             currentIndex > 1 && !failed && "w-[66.66%]"
           )}
@@ -57,10 +57,10 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
                     failed
                       ? "border-red-500/40 text-red-500 bg-red-500/5"
                       : done
-                        ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-white"
+                        ? "border-[var(--primary-fixed)] bg-[var(--primary-fixed)] text-[#003739]"
                         : active
-                          ? "border-[var(--accent-primary)] bg-[var(--bg-surface)] text-[var(--accent-primary)]"
-                          : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                          ? "border-[var(--primary-fixed)] bg-[var(--surface-container-lowest)] text-[var(--primary-fixed)]"
+                          : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]/60"
                   )}
                 >
                   {failed ? (
@@ -72,19 +72,19 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   ) : active ? (
-                    <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[var(--primary-fixed)] animate-pulse" />
                   ) : (
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/50" />
                   )}
                 </div>
                 <span
                   className={cn(
-                    "text-[10px] transition-colors",
+                    "font-label-mono text-(length:--zen-fs-label) transition-colors",
                     failed
                       ? "text-red-500"
                       : done || active
-                        ? "text-[var(--text-primary)]"
-                        : "text-[var(--text-muted)]"
+                        ? "text-[var(--on-surface)]"
+                        : "text-[var(--on-surface-variant)]/60"
                   )}
                 >
                   {failed && i === 1 ? "Error" : step.label}
