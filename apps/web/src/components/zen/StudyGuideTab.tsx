@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, BookOpen } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { withCsrfHeaders } from "@/lib/csrf";
 
@@ -98,7 +98,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
     return (
       <div className="p-6 text-center space-y-4">
         <BookOpen className="w-8 h-8 mx-auto text-[var(--on-surface-variant)]/60" />
-        <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
+        <p className="zen-text-body zen-read-text">
           Genera una guía de estudio estructurada para prepararte sobre este documento
         </p>
         <button
@@ -115,25 +115,26 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-label-mono text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)] flex items-center gap-1.5">
+        <h3 className="zen-text-heading zen-read-text flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
           {guide.title || `Guía de estudio — ${documentTitle}`}
         </h3>
         <button
           onClick={generate}
           disabled={generating}
-          className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)] transition-colors"
+          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+          title="Regenerar"
         >
-          {generating ? "..." : "Regenerar"}
+          {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
         </button>
       </div>
 
       {guide.objectives && guide.objectives.length > 0 && (
-        <div className="p-3 rounded-xl border border-[var(--outline-variant)]">
+        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Objetivos</p>
           <ul className="space-y-1">
             {guide.objectives.map((o, i) => (
-              <li key={i} className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] flex gap-1.5">
+              <li key={i} className="zen-text-body zen-read-text flex gap-1.5">
                 <span className="text-[var(--primary-fixed)]">•</span>
                 <span>{o}</span>
               </li>
@@ -143,14 +144,14 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.key_concepts && guide.key_concepts.length > 0 && (
-        <div className="p-3 rounded-xl border border-[var(--outline-variant)]">
+        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Conceptos clave</p>
           <div className="space-y-2">
             {guide.key_concepts.map((c, i) => (
-              <div key={i} className="text-(length:--zen-fs-secondary)">
-                <span className="font-medium text-[var(--on-surface)]">{c.term}</span>
+              <div key={i} className="zen-text-body">
+                <span className="font-medium zen-read-text">{c.term}</span>
                 {c.pages && <span className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 ml-1">[{c.pages}]</span>}
-                <p className="text-[var(--on-surface-variant)]">{c.definition}</p>
+                <p className="zen-text-body zen-read-text">{c.definition}</p>
               </div>
             ))}
           </div>
@@ -160,16 +161,16 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       {guide.sections && guide.sections.length > 0 && (
         <div className="space-y-3">
           {guide.sections.map((s, i) => (
-            <div key={i} className="p-3 rounded-xl border border-[var(--outline-variant)]">
-              <p className="font-label-mono text-(length:--zen-fs-heading) font-medium text-[var(--on-surface)]">
+            <div key={i} className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+              <p className="zen-text-heading zen-read-text">
                 {s.title}
                 {s.pages && <span className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 ml-1">[{s.pages}]</span>}
               </p>
-              {s.summary && <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] mt-1">{s.summary}</p>}
+              {s.summary && <p className="zen-text-body zen-read-text mt-1">{s.summary}</p>}
               {s.key_points && s.key_points.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {s.key_points.map((kp, j) => (
-                    <li key={j} className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] flex gap-1.5">
+                    <li key={j} className="zen-text-body zen-read-text flex gap-1.5">
                       <span className="text-[var(--primary-fixed)]">•</span>
                       <span>{kp}</span>
                     </li>
@@ -179,7 +180,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
               {s.examples && s.examples.length > 0 && (
                 <ul className="mt-1.5 space-y-1">
                   {s.examples.map((ex, j) => (
-                    <li key={j} className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 italic flex gap-1.5">
+                    <li key={j} className="zen-text-body text-[var(--on-surface-variant)] italic flex gap-1.5">
                       <span className="not-italic text-[var(--on-surface-variant)]/60">▸</span>
                       <span>{ex}</span>
                     </li>
@@ -192,11 +193,11 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.checkpoints && guide.checkpoints.length > 0 && (
-        <div className="p-3 rounded-xl border border-[var(--outline-variant)]">
+        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Checkpoints</p>
           <ul className="space-y-1">
             {guide.checkpoints.map((c, i) => (
-              <li key={i} className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] flex gap-1.5">
+              <li key={i} className="zen-text-body zen-read-text flex gap-1.5">
                 <span className="text-[var(--primary-fixed)]">✓</span>
                 <span>{c}</span>
               </li>
@@ -206,11 +207,11 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.review_questions && guide.review_questions.length > 0 && (
-        <div className="p-3 rounded-xl border border-[var(--outline-variant)]">
+        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Preguntas de repaso</p>
           <ul className="space-y-1">
             {guide.review_questions.map((q, i) => (
-              <li key={i} className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] flex gap-1.5">
+              <li key={i} className="zen-text-body zen-read-text flex gap-1.5">
                 <span className="text-[var(--primary-fixed)]">{i + 1}.</span>
                 <span>
                   {q.question}

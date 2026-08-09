@@ -64,14 +64,14 @@ export default function ChatInput({
   }, [message]);
 
   return (
-    <div className="flex-shrink-0 px-3 pb-2">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-[var(--zen-read-bg)] border border-[var(--outline-variant)]/40 rounded-xl p-1.5 shadow-[0_4px_16px_rgba(22,82,65,0.06)] focus-within:border-[var(--primary-fixed)]/50 focus-within:shadow-[0_0_15px_rgba(84,153,181,0.12)] transition-all duration-300">
-          <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1.5">
+    <div className="flex-shrink-0 px-3 pb-2 bg-[var(--zen-read-bg)]">
+      <div className="max-w-[792px] mx-auto bg-[var(--zen-read-bg)]">
+        <div className="bg-[var(--zen-read-bg)] rounded-xl p-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.08)] focus-within:shadow-[0_4px_16px_rgba(84,153,181,0.15)] transition-shadow duration-300">
+          <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1">
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setModelOpen(!modelOpen)}
-                className="flex items-center gap-1.5 bg-[var(--surface-container-high)]/50 border border-[var(--outline-variant)]/30 rounded px-1.5 py-0.5 hover:border-[var(--primary)]/40 transition-colors"
+                className="flex items-center gap-1.5 bg-[var(--surface-container-high)]/50 rounded px-1.5 py-0.5 hover:bg-[var(--surface-container-high)] transition-colors"
                 title="Seleccionar modelo"
               >
                 <span className="w-1 h-1 rounded-full bg-[var(--primary-fixed)] shadow-[0_0_6px_rgba(84,153,181,1)]" />
@@ -141,31 +141,33 @@ export default function ChatInput({
               >
                 <Terminal className="w-3 h-3" />
               </button>
-              <button
-                onClick={handleSend}
-                disabled={!message.trim() || isLoading}
-                className="ml-0.5 w-7 h-7 rounded-md bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)] text-[var(--on-primary)] flex items-center justify-center hover:shadow-[0_0_12px_rgba(84,153,181,0.35)] hover:scale-105 transition-all duration-300 border border-black/20 disabled:opacity-40 disabled:hover:scale-100"
-                title="Enviar"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ArrowUp className="w-3.5 h-3.5" />
-                )}
-              </button>
             </div>
           </div>
 
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isLoading}
-            rows={1}
-            className="w-full bg-transparent border-none outline-none resize-none px-2 py-1.5 text-(length:--zen-fs-read) text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 placeholder:font-label-mono max-h-[200px] overflow-y-auto leading-snug"
-          />
+          <div className="flex items-center gap-1.5 px-1.5 pb-0.5">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={isLoading}
+              rows={1}
+              className="flex-1 w-full bg-transparent zen-textarea py-1.5 zen-text-body zen-read-text placeholder:text-[var(--on-surface-variant)]/50 placeholder:font-label-mono max-h-[200px] overflow-y-auto leading-snug [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!message.trim() || isLoading}
+              className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)] text-[var(--on-primary)] flex items-center justify-center hover:shadow-[0_0_12px_rgba(84,153,181,0.35)] hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:hover:scale-100"
+              title="Enviar"
+            >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ArrowUp className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

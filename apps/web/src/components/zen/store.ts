@@ -26,11 +26,13 @@ export interface Conversation {
   pinned: boolean;
   projectId: string | null;
   documentId: string | null;
+  documentIds?: string[];
+  backendId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type RightTab = "document" | "summary" | "mindmap" | "quiz" | "guide" | "faq" | "notes";
+export type RightTab = "document" | "summary" | "mindmap" | "quiz" | "guide" | "faq" | "notes" | "diagram";
 
 export type ModelId = string;
 
@@ -75,6 +77,9 @@ interface ZenState {
 
   setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
+  removeProject: (id: string) => void;
+  addDocToProject: (projectId: string, docId: string) => void;
+  removeDocFromProject: (projectId: string, docId: string) => void;
   ensureDefaultProject: () => Project;
   setDocuments: (docs: ZenDocument[]) => void;
   addDocument: (doc: ZenDocument) => void;
@@ -84,6 +89,7 @@ interface ZenState {
   setRightTab: (tab: RightTab) => void;
   setChatDocumentIds: (ids: string[]) => void;
 
+  setConversations: (convs: Conversation[]) => void;
   addConversation: (conv: Conversation) => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   removeConversation: (id: string) => void;
@@ -111,6 +117,27 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   addProject: (project) =>
     set((state) => ({ projects: [...state.projects, project] })),
+  removeProject: (id) =>
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== id),
+      activeProjectId: state.activeProjectId === id ? null : state.activeProjectId,
+    })),
+  addDocToProject: (projectId, docId) =>
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId && !p.documents.includes(docId)
+          ? { ...p, documents: [...p.documents, docId] }
+          : p
+      ),
+    })),
+  removeDocFromProject: (projectId, docId) =>
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, documents: p.documents.filter((id) => id !== docId) }
+          : p
+      ),
+    })),
   ensureDefaultProject: () => {
     const state = get();
     const defaultProject = state.projects.find((p) => p.isDefault);
@@ -134,6 +161,10 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setRightTab: (tab) => set({ rightTab: tab }),
   setChatDocumentIds: (ids) => set({ chatDocumentIds: ids }),
 
+  setConversations: (convs) => {
+    set({ conversations: convs });
+    saveToStorage("doczen:conversations", convs);
+  },
   addConversation: (conv) => {
     const convs = [...get().conversations, conv];
     set({ conversations: convs });
@@ -147,13 +178,21 @@ export const useZenStore = create<ZenState>((set, get) => ({
     saveToStorage("doczen:conversations", convs);
   },
   removeConversation: (id) => {
-    const convs = get().conversations.filter((c) => c.id !== id);
+    const state = get();
+    const conv = state.conversations.find((c) => c.id === id);
+    if (conv?.backendId) {
+      fetch(`${API_URL}/conversations/${conv.backendId}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).catch(() => {});
+    }
+    const convs = state.conversations.filter((c) => c.id !== id);
     set({
       conversations: convs,
       activeConversationId:
-        get().activeConversationId === id
+        state.activeConversationId === id
           ? null
-          : get().activeConversationId,
+          : state.activeConversationId,
     });
     saveToStorage("doczen:conversations", convs);
   },

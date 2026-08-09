@@ -1,5 +1,45 @@
 # Cella — Estado del Proyecto (Agosto 2026)
 
+## Rediseño /zen — Studio, tipografía y Diagrama visual (09/08/2026)
+
+### Tipografía y layout de lectura
+- Nuevas clases utilitarias en `globals.css`: `.zen-read-text`, `.zen-text-body`, `.zen-text-heading`, `.zen-textarea` (usar `!important` para sortear problemas de recompilación de Tailwind v4/Turbopack).
+- `ChatInterface.tsx`: citas colapsables, eliminado texto inline de citas, párrafos/headings usan `--zen-read-text`.
+- `ChatInput.tsx`, `ChatPanel.tsx`, `ZenLayout.tsx`: input sin borde con sombra, sin header central, layout de tres columnas limpio.
+- `LeftSidebar.tsx`: botones "Nueva Conversación" y selector de modelo reubicados desde el header central.
+- `DocumentSummary.tsx`, `StudyGuideTab.tsx`, `FaqTab.tsx`: aplicadas clases de tipografía zen.
+
+### Studio (RightSidebar.tsx)
+- Renombrado "Mapping Conceptual" → "Grafo de Ideas" (Obsidian-style force-directed graph).
+- Nuevo tab "Diagrama" (`DiagramTab.tsx`) separado del grafo: editor Mermaid + vista visual.
+- Quiz interactivo con validación de respuestas (verde/rojo).
+
+### Diagrama visual (MermaidRenderer.tsx)
+- Reemplazado renderizador Mermaid (mostraba solo texto) por `markmap-lib` + `markmap-view`.
+- Convierte sintaxis Mermaid `mindmap` a markdown de markmap y renderiza un árbol/mapa mental visual.
+- Mantiene zoom, ajustar, export SVG/PNG y clic en nodos para navegar a páginas del documento.
+- `package.json`: agregadas dependencias `markmap-lib` y `markmap-view`.
+
+### Aside izquierdo (LeftSidebar.tsx, ConversationItem.tsx, SourceCard.tsx)
+- Logo: solo SVG rombo + texto "Cella" (sin caja de fondo).
+- `SourceCard.tsx`: diseño compacto — sombra 0.02, sin icono PDF, sin línea de páginas/estado, solo punto de estado + título (10px) + check.
+- `ConversationItem.tsx`: dropdown estilo Claude/Perplexity con "⋯" (Renombrar / Fijar / Eliminar con confirmación dentro del menú). Al hacer click, activa el documento y restaura `chatDocumentIds`.
+- Proyectos: filtra documentos y conversaciones por proyecto activo; cada proyecto expandido muestra sus PDFs con botón "✕" para quitarlos y "+ Añadir documento". Botón eliminar proyecto con `confirm()` (proyecto por defecto no eliminable).
+- Quitado botón "+ Añadir fuente" del footer.
+
+### Conversaciones con backend (ChatInterface.tsx, ChatPanel.tsx, store.ts)
+- `ChatInterface.tsx`: prop `conversationId` (backendId); al cambiar, fetches `GET /conversations/{id}` y carga mensajes; al primer envío registra conversación en store.
+- `ChatPanel.tsx`: pasa `activeConversation?.backendId`; subidas de PDF van al proyecto activo.
+- `store.ts`: `Conversation` con `backendId?` y `documentIds?`; acciones `setConversations`, `removeProject`, `addDocToProject`, `removeDocFromProject`.
+
+### Eliminación persistente de conversaciones
+- `exports.py`: nuevo endpoint `DELETE /conversations/{conversation_id}` → verifica ownership (`user_id`), elimina `Message`s + `Conversation`, `db.commit()`, 204.
+- `store.ts`: `removeConversation` llama `DELETE /conversations/{backendId}` (best-effort, non-blocking) si la conversación tiene `backendId`, luego elimina localmente como antes.
+- Resultado: conversaciones eliminadas en UI no reaparecen al recargar la página.
+
+### Fix subida de PDFs
+- `DocumentViewer.tsx`: `fetchDocument()` solo llama `fetchDocumentContent()` si el archivo no es `.pdf`, evitando error 400 y toast falso durante procesamiento.
+
 ## Sprint worker/observabilidad/E2E (08/08/2026)
 
 ### Worker robusto (`apps/worker/worker.py`, `apps/api`)
@@ -192,7 +232,7 @@ Dark mode: fondos slate-900/800, texto slate-100, accent violet-300/400.
 - Token `--zen-read-bg: #FFFFFF` aplicado a la columna central → página blanca tipo lector.
 - Token `--zen-fs-read: 14px` para párrafos y burbujas del chat (Inter).
 - Token `--zen-fs-read-heading: 16px` para headings h1-h6 (Source Serif 4), con parser de markdown `#` → `<h1>`…`<h6>` en `renderTextSegment` (`ChatInterface.tsx`).
-- Texto `--on-surface: #0B1515` (casi negro) para máximo contraste.
+- Texto del chat (respuestas y preguntas) usa token dedicado `--zen-text-read: #111827` (negro lectura gray-900), aplicado a párrafos, headings y negritas; la regla global `p { color: var(--text-secondary) }` de `globals.css` se sobrescribe con la clase `text-[var(--zen-text-read)]` en cada `<p>` de `ChatInterface.tsx`.
 
 ### Chat input compacto (`ChatInput.tsx`)
 - Eliminado banner "Cella Notebooks ahora es más inteligente" y fila de metadatos (Fuentes Activas, Tkn_Usage).

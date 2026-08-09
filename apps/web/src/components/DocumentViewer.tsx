@@ -88,7 +88,6 @@ export default function DocumentViewer({
   useEffect(() => {
     if (documentId) {
       fetchDocument();
-      fetchDocumentContent();
     }
   }, [documentId]);
 
@@ -117,6 +116,11 @@ export default function DocumentViewer({
       if (response.ok) {
         const documentData = await response.json();
         setDocument(documentData);
+        // Only fetch text content for non-PDF files
+        const filename = documentData.filename || "";
+        if (!filename.toLowerCase().endsWith(".pdf")) {
+          fetchDocumentContent();
+        }
       } else {
         toast.error("Error al cargar el documento");
       }
