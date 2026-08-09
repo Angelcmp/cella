@@ -103,8 +103,8 @@ export const useZenStore = create<ZenState>((set, get) => ({
   rightTab: "mindmap",
   chatDocumentIds: [],
 
-  conversations: loadFromStorage<Conversation[]>("doczen:conversations", []),
-  selectedModel: loadFromStorage<ModelId>("doczen:selectedModel", ""),
+  conversations: [],
+  selectedModel: "",
   models: [],
   modelsModalOpen: false,
 
@@ -188,3 +188,10 @@ export const useZenStore = create<ZenState>((set, get) => ({
   },
   setModelsModalOpen: (open) => set({ modelsModalOpen: open }),
 }));
+
+export function hydrateZenStore() {
+  useZenStore.setState({
+    conversations: loadFromStorage<Conversation[]>("doczen:conversations", []),
+    selectedModel: loadFromStorage<ModelId>("doczen:selectedModel", ""),
+  });
+}

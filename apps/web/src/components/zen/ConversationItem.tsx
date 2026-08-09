@@ -50,10 +50,10 @@ export default function ConversationItem({ conversation }: ConversationItemProps
     <div className="relative">
       <div
         onClick={handleSelect}
-        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md font-label-mono text-(length:--zen-fs-secondary) transition-colors cursor-pointer ${
           isActive
-            ? "text-[var(--text-primary)] bg-[var(--bg-muted)]"
-            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
+            ? "text-[var(--on-surface)] bg-[var(--surface-container-high)]"
+            : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
         }`}
       >
         {editing ? (
@@ -69,18 +69,18 @@ export default function ConversationItem({ conversation }: ConversationItemProps
                 if (e.key === "Enter") handleSaveEdit();
                 if (e.key === "Escape") handleCancelEdit();
               }}
-              className="flex-1 text-[11px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+              className="flex-1 text-(length:--zen-fs-secondary) bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)] rounded px-1.5 py-0.5 text-[var(--on-surface)] outline-none focus:border-[var(--primary-fixed)]"
               autoFocus
             />
             <button
               onClick={handleSaveEdit}
-              className="p-0.5 text-[var(--accent-primary)] hover:bg-[var(--bg-muted)] rounded"
+              className="p-0.5 text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] rounded"
             >
               <Check className="w-3 h-3" />
             </button>
             <button
               onClick={handleCancelEdit}
-              className="p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-muted)] rounded"
+              className="p-0.5 text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] rounded"
             >
               <X className="w-3 h-3" />
             </button>
@@ -90,26 +90,26 @@ export default function ConversationItem({ conversation }: ConversationItemProps
         )}
 
         {conversation.pinned && !editing && (
-          <Pin className="w-2.5 h-2.5 text-[var(--accent-primary)] shrink-0 opacity-60" />
+          <Pin className="w-2.5 h-2.5 text-[var(--primary-fixed)] shrink-0 opacity-60" />
         )}
 
         {!editing && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             <button
               onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-              className="p-0.5 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="p-0.5 rounded hover:bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
             >
               <Pencil className="w-2.5 h-2.5" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); togglePinConversation(conversation.id); }}
-              className="p-0.5 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--accent-primary)]"
+              className="p-0.5 rounded hover:bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)]"
             >
               {conversation.pinned ? <PinOff className="w-2.5 h-2.5" /> : <Pin className="w-2.5 h-2.5" />}
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
-              className="p-0.5 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500"
+              className="p-0.5 rounded hover:bg-red-500/10 text-[var(--on-surface-variant)] hover:text-red-500"
             >
               <Trash2 className="w-2.5 h-2.5" />
             </button>
@@ -119,12 +119,12 @@ export default function ConversationItem({ conversation }: ConversationItemProps
 
       {showConfirm && (
         <div
-          className="absolute right-0 top-1 z-10 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg shadow-card p-1.5 flex items-center gap-1"
+          className="absolute right-0 top-1 z-10 bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)] rounded-lg shadow-card p-1.5 flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-[10px] text-[var(--text-secondary)]">Eliminar?</span>
-          <button onClick={handleDelete} className="px-1.5 py-0.5 text-[10px] rounded bg-red-500/10 text-red-500 hover:bg-red-500/20">Sí</button>
-          <button onClick={() => setShowConfirm(false)} className="px-1.5 py-0.5 text-[10px] rounded bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">No</button>
+          <span className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]">Eliminar?</span>
+          <button onClick={handleDelete} className="px-1.5 py-0.5 font-label-mono text-(length:--zen-fs-label) rounded bg-red-500/10 text-red-500 hover:bg-red-500/20">Sí</button>
+          <button onClick={() => setShowConfirm(false)} className="px-1.5 py-0.5 font-label-mono text-(length:--zen-fs-label) rounded bg-[var(--surface-container-high)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]">No</button>
         </div>
       )}
     </div>

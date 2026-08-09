@@ -169,7 +169,7 @@ export default function ZenUploadZone({
         </div>
         <button
           onClick={handleUpload}
-          className="w-full py-2.5 rounded-xl bg-[var(--accent-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl bg-[var(--accent-primary)] text-[#003739] text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
         >
           <Upload className="w-4 h-4" />
           Subir ahora

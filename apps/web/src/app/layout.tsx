@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { Fraunces, Space_Grotesk, Inter, JetBrains_Mono, Work_Sans } from "next/font/google";
+import { Source_Serif_4, Space_Grotesk, Inter, JetBrains_Mono, Work_Sans } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
-
-const fraunces = Fraunces({
+const sourceSerif = Source_Serif_4({
   variable: "--font-serif",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -88,8 +87,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" data-theme="light">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+          rel="stylesheet"
+        />
+      </head>
       <body
-        className={`${fraunces.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} ${workSans.variable} antialiased`}
+        className={`${sourceSerif.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} ${workSans.variable} antialiased`}
         suppressHydrationWarning
       >
         <StructuredData />

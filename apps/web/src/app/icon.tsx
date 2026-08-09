@@ -24,7 +24,7 @@ export default function Icon() {
         >
           <path
             d="M16 2 L30 16 L16 30 L2 16 Z"
-            fill="#9966CC"
+            fill="#A7D8DE"
             strokeLinejoin="round"
           />
         </svg>

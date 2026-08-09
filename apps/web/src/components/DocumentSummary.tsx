@@ -118,10 +118,10 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg blur-sm opacity-30"></div>
-              <Sparkles className="relative h-5 w-5 text-purple-400" />
+              <div className="absolute inset-0 bg-[var(--primary-container)] rounded-lg blur-sm opacity-30"></div>
+              <Sparkles className="relative h-5 w-5 text-[var(--primary-fixed)]" />
             </div>
-            <CardTitle className="text-sm font-medium text-gray-300">
+            <CardTitle className="font-label-mono text-(length:--zen-fs-heading) font-medium text-[var(--on-surface)]">
               Resumen IA
             </CardTitle>
           </div>
@@ -132,18 +132,18 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-gray-400 hover:text-gray-100 h-6 w-6 p-0"
+                className="text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] h-6 w-6 p-0"
               >
                 {isExpanded ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               size="sm"
               onClick={generateSummary}
               disabled={isLoading}
-              className="text-gray-400 hover:text-gray-100 h-6 w-6 p-0"
+              className="text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] h-6 w-6 p-0"
             >
               {isLoading ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -158,14 +158,14 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
       <CardContent className="pt-0">
         {!summary && !isLoading && !hasError && (
           <div className="text-center py-4">
-            <div className="text-gray-400 text-sm mb-3">
+            <div className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/60 mb-3">
               Genera un resumen inteligente del documento
             </div>
             <Button
               onClick={generateSummary}
               disabled={isLoading}
               size="sm"
-              className="bg-gradient-to-r from-purple-600 to-blue-500 hover:opacity-90 text-white"
+              className="bg-[var(--primary-fixed)] hover:opacity-90 text-white"
             >
               <Sparkles className="h-3 w-3 mr-2" />
               Generar resumen
@@ -175,16 +175,16 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
 
         {isLoading && (
           <div className="text-center py-4">
-            <div className="flex items-center justify-center space-x-2 text-gray-400">
+            <div className="flex items-center justify-center space-x-2 text-[var(--on-surface-variant)]/60">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Generando resumen inteligente...</span>
+              <span className="text-(length:--zen-fs-body)">Generando resumen inteligente...</span>
             </div>
           </div>
         )}
 
         {hasError && (
           <div className="text-center py-4">
-            <div className="text-red-400 text-sm mb-3">
+            <div className="text-red-400 text-(length:--zen-fs-body) mb-3">
               Error al cargar/generar resumen
             </div>
             <Button
@@ -202,22 +202,22 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
         {summary && (
           <div className="space-y-4 animate-fade-in">
             {/* Quick Stats */}
-            <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span>Generado {formatDate(summary.generatedAt)}</span>
+            <div className="flex items-center space-x-3 text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60">
+              <span className="font-label-mono">Generado {formatDate(summary.generatedAt)}</span>
               {summary.pageCount && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="font-label-mono text-(length:--zen-fs-label)">
                   {summary.pageCount} páginas
                 </Badge>
               )}
               {summary.wordCount && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="font-label-mono text-(length:--zen-fs-label)">
                   ~{summary.wordCount} palabras
                 </Badge>
               )}
             </div>
 
             {/* Summary Preview */}
-            <div className="text-sm text-gray-300 leading-relaxed">
+            <div className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)] leading-relaxed">
               {isExpanded ? summary.summary : `${summary.summary.substring(0, 150)}${summary.summary.length > 150 ? '...' : ''}`}
             </div>
 
@@ -226,7 +226,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-purple-400 hover:text-purple-300 text-xs p-0"
+                className="font-label-mono text-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] text-(length:--zen-fs-label) p-0"
               >
                 {isExpanded ? 'Ver menos' : 'Ver más'}
               </Button>
@@ -237,11 +237,11 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Key Points */}
                 {summary.keyPoints && summary.keyPoints.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-medium text-gray-400 mb-2">Puntos clave:</h4>
-                    <ul className="space-y-1 text-xs text-gray-300">
+                    <h4 className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)] mb-2">Puntos clave:</h4>
+                    <ul className="space-y-1 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
                       {summary.keyPoints.map((point, index) => (
                         <li key={index} className="flex items-start space-x-2">
-                          <span className="text-purple-400 mt-1">•</span>
+                          <span className="text-[var(--primary-fixed)] mt-1">•</span>
                           <span>{point}</span>
                         </li>
                       ))}
@@ -252,13 +252,13 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Topics */}
                 {summary.topics && summary.topics.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-medium text-gray-400 mb-2">Temas principales:</h4>
+                    <h4 className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)] mb-2">Temas principales:</h4>
                     <div className="flex flex-wrap gap-1">
                       {summary.topics.map((topic, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="outline" 
-                          className="text-xs border-purple-600 text-purple-400"
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="font-label-mono text-(length:--zen-fs-secondary) border-0 text-[var(--primary-fixed)] whitespace-normal break-words text-left max-w-full shrink px-2 py-1"
                         >
                           {topic}
                         </Badge>

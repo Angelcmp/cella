@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactElement } from "react";
+import React, { useState, useEffect, useRef, type ReactElement } from "react";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { Copy, FileText, Braces } from "lucide-react";
 import ChatInput from "./zen/ChatInput";
 import ThinkingBlock from "./zen/ThinkingBlock";
 import { withCsrfHeaders } from "@/lib/csrf";
@@ -53,6 +53,13 @@ export default function ChatInterface({
   const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const quickPrompts = [
+    "¿Cuál es la idea principal del documento?",
+    "Resume el documento en 3 puntos clave",
+    "Explícame los conceptos más importantes",
+    "¿Qué conclusiones puedo extraer?",
+  ];
+
   // Function to format message content with paragraphs, inline styles and code blocks
   const formatMessageContent = (content: string) => {
     if (!content) return null;
@@ -60,52 +67,61 @@ export default function ChatInterface({
     // Clean up the content first
     const cleanContent = content.trim();
 
-    // Helper: render inline rich text (bold **...**, italic *...*, and code `...`)
+    // Helper: render inline rich text (bold **...**, italic *...*, code `...`, page refs)
     const renderInlineRich = (text: string) => {
-      const nodes: (string | ReactElement)[] = [];
-      // First split by code spans using backticks
-      const codeSplit = text.split(/(`[^`]+`)/g);
-      codeSplit.forEach((segment, i) => {
-        if (segment.startsWith('`') && segment.endsWith('`')) {
-          const codeText = segment.slice(1, -1);
-          nodes.push(
-            <code
-              key={`code-${i}`}
-              className="bg-muted text-foreground/90 px-1.5 py-0.5 rounded font-mono text-[0.9em]"
-            >
-              {codeText}
-            </code>
+      // Step 0: detect page references (Página X) and render as styled badges
+      const pageRefRegex = /(\(Páginas?\s+\d+(?:\s*,\s*\d+)*(?:\s+y\s+\d+)?\))/gi;
+      const segments = text.split(pageRefRegex);
+      return segments.map((segment, si) => {
+        const match = segment.match(/^\(Páginas?\s+\d+/i);
+        if (match) {
+          const clean = segment.slice(1, -1);
+          return (
+            <span key={`pg-${si}`} className="inline-block px-1.5 py-px rounded bg-[var(--primary-fixed)]/8 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium">
+              {clean}
+            </span>
           );
-        } else if (segment) {
-          // Then split bold **...** within non-code segments
-          const boldSplit = segment.split(/(\*\*[^*]+\*\*)/g);
-          boldSplit.forEach((part, j) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              const boldText = part.slice(2, -2);
-              nodes.push(
-                <strong key={`bold-${i}-${j}`} className="font-semibold text-primary">
-                  {boldText}
-                </strong>
-              );
-            } else if (part) {
-              // Finally split italics *...* (avoid matching **bold**)
-              const italicSplit = part.split(/(?<!\*)\*([^*]+)\*(?!\*)/g);
-              italicSplit.forEach((sub, k) => {
-                if (k % 2 === 1) {
-                  nodes.push(
-                    <em key={`italic-${i}-${j}-${k}`} className="italic text-foreground">
-                      {sub}
-                    </em>
-                  );
-                } else if (sub) {
-                  nodes.push(sub);
-                }
-              });
-            }
-          });
         }
+        // Tokenize segment for bold, italic, code
+        const segments2: (string | ReactElement)[] = [];
+        const codeSplit = segment.split(/(`[^`]+`)/g);
+        codeSplit.forEach((codeSeg, ci) => {
+          if (codeSeg.startsWith('`') && codeSeg.endsWith('`')) {
+            segments2.push(
+              <code key={`c-${si}-${ci}`} className="bg-muted text-foreground/90 px-1.5 py-0.5 rounded font-mono text-[0.9em]">
+                {codeSeg.slice(1, -1)}
+              </code>
+            );
+          } else if (codeSeg) {
+            const boldSplit = codeSeg.split(/(\*\*[^*]+\*\*)/g);
+            boldSplit.forEach((boldPart, bj) => {
+              if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
+                segments2.push(
+                  <strong key={`b-${si}-${ci}-${bj}`} className="font-semibold text-[var(--on-surface)]">
+                    {boldPart.slice(2, -2)}
+                  </strong>
+                );
+              } else if (boldPart) {
+                const italicSplit = boldPart.split(/(?<!\*)\*([^*]+)\*(?!\*)/g);
+                italicSplit.forEach((italicSub, ik) => {
+                  if (ik % 2 === 1) {
+                    segments2.push(
+                      <em key={`i-${si}-${ci}-${bj}-${ik}`} className="italic text-[var(--on-surface)]">
+                        {italicSub}
+                      </em>
+                    );
+                  } else if (italicSub) {
+                    segments2.push(italicSub);
+                  }
+                });
+              }
+            });
+          }
+        });
+        return (
+          <React.Fragment key={`frag-${si}`}>{segments2}</React.Fragment>
+        );
       });
-      return nodes;
     };
 
     // Split into blocks by triple backticks for code blocks
@@ -174,6 +190,21 @@ export default function ChatInterface({
 
       return paragraphs.map((paragraph, idx) => {
         const cleanParagraph = paragraph.replace(/\s+/g, ' ').trim();
+
+        // Detect heading (starts with 1-6 # characters)
+        const headingMatch = paragraph.match(/^\s*(#{1,6})\s+(.+?)\s*$/m);
+        if (headingMatch) {
+          const level = headingMatch[1].length;
+          const headingClasses = "font-zen-heading text-(length:--zen-fs-read-heading) font-semibold text-[var(--on-surface)] mt-3 mb-1.5 leading-tight";
+          const headingContent = renderInlineRich(headingMatch[2].trim());
+          if (level === 1) return <h1 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h1>;
+          if (level === 2) return <h2 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h2>;
+          if (level === 3) return <h3 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h3>;
+          if (level === 4) return <h4 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h4>;
+          if (level === 5) return <h5 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h5>;
+          return <h6 key={`${seedKey}-h-${idx}`} className={headingClasses}>{headingContent}</h6>;
+        }
+
         // Detect blockquote (lines starting with '>')
         if (/^\s*>\s*/m.test(paragraph)) {
           const lines = paragraph.split(/\n+/).map(l => l.replace(/^\s*>\s*/, '').trim()).filter(Boolean);
@@ -196,7 +227,7 @@ export default function ChatInterface({
           return (
             <ul key={`${seedKey}-ul-${idx}`} className="list-disc pl-5 my-2 space-y-1">
               {ulItems.map((l, i3) => (
-                <li key={`${seedKey}-uli-${idx}-${i3}`} className="text-sm md:text-base leading-5 md:leading-relaxed">
+                <li key={`${seedKey}-uli-${idx}-${i3}`} className="text-(length:--zen-fs-read) leading-relaxed">
                   {renderInlineRich(l.replace(/^\s*(?:[-*•])\s+/, ''))}
                 </li>
               ))}
@@ -207,7 +238,7 @@ export default function ChatInterface({
           return (
             <ol key={`${seedKey}-ol-${idx}`} className="list-decimal pl-5 my-2 space-y-1">
               {olItems.map((l, i4) => (
-                <li key={`${seedKey}-oli-${idx}-${i4}`} className="text-sm md:text-base leading-5 md:leading-relaxed">
+                <li key={`${seedKey}-oli-${idx}-${i4}`} className="text-(length:--zen-fs-read) leading-relaxed">
                   {renderInlineRich(l.replace(/^\s*\d+\.\s+/, ''))}
                 </li>
               ))}
@@ -216,7 +247,7 @@ export default function ChatInterface({
         }
 
         return (
-          <p key={`${seedKey}-p-${idx}`} className="mb-1 md:mb-2 text-sm md:text-base leading-5 md:leading-relaxed">
+          <p key={`${seedKey}-p-${idx}`} className="mb-2 text-(length:--zen-fs-read) leading-relaxed">
             {renderInlineRich(cleanParagraph)}
           </p>
         );
@@ -541,52 +572,8 @@ export default function ChatInterface({
     }
   };
 
-  const exportConversationPdf = () => {
-    const md = toMarkdown(messages);
-    const printWindow = window.open("", "_blank", "width=800,height=900");
-    if (!printWindow) {
-      toast.error("El navegador bloqueó la ventana de impresión");
-      return;
-    }
-    printWindow.document.write(`<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${documentTitle}</title>
-  <style>
-    body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 24px; color: #0F172A; line-height: 1.6; }
-    h1 { font-size: 22px; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; }
-    h2 { font-size: 16px; margin-top: 24px; color: #7C3AED; }
-    h3 { font-size: 13px; margin-top: 16px; color: #475569; }
-    p { font-size: 13px; margin: 8px 0; white-space: pre-wrap; }
-    pre, code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #F1F5F9; border-radius: 6px; }
-    pre { padding: 12px; overflow-x: auto; }
-    code { padding: 2px 4px; }
-    @media print { body { margin: 0; } }
-  </style>
-</head>
-<body>${escapeHtml(md)}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 300);
-  };
-
-  const escapeHtml = (md: string) => {
-    const escaped = md
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    return escaped
-      .split(/\n\n+/)
-      .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
-      .join("\n");
-  };
-
   return (
-    <div className={cn("flex flex-col h-full bg-[var(--bg-primary)]", className)}>
+    <div       className={cn("flex flex-col h-full bg-transparent", className)}>
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto space-y-6">
         {messages.map((message) => (
@@ -599,12 +586,13 @@ export default function ChatInterface({
                 : "flex justify-start"
             )}
           >
-            <div className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-              message.role === "user"
-                ? "bg-[var(--bg-muted)] text-[var(--text-primary)]"
-                : "text-[var(--text-primary)]"
-            )}>
+            <div
+              className={cn(
+                "max-w-[85%] rounded-xl px-4 py-3 text-(length:--zen-fs-read) leading-relaxed text-[var(--on-surface)]",
+                message.role === "user" &&
+                  "bg-[var(--surface-container-high)]/60 border border-[var(--outline-variant)]/30"
+              )}
+            >
               {message.role === "assistant" && message.thinkingStartedAt && (
                 <ThinkingBlock
                   content={message.thinking ?? ""}
@@ -617,70 +605,77 @@ export default function ChatInterface({
               </div>
 
               {message.citations && message.citations.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-1.5">
+                <div className="mt-3 pt-3 border-t border-[var(--outline-variant)]/50 flex flex-wrap gap-1.5">
                   {message.citations.map((citation, index) => (
-                    <div
+                    <button
                       key={index}
-                      className="flex items-start gap-2 text-[11px] cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => onCitationClick?.(citation.page)}
+                      title={`${citation.snippet}\n${citation.document || ""}`}
+                      className="inline-flex items-center gap-1.5 cursor-pointer"
                     >
-                      <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-md bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-[10px] font-medium">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: "var(--primary-fixed)" }}
+                      />
+                      <span className="px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium hover:bg-[var(--primary-fixed)]/20 transition-colors">
                         p.{citation.page}
                       </span>
-                      <span className="text-[var(--text-secondary)] italic leading-snug">
-                        &ldquo;{citation.snippet}&rdquo;
-                      </span>
-                      {citation.document && (
-                        <span className="shrink-0 text-[10px] text-[var(--text-muted)] truncate max-w-[140px]" title={citation.document}>
-                          · {citation.document}
-                        </span>
-                      )}
-                      {citation.similarity && (
-                        <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
-                          {Math.round(citation.similarity * 100)}%
-                        </span>
-                      )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
 
-              <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-3">
+              <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                 <button
                   onClick={() => copyToClipboard(message.content)}
-                  className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                  className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+                  title="Copiar respuesta"
                 >
-                  Copiar
+                  <Copy className="w-3.5 h-3.5" />
                 </button>
                 {message.role === "assistant" && (
-                  <div className="flex items-center gap-1">
+                  <>
                     <button
                       onClick={() => exportConversation("md")}
-                      title="Exportar conversación (Markdown)"
-                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                      title="Exportar Markdown"
+                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
                     >
-                      <Download className="w-3 h-3" /> MD
+                      <FileText className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => exportConversation("json")}
-                      title="Exportar conversación (JSON)"
-                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                      title="Exportar JSON"
+                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
                     >
-                      JSON
+                      <Braces className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={exportConversationPdf}
-                      title="Exportar conversación (PDF)"
-                      className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                    >
-                      PDF
-                    </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
           </div>
         ))}
+
+        {messages.length === 1 && !isLoading && (
+          <div className="flex items-start gap-2">
+            <div className="max-w-[85%]">
+              <p className="text-(length:--zen-fs-label) uppercase tracking-[0.15em] text-[var(--on-surface-variant)]/60 mb-2 px-1">
+                Preguntas sugeridas
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => handleSendMessage(prompt)}
+                    className="px-2.5 py-1.5 rounded-full border border-[var(--outline-variant)]/30 bg-[var(--surface-container-high)]/40 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:border-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] transition-colors text-left"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div ref={messagesEndRef} />
         </div>

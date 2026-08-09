@@ -24,5 +24,8 @@ export default defineConfig({
     port: Number(PORT),
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
+    env: {
+      LANDING_HOSTS: `localhost:${PORT}`,
+    },
   },
 });
