@@ -1,0 +1,161 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: cella_alerts
+    folder: Cella
+    interval: 60s
+    rules:
+      - uid: dlq_above_zero
+        title: "DLQ: Failed documents exceeding max attempts"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: __default__
+            model:
+              expr: cella_dlq_total > 0
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [], type: "gt" }, operator: { type: "and" }, query: { params: ["B"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "A"
+              hide: false
+              refId: B
+              type: "classic_conditions"
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: ["C"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "B"
+              hide: false
+              refId: C
+              type: "classic_conditions"
+        noDataState: NoData
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "{{ $value }} document(s) in DLQ: manual reprocessing needed"
+        labels: { severity: warning }
+
+      - uid: high_error_rate
+        title: "High HTTP 5xx error rate"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: __default__
+            model:
+              expr: |
+                sum(rate(cella_http_requests_total{status=~"5.."}[5m]))
+                /
+                sum(rate(cella_http_requests_total[5m]))
+                > 0.05
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [], type: "gt" }, operator: { type: "and" }, query: { params: ["B"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "A"
+              hide: false
+              refId: B
+              type: "classic_conditions"
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: ["C"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "B"
+              hide: false
+              refId: C
+              type: "classic_conditions"
+        noDataState: NoData
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "5xx error rate exceeded 5% in the last 5 minutes"
+        labels: { severity: critical }
+
+      - uid: high_p95_latency
+        title: "High p95 latency"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: __default__
+            model:
+              expr: |
+                histogram_quantile(0.95, sum(rate(cella_http_request_duration_seconds_bucket[5m])) by (le))
+                > 2.5
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [], type: "gt" }, operator: { type: "and" }, query: { params: ["B"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "A"
+              hide: false
+              refId: B
+              type: "classic_conditions"
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: ["C"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "B"
+              hide: false
+              refId: C
+              type: "classic_conditions"
+        noDataState: NoData
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: "p95 latency exceeded 2.5s: {{ $value }}s"
+        labels: { severity: warning }
+
+      - uid: stale_processing
+        title: "Stale documents stuck in processing"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: __default__
+            model:
+              expr: cella_processing_stale > 3
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [], type: "gt" }, operator: { type: "and" }, query: { params: ["B"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "A"
+              hide: false
+              refId: B
+              type: "classic_conditions"
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: "-100"
+            model:
+              conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: ["C"] }, reducer: { params: [], type: "last" }, type: "query" }]
+              datasource: { type: "__default__", uid: "__default__" }
+              expression: "B"
+              hide: false
+              refId: C
+              type: "classic_conditions"
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "{{ $value }} documents stuck in processing > timeout"
+        labels: { severity: warning }

@@ -10,6 +10,7 @@ from __future__ import annotations
 from prometheus_client import (
     Counter,
     Histogram,
+    Gauge,
     CONTENT_TYPE_LATEST,
     generate_latest,
 )
@@ -32,6 +33,46 @@ rate_limited_total = Counter(
     "Requests rejected by rate limiting",
     ["key"],
 )
+
+documents_by_status = Gauge(
+    "cella_documents_by_status",
+    "Documents count per status",
+    ["status"],
+)
+
+dlq_total = Gauge(
+    "cella_dlq_total",
+    "Documents in Dead Letter Queue (dlq=true)",
+)
+
+processing_stale = Gauge(
+    "cella_processing_stale",
+    "Documents stuck in processing (no worker assigned)",
+)
+
+
+def update_worker_gauges(db_session):
+    """Refresh worker-related gauges from the database."""
+    try:
+        from sqlalchemy import func
+        from database_simple import Document
+
+        for row in db_session.query(
+            Document.status, func.count(Document.id)
+        ).group_by(Document.status).all():
+            documents_by_status.labels(status=row[0]).set(row[1])
+
+        _dlq = db_session.query(func.count(Document.id)).filter(
+            Document.dlq.is_(True)
+        ).scalar() or 0
+        dlq_total.set(_dlq)
+
+        _stale = db_session.query(func.count(Document.id)).filter(
+            Document.status == "processing",
+        ).scalar() or 0
+        processing_stale.set(_stale)
+    except Exception:
+        pass
 
 
 def render_metrics() -> tuple[bytes, str]:

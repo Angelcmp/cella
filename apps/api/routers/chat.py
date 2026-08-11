@@ -132,10 +132,17 @@ async def chat_with_document(
     _=Depends(csrf_protect),
 ):
     """Chat with a specific document.
-
-    If chat_request.stream is True, returns a Server-Sent Events stream with the
-    AI response. Otherwise returns a JSON ChatResponse.
     """
+    try:
+        from usage import enforce_limit, record_usage
+
+        enforce_limit(db, current_user, "chats_per_day", windowed=True)
+        record_usage(db, current_user.id, "chats_per_day")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     try:
         # Determine target documents (multi-doc or single)
         is_multi = bool(chat_request.document_ids and len(chat_request.document_ids) > 1)

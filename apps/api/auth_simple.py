@@ -6,6 +6,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -73,7 +74,7 @@ def _b64url_decode(data: str) -> bytes:
 
 
 def _token_expiry(minutes: Optional[int] = None) -> datetime:
-    minutes = minutes or cfg.ACCESS_TOKEN_EXPIRE_MINUTES
+    minutes = minutes or cfg.SESSION_TTL_MINUTES
     return datetime.utcnow() + timedelta(minutes=minutes)
 
 
@@ -189,6 +190,48 @@ def revoke_token(token: str) -> None:
             db.add(RevokedToken(jti=payload.jti, expires_at=expires_at))
         db.commit()
     _mirror_revocation_to_redis(payload.jti, expires_at)
+
+
+def purge_expired_revoked_tokens() -> int:
+    """Elimina los tokens revocados expirados (SQLite + espejo Redis).
+
+    Forma parte de la política de TTL de sesiones: los registros de revocación
+    viviven solo mientras la sesión debería estar activa (SESSION_TTL_MINUTES).
+    Devuelve cuántos registros se purgaron desde SQLite.
+    """
+    now = datetime.utcnow()
+    purged = 0
+    try:
+        with SessionLocal() as db:
+            expired = db.query(RevokedToken).filter(
+                RevokedToken.expires_at < now
+            ).all()
+            for record in expired:
+                db.delete(record)
+                purged += 1
+            if purged:
+                db.commit()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(f"Token purge failed: {exc}")
+        return 0
+
+    if purged:
+        try:
+            from redis_client import get_redis_client
+
+            rclient = get_redis_client()
+            if rclient is not None:
+                for record in expired:
+                    try:
+                        rclient.delete(f"cella:revoked:{record.jti}")
+                    except Exception:
+                        continue
+        except Exception as exc:
+            logging.getLogger(__name__).warning(f"Redis token purge failed: {exc}")
+
+    if purged:
+        logging.getLogger(__name__).info(f"Purged {purged} expired revoked token(s)")
+    return purged
 
 
 def verify_token(token: str) -> Optional[TokenPayload]:

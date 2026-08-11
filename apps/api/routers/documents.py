@@ -1,13 +1,10 @@
 import logging
 import os
-import shutil
-import subprocess
-import tempfile
 import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -25,6 +22,7 @@ from database_simple import (
 from rag_system import FAQGenerator, MindmapGenerator, QuizGenerator, StudyGuideGenerator, SummaryGenerator
 from routers.auth import get_current_user
 from schemas import DocumentResponse
+from security.av import scan_content
 from security.csrf import verify_csrf as csrf_protect
 
 def _valid_signature(content: bytes, mime: str) -> bool:
@@ -48,36 +46,6 @@ def _valid_signature(content: bytes, mime: str) -> bool:
 logger = logging.getLogger(__name__)
 
 
-def _av_scan_ok(content: bytes) -> bool:
-    clamav_path = os.getenv("CLAMAV_PATH", "clamscan")
-    if not clamav_path:
-        raise RuntimeError("CLAMAV_PATH is not configured.")
-    if shutil.which(clamav_path) is None:
-        raise RuntimeError(f"Antivirus executable '{clamav_path}' not found in PATH.")
-
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        tmp_file.write(content)
-        tmp_path = tmp_file.name
-    try:
-        result = subprocess.run(
-            [clamav_path, "--no-summary", tmp_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-            text=True,
-        )
-        if result.returncode == 0:
-            return True
-        if result.returncode == 1:
-            logger.warning("ClamAV detected malware: %s", result.stdout.strip())
-            return False
-        raise RuntimeError(f"ClamAV scan error (code {result.returncode}): {result.stderr.strip() or result.stdout.strip()}")
-    finally:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            logger.warning("Failed to remove temporary scan file %s", tmp_path)
-
 router = APIRouter()
 
 # Simple file storage (will replace with S3/R2 later)
@@ -87,6 +55,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
+    request: Request = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     _=Depends(csrf_protect),
@@ -114,21 +83,23 @@ async def upload_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File signature does not match declared type"
         )
-    # Optional AV scan
+    # Optional AV scan (auditado en av_scan_logs)
     if cfg.ENABLE_FILE_AV_SCAN:
+        request_id = None
         try:
-            if not _av_scan_ok(file_content):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="File failed antivirus scan"
-                )
-        except HTTPException:
-            raise
-        except Exception as exc:
+            request_id = request.state.request_id
+        except (AttributeError, TypeError):
+            pass
+        scan = scan_content(
+            file_content,
+            filename=file.filename,
+            request_id=request_id,
+        )
+        if not scan.clean:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Antivirus scan could not be completed: {exc}"
-            ) from exc
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File failed antivirus scan ({scan.provider}): {scan.error or 'infected'}"
+            )
 
     # Save file locally (temporary solution)
     file_id = str(uuid.uuid4())
@@ -152,8 +123,11 @@ async def upload_document(
     db.add(new_document)
     db.commit()
     db.refresh(new_document)
-    
-    # TODO: Send to worker queue for processing
+
+    from usage import record_usage
+
+    record_usage(db, current_user.id, "documents")
+
     print(f"📄 Document uploaded: {file.filename} ({len(file_content)} bytes)")
     print(f"🔄 Status: pending - will be processed by worker")
     
@@ -259,6 +233,9 @@ async def reprocess_document(
     document.attempts = 0
     document.last_error = None
     document.last_attempt_at = None
+    document.dlq = False
+    document.worker_id = None
+    document.claimed_at = None
     db.commit()
     db.refresh(document)
     return document
@@ -303,7 +280,12 @@ async def generate_document_summary(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate summary: {result.get('error', 'Unknown error')}"
         )
-    
+
+    from usage import enforce_limit, record_usage
+
+    enforce_limit(db, current_user, "summaries_per_day", windowed=True)
+    record_usage(db, current_user.id, "summaries_per_day")
+
     return result
 
 
