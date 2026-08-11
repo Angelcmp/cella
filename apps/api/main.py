@@ -21,10 +21,11 @@ except Exception:
 load_dotenv()
 
 # Import routers
-from routers import auth, documents, chat, providers, exports
+from sqlalchemy.orm import Session
 
-# Database
-from database_simple import engine, Base, create_tables
+from routers import auth, documents, chat, providers, exports, worker
+
+from database_simple import engine, Base, create_tables, get_db, User
 
 security = HTTPBearer()
 
@@ -115,7 +116,7 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
 
 # Redis-backed sliding-window rate limiting (falls back to in-memory)
 from rate_limit import RateLimiter
-from auth_simple import verify_token
+from auth_simple import verify_token, get_current_user
 
 _rate_limiter = RateLimiter()
 
@@ -241,8 +242,17 @@ async def metrics_endpoint():
     """Prometheus metrics (enabled only when ENABLE_METRICS=true)."""
     if not cfg.ENABLE_METRICS:
         raise HTTPException(status_code=404, detail="Metrics not enabled")
-    from metrics import render_metrics
+    from metrics import render_metrics, update_worker_gauges
+    from database_simple import SessionLocal
     from fastapi.responses import Response
+
+    db = SessionLocal()
+    try:
+        update_worker_gauges(db)
+    except Exception:
+        pass
+    finally:
+        db.close()
 
     body, content_type = render_metrics()
     return Response(content=body, media_type=content_type)
@@ -253,6 +263,28 @@ app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(exports.router, tags=["conversations"])
 app.include_router(providers.router, prefix="", tags=["providers"])
+app.include_router(worker.router, prefix="", tags=["worker"])
+
+# Inject OpenTelemetry middleware (no-op when disabled)
+try:
+    from telemetry import inject_tracing_middleware
+
+    _otel_mw = inject_tracing_middleware()
+    if _otel_mw is not None:
+        app.middleware("http")(_otel_mw)
+except Exception:
+    pass
+
+
+# Usage endpoint (plan limits & counters)
+@app.get("/usage")
+async def usage_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from usage import usage_summary
+
+    return usage_summary(db, current_user)
 
 if __name__ == "__main__":
     uvicorn.run(

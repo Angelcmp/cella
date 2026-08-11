@@ -58,6 +58,10 @@ class Document(Base):
     attempts = Column(Integer, default=0)
     last_error = Column(Text)
     last_attempt_at = Column(DateTime)
+    # Worker: lease de reclamación (idempotencia) y flag de DLQ explícita
+    worker_id = Column(String, nullable=True)
+    claimed_at = Column(DateTime, nullable=True)
+    dlq = Column(Boolean, default=False)
 
 class DocumentChunk(Base):
     __tablename__ = "doc_chunks"
@@ -169,6 +173,38 @@ class RevokedToken(Base):
     )
 
 
+class AVScanLog(Base):
+    """Auditoría de cada escaneo antivirus (aceptación: log por escaneo)."""
+
+    __tablename__ = "av_scan_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, nullable=True)
+    filename = Column(String, nullable=True)
+    provider = Column(String, nullable=False)
+    file_size = Column(Integer, default=0)
+    result = Column(String, nullable=False)  # clean | infected | error
+    error = Column(Text, nullable=True)
+    duration_ms = Column(Integer, default=0)
+    request_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class UsageEvent(Base):
+    """Contador de uso por usuario (limites por plan, ventana 24h)."""
+
+    __tablename__ = "usage_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False)
+    action = Column(String, nullable=False)  # documents | chats_per_day | summaries_per_day
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        Index("ix_usage_events_user_action", "user_id", "action"),
+    )
+
+
 class ProviderConfig(Base):
     __tablename__ = "provider_configs"
 
@@ -204,9 +240,19 @@ def _migrate():
             ("attempts", "ALTER TABLE documents ADD COLUMN attempts INTEGER DEFAULT 0"),
             ("last_error", "ALTER TABLE documents ADD COLUMN last_error TEXT"),
             ("last_attempt_at", "ALTER TABLE documents ADD COLUMN last_attempt_at DATETIME"),
+            ("worker_id", "ALTER TABLE documents ADD COLUMN worker_id VARCHAR"),
+            ("claimed_at", "ALTER TABLE documents ADD COLUMN claimed_at DATETIME"),
+            ("dlq", "ALTER TABLE documents ADD COLUMN dlq BOOLEAN DEFAULT 0"),
         ):
             if col not in doc_columns:
                 with engine.begin() as conn:
                     conn.execute(text(ddl))
+
+        # Usage events: add 'action' column for plan-limit tracking
+        if "usage_events" in insp.get_table_names():
+            usage_cols = {c["name"] for c in insp.get_columns("usage_events")}
+            if "action" not in usage_cols:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE usage_events ADD COLUMN action VARCHAR"))
     except Exception as e:
         print(f"   Migration notice (non-fatal): {e}")

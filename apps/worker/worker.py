@@ -7,6 +7,7 @@ Handles text extraction, chunking, and embeddings
 import time
 import os
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -231,20 +232,36 @@ def due_for_retry(attempts: int, last_attempt_at, max_attempts: int, base_backof
 
 def simulate_worker():
     """
-    Poll for pending documents and process them with retries and backoff.
+    Poll for pending documents and process them with retries, backoff,
+    claim/lease idempotency, explicit DLQ flag and periodic session cleanup.
 
-    Failed documents are retried up to MAX_ATTEMPTS with exponential backoff
-    derived from `attempts`. When the attempt budget is exhausted the document
-    stays in `failed` with `last_error` populated for manual reprocessing.
+    - Claims: atomically sets status=processing + worker_id + claimed_at and
+      verifies rowcount, preventing two workers or a crash mid-job from
+      duplicating work.
+
+    - Self-heal: any doc stuck in `processing` whose `claimed_at` is older
+      than WORKER_CLAIM_TIMEOUT_SECONDS is reclaimed (reset to pending).
+
+    - DLQ: when attempt budget is exhausted, `dlq=True` on the doc.
+
+    - Session TTL: periodically purges expired RevokedToken rows (SQLite + Redis).
     """
     from database_simple import SessionLocal, Document, create_tables
+    from sqlalchemy import text
 
     max_attempts = int(os.getenv("WORKER_MAX_ATTEMPTS", "3"))
     base_backoff = int(os.getenv("WORKER_BACKOFF_BASE_SECONDS", "5"))
     poll_interval = int(os.getenv("WORKER_POLL_SECONDS", "10"))
+    claim_timeout = int(os.getenv("WORKER_CLAIM_TIMEOUT_SECONDS", "600"))
+    session_cleanup = int(os.getenv("SESSION_CLEANUP_MINUTES", "60"))
+
+    worker_id = str(uuid.uuid4())[:12]
+    last_cleanup = time.time()
 
     print("🚀 Cella Worker started")
-    print(f"📋 Max attempts: {max_attempts}, backoff base: {base_backoff}s, poll: {poll_interval}s")
+    print(f"📋 worker_id={worker_id}, max_attempts={max_attempts}, "
+          f"backoff={base_backoff}s, poll={poll_interval}s, "
+          f"claim_timeout={claim_timeout}s, cleanup_every={session_cleanup}m")
 
     def due(doc) -> bool:
         return due_for_retry(
@@ -254,16 +271,40 @@ def simulate_worker():
             base_backoff=base_backoff,
         )
 
-    # Ensure tables exist before polling
+    def session_cleanup_due(now_ts: float) -> bool:
+        return (now_ts - last_cleanup) >= session_cleanup * 60
+
     create_tables()
 
     try:
         while True:
             db = SessionLocal()
+            now_ts = time.time()
             try:
-                # First, requeue failed docs whose backoff window has elapsed.
+                # ── Reclaim stale processing docs (crash recovery) ──
+                cutoff = datetime.utcfromtimestamp(now_ts - claim_timeout)
+                stale = (
+                    db.query(Document)
+                    .filter(
+                        Document.status == "processing",
+                        Document.claimed_at.isnot(None),
+                        Document.claimed_at < cutoff,
+                    )
+                    .all()
+                )
+                for doc in stale:
+                    doc.status = "pending"
+                    doc.worker_id = None
+                    doc.claimed_at = None
+                if stale:
+                    db.commit()
+                    print(f"🔁 Reclaimed {len(stale)} stale processing doc(s)")
+
+                # ── Requeue failed docs whose backoff elapsed (not DLQ) ──
                 retried = 0
-                for doc in db.query(Document).filter(Document.status == "failed").all():
+                for doc in db.query(Document).filter(
+                    Document.status == "failed", Document.dlq.isnot(True)
+                ).all():
                     if due(doc):
                         doc.status = "pending"
                         db.commit()
@@ -271,7 +312,7 @@ def simulate_worker():
                 if retried:
                     print(f"🔁 Requeued {retried} failed document(s) after backoff")
 
-                # Then pick up pending documents
+                # ── Claim & process ──
                 pending_docs = db.query(Document).filter(
                     Document.status == "pending"
                 ).limit(5).all()
@@ -280,16 +321,34 @@ def simulate_worker():
                     print(f"📄 Found {len(pending_docs)} pending documents")
 
                     for doc in pending_docs:
-                        # Update status to processing
+                        # Atomically claim
+                        claim_now = datetime.utcnow()
+                        claimed = db.execute(
+                            text(
+                                "UPDATE documents SET status=:status, worker_id=:wid, "
+                                "claimed_at=:cat WHERE id=:id AND status='pending'"
+                            ),
+                            {
+                                "status": "processing",
+                                "wid": worker_id,
+                                "cat": claim_now,
+                                "id": doc.id,
+                            },
+                        ).rowcount
+                        if not claimed:
+                            continue  # claimed by another worker/loop
                         doc.status = "processing"
+                        doc.worker_id = worker_id
+                        doc.claimed_at = claim_now
                         db.commit()
 
-                        # Process document
                         try:
                             process_document(doc.id, doc.storage_url)
 
-                            # Update status to indexed
                             doc.status = "indexed"
+                            doc.worker_id = None
+                            doc.claimed_at = None
+                            doc.dlq = False
                             db.commit()
 
                         except Exception as e:
@@ -297,14 +356,16 @@ def simulate_worker():
                             doc.attempts = (doc.attempts or 0) + 1
                             doc.last_error = str(e)[:500]
                             doc.last_attempt_at = datetime.utcnow()
+                            doc.worker_id = None
+                            doc.claimed_at = None
 
                             if doc.attempts >= max_attempts:
                                 doc.status = "failed"
+                                doc.dlq = True
                                 print(
-                                    f"   ⛔ Document {doc.id} failed after {doc.attempts} attempts: {e}"
+                                    f"   ⛔ Document {doc.id} DLQ after {doc.attempts} attempts: {e}"
                                 )
                             else:
-                                # Backoff applies before the next retry
                                 doc.status = "failed"
                                 print(
                                     f"   🔁 Retry {doc.attempts}/{max_attempts} for {doc.id} "
@@ -314,10 +375,18 @@ def simulate_worker():
                 else:
                     print("💤 No pending documents, waiting...")
 
+                # ── Periodic session TTL cleanup ──
+                if session_cleanup_due(now_ts):
+                    try:
+                        from auth_simple import purge_expired_revoked_tokens
+                        purge_expired_revoked_tokens()
+                    except Exception as exc:
+                        print(f"⚠️  Session cleanup error: {exc}")
+                    last_cleanup = now_ts
+
             finally:
                 db.close()
 
-            # Wait before checking again
             time.sleep(poll_interval)
 
     except KeyboardInterrupt:

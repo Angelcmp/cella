@@ -21,9 +21,11 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - [x] Métricas de rate limit expuestas (`rate_limited_total` en `/metrics`)
 
 ### Pendiente
-- [ ] Antivirus: sustituir ClamAV por un servicio gestionado o firmar proveedor
+- [x] Antivirus: sustituir ClamAV por un servicio gestionado o firmar proveedor
   - Aceptación: logs de auditoría de cada escaneo
-- [ ] Política de expiración/TTL de tokens de sesión
+  - ✅ `security/av.py`: provider `clamav` | `http` (managed API); cada escaneo se registra en `av_scan_logs` (nombre, provider, resultado, error, duración, request_id)
+- [x] Política de expiración/TTL de tokens de sesión
+  - ✅ `SESSION_TTL_MINUTES`, `purge_expired_revoked_tokens()` ejecutado por worker y startup; limpieza periódica en SQLite + Redis de tokens revocados expirados
 
 ### Notas de Entorno (no romper dev)
 - Cookies en dev sin `Secure` (solo `ENVIRONMENT=production` o `COOKIE_SECURE=true`)
@@ -46,37 +48,9 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - [x] Tests de backoff en `apps/api/tests/test_worker.py`
 
 ### Pendiente
-- [ ] DLQ explícita o panel de estado del worker (hoy se consulta vía documentos en `failed`)
-- [ ] Idempotencia garantizada si el proceso muere a mitad de un job
-
-## 4) Observabilidad End-to-End (M) [Tipo: Observabilidad, Backend, Infra]
-
-### Ya implementado
-- [x] Métricas Prometheus en `/metrics` (`ENABLE_METRICS=true`): `http_requests_total` (status/method), `http_request_duration_seconds` (histograma), `rate_limited_total` (`apps/api/metrics.py`)
-- [x] Logs estructurados: JSON opcional (`ENABLE_JSON_LOGS=true`), request-id en cada petición, logs de inicio/finalización de petición en `main.py`
-- [x] Tests de métricas y request-id en `apps/api/tests/test_security.py`
-
-### Pendiente
-- [ ] Dashboards Grafana y alertas (requiere despliegue Prometheus + Grafana)
-- [ ] Tracing distribuido (OpenTelemetry/OTLP): spans en auth, upload, RAG
-  - Aceptación: traces visibles con latencias por segmento
-
-## 5) Producto y Experiencia (M) [Tipo: Producto, Frontend, Backend]
-
-### Ya implementado
-- [x] Exportación de conversaciones y resúmenes en Markdown/JSON (`routers/exports.py`)
-- [x] Export PDF vía frontend (`window.open` + `window.print()` en `ChatInterface.tsx`) — botones MD/JSON/PDF en la UI
-- [x] OCR integrado y activable (pytesseract en `document_processor.py`)
-- [x] Modo lectura en `/zen`: fondo blanco (`--zen-read-bg`), texto 14px (Inter), headings 16px serif con parsing de markdown `#` a `<h1>`…`<h6>` (`ChatInterface.tsx`, `globals.css`)
-- [x] Chat input compacto: consola blanca, sin banner ni metadatos (Fuentes/Tkn), toolbar única con selector de modelo + iconos + enviar; textarea 14px auto-expande hasta 200px (`ChatInput.tsx`)
-- [x] Visor PDF inline con react-pdf v10 + pdfjs-dist 5.4.296, `ssr: false`, navegación de páginas, endpoint `GET /documents/{id}/file` con `content_disposition_type=inline` (`PdfViewer.tsx`, `documents.py`)
-- [x] Studio 3-columnas: rail 72px / aside 620px, cards glass sin borde, botones CTAs fondo `--primary-fixed` (`RightSidebar.tsx`, `ZenLayout.tsx`)
-- [x] Docs y landing: escala tipográfica reducida en `/docs`, logo actualizado a `#A7D8DE`
-
-### Pendiente
-- [ ] OCR: idiomas configurable, colas y calidad medible
-- [ ] Límites por plan y contadores (solo si se reactiva modo servidor/SaaS)
+- [x] Límites por plan y contadores (solo si se reactiva modo servidor/SaaS)
   - Aceptación: respuestas 402/429 correctas; UI muestra estado de uso
+  - ✅ `usage.py`: `enforce_limit` (plan cap=402, window=429) + `record_usage` + `usage_summary`; `EnforcementPlanLimits` off en LOCAL_MODE; model `UsageEvent`; endpoint `GET /usage`; frontend muestra usados/límites en `SettingsPopover`
 
 ## 6) Testing y Calidad (M)
 - [x] Tests de seguridad (cookies/rate/CSRF/métricas/request-id) en `apps/api/tests/test_security.py`
@@ -87,7 +61,8 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 
 ## 7) Despliegue y Entorno (M)
 - [x] Demo Mode retirado — la app es 100% local (`LOCAL_MODE=true`), sin registro ni cuentas
-- [ ] Nginx/TLS (HSTS) en prod (solo si despliegue servidor)
+- [x] Nginx/TLS (HSTS) en prod (solo si despliegue servidor)
+  - ✅ `deploy/nginx/cella.conf`: reverse proxy con TLS (Let's Encrypt), HSTS, proxy a frontend :3000 + FastAPI :8000, SSE streaming, métricas accesibles solo desde localhost
 - [x] Pipeline CI/CD con gates de calidad
 
 ## 8) Documentación (B)
