@@ -230,6 +230,37 @@ def due_for_retry(attempts: int, last_attempt_at, max_attempts: int, base_backof
     elapsed = (now - last_attempt_at).total_seconds()
     return elapsed >= backoff_for(attempts, base_backoff)
 
+
+def _claim_pending_doc(db, doc, *, worker_id: str) -> bool:
+    """Atomically transition `doc` from 'pending' to 'processing'.
+
+    Returns True if this caller now owns the row; False if another worker (or
+    a previous loop iteration) already moved it out of 'pending'. The caller
+    MUST check the return value and only mutate `doc` on success — otherwise
+    a stale snapshot would demote the row to 'processing'.
+    """
+    from sqlalchemy import text as _sa_text
+
+    claim_now = datetime.utcnow()
+    claimed = db.execute(
+        _sa_text(
+            "UPDATE documents SET status=:status, worker_id=:wid, "
+            "claimed_at=:cat WHERE id=:id AND status='pending'"
+        ),
+        {
+            "status": "processing",
+            "wid": worker_id,
+            "cat": claim_now,
+            "id": doc.id,
+        },
+    ).rowcount
+    if not claimed:
+        return False
+    doc.status = "processing"
+    doc.worker_id = worker_id
+    doc.claimed_at = claim_now
+    return True
+
 def simulate_worker():
     """
     Poll for pending documents and process them with retries, backoff,
@@ -321,25 +352,12 @@ def simulate_worker():
                     print(f"📄 Found {len(pending_docs)} pending documents")
 
                     for doc in pending_docs:
-                        # Atomically claim
-                        claim_now = datetime.utcnow()
-                        claimed = db.execute(
-                            text(
-                                "UPDATE documents SET status=:status, worker_id=:wid, "
-                                "claimed_at=:cat WHERE id=:id AND status='pending'"
-                            ),
-                            {
-                                "status": "processing",
-                                "wid": worker_id,
-                                "cat": claim_now,
-                                "id": doc.id,
-                            },
-                        ).rowcount
-                        if not claimed:
-                            continue  # claimed by another worker/loop
-                        doc.status = "processing"
-                        doc.worker_id = worker_id
-                        doc.claimed_at = claim_now
+                        # Atomically claim. If another worker/loop already
+                        # grabbed the row we skip without touching the ORM
+                        # object (which would otherwise demote a non-pending
+                        # doc to 'processing').
+                        if not _claim_pending_doc(db, doc, worker_id=worker_id):
+                            continue
                         db.commit()
 
                         try:

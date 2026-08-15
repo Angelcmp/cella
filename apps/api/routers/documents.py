@@ -90,28 +90,40 @@ async def upload_document(
             request_id = request.state.request_id
         except (AttributeError, TypeError):
             pass
+        # Pre-generate document_id so the audit log can link the scan to the
+        # document that will be created immediately after.
+        document_id = str(uuid.uuid4())
         scan = scan_content(
             file_content,
             filename=file.filename,
+            document_id=document_id,
             request_id=request_id,
         )
         if not scan.clean:
+            detail = (
+                f"File infected ({scan.provider}): {scan.error}"
+                if scan.infected
+                else f"Antivirus provider error ({scan.provider}): {scan.error}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File failed antivirus scan ({scan.provider}): {scan.error or 'infected'}"
+                detail=detail,
             )
+    else:
+        document_id = str(uuid.uuid4())
 
     # Save file locally (temporary solution)
-    file_id = str(uuid.uuid4())
+    file_id = document_id
     file_extension = os.path.splitext(file.filename)[1]
     local_filename = f"{file_id}{file_extension}"
     local_path = os.path.join(UPLOAD_DIR, local_filename)
-    
+
     with open(local_path, "wb") as f:
         f.write(file_content)
-    
+
     # Create document record in database
     new_document = Document(
+        id=file_id,
         user_id=current_user.id,
         title=file.filename,
         filename=local_filename,
@@ -119,7 +131,7 @@ async def upload_document(
         file_size=len(file_content),
         status="pending"  # Will be processed by worker
     )
-    
+
     db.add(new_document)
     db.commit()
     db.refresh(new_document)

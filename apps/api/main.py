@@ -76,10 +76,10 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
     response = await call_next(request)
     # Core security headers
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    # Allow embedding only for signed file endpoints to enable PDF viewer in app
+    # Allow embedding only for the inline file endpoint so the PDF viewer
+    # works in the app; CSP (when enabled) controls framing elsewhere.
     path = request.url.path
-    if path.startswith("/documents/") and (path.endswith("/file") or path.endswith("/file/signed")):
-        # Skip setting X-Frame-Options so CSP (if any) can control framing
+    if path.startswith("/documents/") and path.endswith("/file"):
         pass
     else:
         response.headers.setdefault("X-Frame-Options", "DENY")
@@ -91,7 +91,7 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
     # CSP (strict in prod if enabled)
     if cfg.ENABLE_CSP_STRICT:
         # Build allowed frame ancestors for document file endpoints
-        if path.startswith("/documents/") and (path.endswith("/file") or path.endswith("/file/signed")):
+        if path.startswith("/documents/") and path.endswith("/file"):
             allowed = {"http://localhost:3000", "http://127.0.0.1:3000"}
             extra = os.getenv("CSRF_ALLOWED_ORIGINS", "")
             if extra:

@@ -144,14 +144,16 @@ async def chat_with_document(
         pass
 
     try:
-        # Determine target documents (multi-doc or single)
-        is_multi = bool(chat_request.document_ids and len(chat_request.document_ids) > 1)
-        if is_multi:
-            document_titles = _validate_documents(db, current_user.id, chat_request.document_ids)
-            document_id = chat_request.document_ids[0]
+        # Determine target documents (multi-doc or single). When the client
+        # passes document_ids, every id must be validated against the user
+        # and indexed state — otherwise the path-param document_id is used.
+        ids_from_request = list(chat_request.document_ids or [])
+        is_multi = len(ids_from_request) > 1
+        if ids_from_request:
+            document_titles = _validate_documents(db, current_user.id, ids_from_request)
+            document_id = ids_from_request[0]
             document_title = document_titles[document_id]
         else:
-            document_id = chat_request.document_ids[0] if chat_request.document_ids else document_id
             document = db.query(Document).filter(
                 Document.id == document_id,
                 Document.user_id == current_user.id
@@ -367,7 +369,6 @@ def _stream_chat_response(
                 full_response = metadata_response
                 payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
                 yield f"event: text_delta\ndata: {payload}\n\n"
-                yield f"event: delta\ndata: {payload}\n\n"
             else:
                 prompt = ctx.get("prompt")
                 if prompt:
@@ -479,7 +480,6 @@ def _stream_multi_chat_response(
                 full_response = metadata_response
                 payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
                 yield f"event: text_delta\ndata: {payload}\n\n"
-                yield f"event: delta\ndata: {payload}\n\n"
             else:
                 prompt = ctx.get("prompt")
                 if prompt:

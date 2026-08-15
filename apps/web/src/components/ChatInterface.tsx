@@ -515,7 +515,7 @@ export default function ChatInterface({
                 ...msg,
                 thinkingDone: true,
               }));
-            } else if (eventType === 'text_delta' || eventType === 'delta' || parsed.event === 'delta') {
+            } else if (eventType === 'text_delta' || parsed.event === 'text_delta') {
               const delta = parsed.delta || '';
               updateAssistantMessage(msg => ({
                 ...msg,
