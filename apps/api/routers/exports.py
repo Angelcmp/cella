@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -220,7 +220,6 @@ def _build_json(conv: ConversationDetailOut) -> str:
 @router.get("/conversations/{conversation_id}/export")
 async def export_conversation(
     conversation_id: str,
-    request: Request,
     format: str = "md",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

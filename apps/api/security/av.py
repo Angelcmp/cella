@@ -35,6 +35,10 @@ class AVScanResult:
     clean: bool
     error: Optional[str] = None
     duration_ms: int = 0
+    # True only when the provider explicitly flagged the file as infected
+    # (returncode=1 / status=infected). False for clean files AND for
+    # provider failures (timeouts, missing binary, etc.).
+    infected: bool = False
 
 
 class _HttpProviderError(RuntimeError):
@@ -72,7 +76,11 @@ def _scan_clamav(content: bytes) -> AVScanResult:
         if result.returncode == 1:
             detail = result.stdout.strip() or "malware detected"
             return AVScanResult(
-                provider="clamav", clean=False, error=detail, duration_ms=duration_ms
+                provider="clamav",
+                clean=False,
+                infected=True,
+                error=detail,
+                duration_ms=duration_ms,
             )
         raise RuntimeError(
             f"ClamAV scan error (code {result.returncode}): "
@@ -121,6 +129,7 @@ def _scan_http(content: bytes) -> AVScanResult:
                 return AVScanResult(
                     provider="http",
                     clean=False,
+                    infected=True,
                     error=data.get("detail") or "malware detected",
                     duration_ms=duration_ms,
                 )
@@ -144,6 +153,21 @@ _PROVIDERS = {
 }
 
 
+def _classify_result(result: AVScanResult) -> str:
+    """Derive the audit label from a scan result.
+
+    Priority order:
+      1. 'infected' when the provider explicitly flagged the file.
+      2. 'error' when the provider raised (timeout, missing binary, etc.).
+      3. 'clean' otherwise.
+    """
+    if result.infected:
+        return "infected"
+    if result.error:
+        return "error"
+    return "clean" if result.clean else "error"
+
+
 def _audit(result: AVScanResult, *, document_id, filename, file_size, request_id) -> None:
     """Persiste el registro de auditoría del escaneo (best-effort)."""
     if not cfg.AV_AUDIT_LOG:
@@ -156,9 +180,7 @@ def _audit(result: AVScanResult, *, document_id, filename, file_size, request_id
                     filename=filename,
                     provider=result.provider,
                     file_size=file_size or 0,
-                    result=("clean" if result.clean else "infected")
-                    if not result.error
-                    else "error",
+                    result=_classify_result(result),
                     error=result.error[:500] if result.error else None,
                     duration_ms=result.duration_ms,
                     request_id=request_id,

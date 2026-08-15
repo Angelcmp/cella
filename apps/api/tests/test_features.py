@@ -25,21 +25,47 @@ def test_av_scan_audit_log(client: TestClient, db_session):
     try:
         from security.av import scan_content
 
-        res = scan_content(b"hello", filename="test.txt", request_id="req-1")
+        res = scan_content(
+            b"hello",
+            filename="test.txt",
+            document_id="doc-1234",
+            request_id="req-1",
+        )
         assert not res.clean
         assert res.error is not None
+        assert res.infected is False, "provider error must not be flagged as infection"
 
         from database_simple import AVScanLog
 
         log = db_session.query(AVScanLog).filter(AVScanLog.filename == "test.txt").first()
         assert log is not None
         assert log.provider == "http"
-        assert log.result in ("infected", "error")
+        # Provider error must be classified as 'error', not 'infected'.
+        assert log.result == "error", f"expected 'error', got {log.result!r}"
         assert log.request_id == "req-1"
+        assert log.document_id == "doc-1234", "audit log must record document_id"
     finally:
         cfg.ENABLE_FILE_AV_SCAN = False
         cfg.AV_PROVIDER = "clamav"
         cfg.AV_API_URL = old_av_url
+
+
+def test_av_scan_classification():
+    """Provider error → 'error'; explicit detection → 'infected'; clean → 'clean'."""
+    from security.av import _classify_result, AVScanResult
+
+    assert _classify_result(AVScanResult(provider="x", clean=True)) == "clean"
+    assert (
+        _classify_result(
+            AVScanResult(provider="x", clean=False, infected=True, error="EICAR")
+        )
+        == "infected"
+    )
+    # Provider crash is NOT an infection — must be reported as 'error'.
+    assert (
+        _classify_result(AVScanResult(provider="x", clean=False, error="provider crashed"))
+        == "error"
+    )
 
 
 def test_purge_expired_revoked_tokens():
@@ -178,3 +204,117 @@ def test_documents_endpoint_lists_docs(client: TestClient):
     resp = client.get("/documents/")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def test_worker_claim_does_not_demote_when_rowcount_zero():
+    """Regression: when the atomic claim UPDATE returns rowcount=0 (another
+    worker / previous loop already moved the row out of 'pending'), the
+    stale ORM object MUST NOT be mutated and committed, which would demote
+    an 'indexed' (or 'failed') doc back to 'processing'."""
+    from sqlalchemy import text
+    import sys
+
+    sys.path.insert(
+        0,
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "apps", "worker"),
+    )
+    from worker import _claim_pending_doc  # type: ignore[attr-defined]
+
+    with SessionLocal() as db:
+        user = (
+            db.query(User)
+            .filter(User.email == cfg.LOCAL_USER_EMAIL)
+            .first()
+        )
+        if user is None:
+            user = User(
+                email=cfg.LOCAL_USER_EMAIL,
+                hashed_password="local-no-password",
+                plan=cfg.LOCAL_USER_PLAN,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        doc = Document(
+            user_id=user.id,
+            title="stale.doc",
+            filename="stale.doc",
+            status="indexed",  # NOT pending — atomic claim must skip it
+            file_size=0,
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+        doc_id = doc.id
+
+    with SessionLocal() as db:
+        # First call: doc.status in ORM is "indexed", but the raw SELECT
+        # `WHERE status='pending'` would have returned it via the previous
+        # pending-docs query. Simulate that stale snapshot by loading the
+        # doc into the session even though it is already indexed.
+        stale_doc = db.query(Document).filter(Document.id == doc_id).first()
+        assert stale_doc.status == "indexed"
+
+        claimed = _claim_pending_doc(db, stale_doc, worker_id="test-worker")
+        assert claimed is False, "claim must fail for non-pending docs"
+
+        # The critical assertion: status must STILL be 'indexed' and must
+        # not have been demoted to 'processing'.
+        db.expire_all()
+        row = db.query(Document).filter(Document.id == doc_id).first()
+        assert row.status == "indexed", (
+            f"Worker claim must not demote non-pending docs; got status={row.status}"
+        )
+        assert row.worker_id is None
+
+
+def test_worker_claim_succeeds_for_pending_doc():
+    """Positive case: a doc in 'pending' status is atomically claimed."""
+    from sqlalchemy import text
+    import sys
+
+    sys.path.insert(
+        0,
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "apps", "worker"),
+    )
+    from worker import _claim_pending_doc  # type: ignore[attr-defined]
+
+    with SessionLocal() as db:
+        user = (
+            db.query(User)
+            .filter(User.email == cfg.LOCAL_USER_EMAIL)
+            .first()
+        )
+        if user is None:
+            user = User(
+                email=cfg.LOCAL_USER_EMAIL,
+                hashed_password="local-no-password",
+                plan=cfg.LOCAL_USER_PLAN,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        doc = Document(
+            user_id=user.id,
+            title="pending.doc",
+            filename="pending.doc",
+            status="pending",
+            file_size=0,
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+        doc_id = doc.id
+
+    with SessionLocal() as db:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        claimed = _claim_pending_doc(db, doc, worker_id="test-worker")
+        assert claimed is True
+
+        db.expire_all()
+        row = db.query(Document).filter(Document.id == doc_id).first()
+        assert row.status == "processing"
+        assert row.worker_id == "test-worker"
+        assert row.claimed_at is not None
