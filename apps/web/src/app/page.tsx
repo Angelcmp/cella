@@ -72,17 +72,16 @@ export default function LandingPage() {
 
       <LandingHeader />
 
-      <main className="relative pt-20 flex-1">
+      <main className="relative pt-12 flex-1">
         {/* ── Hero ── */}
-        <section className="relative w-full px-4 md:px-16 py-24 md:py-32 flex flex-col items-center text-center max-w-[1280px] mx-auto z-10">
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[var(--bg-muted)]/80 backdrop-blur-md border border-[var(--border-subtle)] shadow-[0_0_15px_rgba(42,245,255,0.1)] mb-8">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-strong)] animate-pulse" />
-            <span className="font-mono text-[12px] text-[var(--text-secondary)] uppercase tracking-wider">
-              100% local · open source · estilo NotebookLM
-            </span>
-          </div>
-
-          <h1 className="font-[var(--font-heading)] text-[clamp(2.25rem,6vw,4.5rem)] leading-tight text-[var(--text-primary)] max-w-4xl mb-6 tracking-[-0.02em] font-semibold">
+        <section className="relative w-full px-4 md:px-16 py-6 md:py-8 flex flex-col items-center text-center max-w-[1280px] mx-auto z-10">
+          <h1
+            className="font-[var(--font-heading)] text-[22px] !leading-tight text-[var(--text-primary)] max-w-4xl mb-4 tracking-[-0.02em] font-semibold md:text-[clamp(1.375rem,5vw,3.5rem)]"
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "22px",
+            }}
+          >
             Analiza tus PDFs con IA, <br />
             <span className="bg-linear-to-r from-[var(--accent-brand)] to-[var(--accent-primary)] bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(102,247,255,0.3)]">
               sin subir nada a la nube
@@ -90,7 +89,7 @@ export default function LandingPage() {
             .
           </h1>
 
-          <p className="text-[16px] leading-relaxed text-[var(--text-secondary)] max-w-2xl mb-10 text-lg">
+          <p className="text-[16px] leading-relaxed text-[var(--text-secondary)] max-w-2xl mb-6 text-lg">
             Cella es una alternativa local a NotebookLM. Sube documentos, chatea con su
             contenido y genera resúmenes, mapas mentales, quiz y guías de estudio con los
             modelos que tú elijas.
@@ -195,7 +194,7 @@ export default function LandingPage() {
               v0.1.0 · local
             </div>
             <div className="text-[var(--text-secondary)] font-mono text-[10px] mt-4 uppercase">
-              © 2024 Cella Core. Inc.
+              © 2026 Cella
             </div>
           </div>
         </div>

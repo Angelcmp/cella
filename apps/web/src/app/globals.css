@@ -1,11 +1,31 @@
 @import "tailwindcss";
 
 /*
-  DocZen Visual System – Phase 1 tokens + utilities
-  -------------------------------------------------
-  - Define semantic tokens for light/dark
-  - Establish typography scale and reusable effects
+  Cella Visual System — tokens & utilities
+  ----------------------------------------
+  - Single source of truth: @theme defines the hex values.
+  - :root exposes semantic aliases (var(--accent-primary)) consumed by
+    every component and by .cyber.
+  - .dark only re-aliases semantic tokens; hex values stay in @theme.
+  - .cyber inherits from :root and adds zen/Material3 tokens.
 */
+
+@theme {
+  /* ── Brand palette (light) ── */
+  --color-cella-bg-primary: #CEDADE;
+  --color-cella-bg-surface: #FFFFFF;
+  --color-cella-bg-muted: #E3ECF1;
+  --color-cella-bg-card: #FFFFFF;
+
+  --color-cella-text-primary: #165241;
+  --color-cella-text-secondary: #4E818E;
+  --color-cella-text-muted: #7A9BA6;
+
+  --color-cella-accent-brand: #A7D8DE;
+  --color-cella-accent-primary: #5499B5;
+  --color-cella-accent-strong: #4E818E;
+  --color-cella-accent-highlight: #9FC8F2;
+}
 
 :root {
   color-scheme: light;
@@ -14,19 +34,20 @@
   --font-body: var(--font-sans, "Inter", system-ui, sans-serif);
   --font-mono-stack: var(--font-mono, "JetBrains Mono", "SFMono-Regular", monospace);
 
-  --bg-primary: #CEDADE;
-  --bg-surface: #FFFFFF;
-  --bg-muted: #E3ECF1;
-  --bg-card: #FFFFFF;
+  /* Semantic aliases — the public API components depend on. */
+  --bg-primary: var(--color-cella-bg-primary);
+  --bg-surface: var(--color-cella-bg-surface);
+  --bg-muted: var(--color-cella-bg-muted);
+  --bg-card: var(--color-cella-bg-card);
 
-  --text-primary: #165241;
-  --text-secondary: #4E818E;
-  --text-muted: #7A9BA6;
+  --text-primary: var(--color-cella-text-primary);
+  --text-secondary: var(--color-cella-text-secondary);
+  --text-muted: var(--color-cella-text-muted);
 
-  --accent-brand: #A7D8DE;
-  --accent-primary: #5499B5;
-  --accent-strong: #4E818E;
-  --accent-highlight: #9FC8F2;
+  --accent-brand: var(--color-cella-accent-brand);
+  --accent-primary: var(--color-cella-accent-primary);
+  --accent-strong: var(--color-cella-accent-strong);
+  --accent-highlight: var(--color-cella-accent-highlight);
 
   --border-subtle: rgba(78, 129, 142, 0.22);
   --border-strong: rgba(78, 129, 142, 0.38);
@@ -67,6 +88,8 @@
 
 .dark {
   color-scheme: dark;
+
+  /* Re-aliases for dark mode. Hex values stay in @theme. */
   --bg-primary: #165241;
   --bg-surface: #1D5A4A;
   --bg-muted: #1D5A4A;
@@ -91,17 +114,8 @@
   --shadow-soft: 0 25px 50px rgba(0, 0, 0, 0.55);
   --shadow-card: 0 20px 35px rgba(0, 0, 0, 0.45);
 
-  --background: var(--bg-primary);
-  --foreground: var(--text-primary);
-  --card: var(--bg-card);
-  --card-foreground: var(--text-primary);
   --muted: #1E293B;
-  --muted-foreground: var(--text-secondary);
-  --primary: var(--accent-primary);
   --primary-foreground: #0F172A;
-  --secondary: var(--bg-muted);
-  --secondary-foreground: var(--text-primary);
-  --accent: var(--accent-highlight);
   --accent-foreground: #0F172A;
   --destructive: #F87171;
   --destructive-foreground: #0F172A;
@@ -407,31 +421,11 @@ section.bg-background {
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* ── Y2K / retro-futurist utilities ── */
+/* ── Zen / Material3 overlay (used by /zen and the landing) ── */
 .cyber {
-  --bg-primary: #CEDADE;
-  --bg-surface: #FFFFFF;
-  --bg-muted: #E3ECF1;
-  --bg-card: #FFFFFF;
+  /* Inherit brand palette + semantic aliases from :root.
+     Only override tokens that differ for /zen, plus add zen-only tokens. */
 
-  --text-primary: #165241;
-  --text-secondary: #4E818E;
-  --text-muted: #7A9BA6;
-
-  --accent-brand: #A7D8DE;
-  --accent-primary: #5499B5;
-  --accent-strong: #4E818E;
-  --accent-highlight: #9FC8F2;
-
-  --border-subtle: rgba(78, 129, 142, 0.22);
-  --border-strong: rgba(78, 129, 142, 0.38);
-  --ring: rgba(84, 153, 181, 0.35);
-
-  --bubble-user: rgba(255, 255, 255, 0.55);
-  --bubble-ai: rgba(255, 255, 255, 0.75);
-
-  --shadow-soft: 0 20px 40px rgba(22, 82, 65, 0.10);
-  --shadow-card: 0 15px 30px rgba(22, 82, 65, 0.08);
   --shadow-glow: 0 0 20px rgba(84, 153, 181, 0.28);
 
   --gradient-zen-glow: linear-gradient(135deg, #A7D8DE 0%, #5499B5 45%, #4E818E 100%);
@@ -456,7 +450,7 @@ section.bg-background {
   --zen-dot-pending: #f59e0b;
   --zen-dot-failed: #ef4444;
 
-  /* ── Material3 light teal surfaces ── */
+  /* ── Material3 light teal surfaces (zen uses these, landing inherits) ── */
   --surface: #EFF4F4;
   --surface-container-lowest: #FFFFFF;
   --surface-container-low: #F7FAFA;
@@ -472,21 +466,6 @@ section.bg-background {
   --on-primary-container: #003739;
   --secondary-fixed: #3B494A;
   --tertiary-fixed: #006D72;
-
-  --background: var(--bg-primary);
-  --foreground: var(--text-primary);
-  --card: var(--bg-card);
-  --card-foreground: var(--text-primary);
-  --muted: var(--bg-muted);
-  --muted-foreground: var(--text-secondary);
-  --primary: var(--accent-primary);
-  --primary-foreground: #FFFFFF;
-  --secondary: var(--bg-muted);
-  --secondary-foreground: var(--text-primary);
-  --accent: var(--accent-highlight);
-  --accent-foreground: #0F172A;
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
 
   overscroll-behavior: none;
   background-color: var(--bg-primary);
@@ -855,6 +834,16 @@ section.bg-background {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  /* HeroDemo sequential animation — disable for users who prefer no motion */
+  .animate-window-pop,
+  .animate-fade-in-up,
+  .animate-typing-dot,
+  .animate-cursor {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
