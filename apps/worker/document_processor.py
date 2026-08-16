@@ -21,6 +21,7 @@ except Exception:
 # Document processing libraries
 import pdfplumber
 import pypdf
+from cache import RAGCache
 from docx import Document as DocxDocument
 from pptx import Presentation
 import pytesseract
@@ -32,6 +33,7 @@ from PIL import Image
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
 
 from providers import ProviderRouter
+import config as cfg  # TESSERACT_LANGS / OCR_LOG_ENABLED
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -48,10 +50,30 @@ class DocumentProcessor:
             else "mock"
         )
         self.embed_dim = self.router.get_embed_dim()
+        self.tesseract_langs = cfg.TESSERACT_LANGS
+        # Embedding cache (added 2026-08-16) — dedupes the same text across
+        # documents and re-indexings. Backed by Redis if available, in-memory
+        # LRU otherwise (see apps/api/cache.py).
+        self.embed_cache = RAGCache()
         logger.info(
             f"DocumentProcessor initialized: embeddings_provider={self.embed_provider_name}, "
-            f"dim={self.embed_dim}"
+            f"dim={self.embed_dim}, tesseract_langs={self.tesseract_langs}, "
+            f"cache_enabled={self.embed_cache.enabled}"
         )
+
+    def _ocr_image(self, image) -> Dict[str, Any]:
+        """Run Tesseract on a PIL image with configured languages.
+
+        Returns a dict with `text`, `chars`, `success` so callers can update
+        aggregate OCR counters without leaking implementation details.
+        """
+        try:
+            raw = pytesseract.image_to_string(image, lang=self.tesseract_langs)
+            cleaned = self.clean_text_preserve_structure(raw) if raw else ""
+            return {"text": cleaned, "chars": len(cleaned), "success": bool(cleaned.strip())}
+        except Exception as exc:
+            logger.warning(f"OCR call failed (langs={self.tesseract_langs}): {exc}")
+            return {"text": "", "chars": 0, "success": False}
     
     def clean_text_preserve_structure(self, text: str) -> str:
         """Clean text while preserving paragraph structure and meaningful formatting"""
@@ -92,6 +114,7 @@ class DocumentProcessor:
         """Extract text from PDF using pdfplumber and pypdf"""
         text_content = []
         metadata = {"pages": 0, "method": "text_extraction"}
+        ocr_stats = {"pages_ocr": 0, "pages_failed": 0, "chars_ocr": 0}
         
         try:
             # Try pdfplumber first (better for text extraction)
@@ -111,22 +134,25 @@ class DocumentProcessor:
                         })
                     else:
                         # If no text found, try OCR
-                        logger.info(f"No text found on page {page_num}, attempting OCR...")
+                        logger.info(f"No text found on page {page_num}, attempting OCR (langs={self.tesseract_langs})...")
                         try:
-                            # Convert page to image for OCR
                             img = page.to_image()
-                            ocr_text = pytesseract.image_to_string(img.original)
-                            if ocr_text.strip():
-                                cleaned_ocr_text = self.clean_text_preserve_structure(ocr_text)
+                            ocr = self._ocr_image(img.original)
+                            ocr_stats["pages_ocr"] += 1
+                            ocr_stats["chars_ocr"] += ocr["chars"]
+                            if ocr["success"]:
                                 text_content.append({
                                     "page": page_num,
-                                    "text": cleaned_ocr_text,
-                                    "tokens": len(cleaned_ocr_text.split()),
+                                    "text": ocr["text"],
+                                    "tokens": len(ocr["text"].split()),
                                     "method": "ocr"
                                 })
                                 metadata["method"] = "hybrid"
+                            else:
+                                ocr_stats["pages_failed"] += 1
                         except Exception as ocr_error:
-                            logger.warning(f"OCR failed for page {page_num}: {ocr_error}")
+                            logger.warning(f"OCR dispatch failed for page {page_num}: {ocr_error}")
+                            ocr_stats["pages_failed"] += 1
                             
         except Exception as e:
             logger.error(f"pdfplumber failed, trying pypdf: {e}")
@@ -153,7 +179,9 @@ class DocumentProcessor:
             "text_content": text_content,
             "metadata": metadata,
             "total_pages": metadata["pages"],
-            "total_tokens": sum(item["tokens"] for item in text_content)
+            "total_tokens": sum(item["tokens"] for item in text_content),
+            "ocr_stats": ocr_stats,
+            "ocr_langs": self.tesseract_langs,
         }
     
     def extract_text_from_docx(self, file_path: str) -> Dict[str, Any]:
@@ -266,16 +294,23 @@ class DocumentProcessor:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
         
+        result: Dict[str, Any]
         if file_type.lower() == 'pdf':
-            return self.extract_text_from_pdf(file_path)
+            result = self.extract_text_from_pdf(file_path)
         elif file_type.lower() == 'docx':
-            return self.extract_text_from_docx(file_path)
+            result = self.extract_text_from_docx(file_path)
         elif file_type.lower() == 'pptx':
-            return self.extract_text_from_pptx(file_path)
+            result = self.extract_text_from_pptx(file_path)
         elif file_type.lower() == 'txt':
-            return self.extract_text_from_txt(file_path)
+            result = self.extract_text_from_txt(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
+
+        # Non-PDF extractors don't run OCR; normalize the stats keys so the
+        # downstream worker can persist OcrScanLog uniformly.
+        result.setdefault("ocr_stats", {"pages_ocr": 0, "pages_failed": 0, "chars_ocr": 0})
+        result.setdefault("ocr_langs", self.tesseract_langs)
+        return result
     
     def create_chunks(self, text_content: List[Dict], chunk_size: int = 1000, overlap: int = 200) -> List[Dict[str, Any]]:
         """Create overlapping text chunks for embedding"""
@@ -319,6 +354,12 @@ class DocumentProcessor:
     def generate_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Generate embeddings for text chunks using the configured embeddings provider.
 
+        Skips any chunk whose text is already in the embedding cache (keyed by
+        provider + sha256(text)). Only misses are sent to the embeddings model,
+        then the new vectors are written back to the cache so the next
+        re-indexing of the same document (or any document with overlapping
+        chunks) hits the cache.
+
         Falls back to mock embeddings if no provider is configured.
         """
         if not self.router.embeddings_provider:
@@ -329,15 +370,44 @@ class DocumentProcessor:
             return chunks
 
         try:
-            logger.info(f"Generating embeddings for {len(chunks)} chunks via {self.embed_provider_name}...")
             texts = [chunk["text"] for chunk in chunks]
-            vectors = self.router.embed_batch(texts)
+            n = len(texts)
+            cache_model = self.embed_provider_name
 
-            for chunk, vector in zip(chunks, vectors):
-                chunk["embedding"] = vector
-                chunk["embedding_model"] = self.embed_provider_name
+            # 1. Cache lookup
+            cached: List[Optional[List[float]]] = [
+                self.embed_cache.get_text_embedding(t, cache_model) for t in texts
+            ]
+            hits = sum(1 for v in cached if v is not None)
+            misses_idx = [i for i, v in enumerate(cached) if v is None]
+            miss_texts = [texts[i] for i in misses_idx]
 
-            logger.info(f"Generated embeddings for {len(chunks)} chunks")
+            logger.info(
+                f"Embedding cache: {hits}/{n} hits, "
+                f"{len(miss_texts)} miss(es) via {cache_model}"
+            )
+
+            # 2. Embed only the misses (single batched call)
+            if miss_texts:
+                try:
+                    new_vectors = self.router.embed_batch(miss_texts)
+                except Exception as exc:
+                    logger.error(f"Embedding batch failed ({len(miss_texts)} misses): {exc}")
+                    raise
+
+                # 3. Fill cache + result list
+                for i, vec in zip(misses_idx, new_vectors):
+                    cached[i] = vec
+                    try:
+                        self.embed_cache.set_text_embedding(texts[i], cache_model, vec)
+                    except Exception as exc:
+                        logger.warning(f"Embedding cache write failed: {exc}")
+
+            # 4. Attach to chunks
+            for chunk, vec in zip(chunks, cached):
+                chunk["embedding"] = vec
+                chunk["embedding_model"] = cache_model
+
             return chunks
 
         except Exception as e:
@@ -378,6 +448,10 @@ class DocumentProcessor:
                 "total_tokens": extraction_result["total_tokens"],
                 "total_chunks": len(chunks_with_embeddings),
                 "chunks": chunks_with_embeddings,
+                "ocr_stats": extraction_result.get(
+                    "ocr_stats", {"pages_ocr": 0, "pages_failed": 0, "chars_ocr": 0}
+                ),
+                "ocr_langs": extraction_result.get("ocr_langs", self.tesseract_langs),
                 "processing_status": "success"
             }
             

@@ -721,10 +721,38 @@ El documento ha sido completamente procesado e indexado. Todas las páginas est�
         user_query: str,
         top_k_per_doc: int = 4,
     ) -> List[Dict[str, Any]]:
-        """Retrieve relevant chunks across multiple documents, tagging source info."""
+        """Retrieve relevant chunks across multiple documents, tagging source info.
+
+        Optimisation (2026-08-16): the query embedding is computed once and
+        reused across all documents. With N documents this saves N-1 embed
+        calls per turn. The per-document cache (get_query_embedding) is still
+        hit for the first document, so re-asks on the same doc are also free.
+        """
         all_chunks: List[Dict[str, Any]] = []
-        for doc_id in document_ids:
-            qemb = self.generate_query_embedding(user_query, doc_id)
+
+        # Try to reuse an already-cached embedding from the first document.
+        # If we get one, no embed call is needed; otherwise we compute once
+        # and write to cache for every subsequent document that hasn't seen it.
+        first_doc_id = document_ids[0] if document_ids else None
+        shared_qemb: Optional[List[float]] = None
+        if first_doc_id:
+            shared_qemb = self.generate_query_embedding(user_query, first_doc_id)
+
+        for i, doc_id in enumerate(document_ids):
+            if i == 0 and shared_qemb is not None:
+                qemb = shared_qemb
+            else:
+                # Subsequent docs reuse the shared embedding (no extra embed call)
+                qemb = shared_qemb
+                if qemb is None:
+                    # Fallback: this doc has no shared embedding yet — compute it.
+                    qemb = self.generate_query_embedding(user_query, doc_id)
+                else:
+                    # Populate per-doc cache so future single-doc chat sees it.
+                    try:
+                        self.cache.set_query_embedding(doc_id, user_query, qemb)
+                    except Exception:
+                        pass
             if not qemb:
                 continue
             chunks = self.search_relevant_chunks(db, doc_id, qemb, top_k=top_k_per_doc)

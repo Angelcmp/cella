@@ -173,7 +173,7 @@ export default function ChatPanel() {
           onSend={() => {}}
           onUpload={() => setShowUpload(true)}
           isLoading={false}
-          placeholder="Ingresa tu comando, pregunta o pega fragmentos de código aquí..."
+          placeholder="¿Cómo te puedo ayudar hoy?"
         />
 
         {showUpload && (
@@ -344,7 +344,19 @@ export default function ChatPanel() {
         documentIds={isMultiChat ? chatDocumentIds : undefined}
         conversationId={activeConversation?.backendId}
         model={selectedModel}
-        onCitationClick={() => {}}
+        onCitationClick={(page) => {
+          // Open the right sidebar's document viewer and request a scroll to
+          // the cited page. The Viewer tab is responsible for honouring the
+          // requested page (via a pendingScrollToPage ref or query param);
+          // until that wiring lands, switching tabs is the best we can do.
+          useZenStore.getState().setRightTab("document");
+          if (typeof page === "number" && page > 0) {
+            // Stash the requested page so the Viewer tab can pick it up.
+            if (typeof window !== "undefined") {
+              (window as unknown as { __pendingCitationPage?: number }).__pendingCitationPage = page;
+            }
+          }
+        }}
         onUploadClick={() => setShowUpload(true)}
         className="flex-1"
       />

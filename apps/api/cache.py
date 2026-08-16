@@ -194,3 +194,32 @@ class RAGCache:
                     self.memory.delete(key)
         except Exception as exc:
             logger.warning(f"Cache invalidate_document failed: {exc}")
+
+    # ── Text-keyed embedding cache (worker-side dedupe) ──
+    # Keyed by (model, sha256(text)[:16]) so it survives across documents and
+    # uploads of the same content. Different embedding models get different
+    # cache buckets so a provider swap doesn't return wrong-dim vectors.
+
+    def get_text_embedding(
+        self,
+        text: str,
+        model: str,
+    ) -> Optional[List[float]]:
+        """Return a cached embedding for the exact text + model, or None."""
+        if not self.enabled:
+            return None
+        key = f"cella:text_emb:{model}:{self._query_hash(text)}"
+        return self._get(key)
+
+    def set_text_embedding(
+        self,
+        text: str,
+        model: str,
+        embedding: List[float],
+        ttl: Optional[int] = None,
+    ) -> None:
+        """Cache an embedding for the exact text + model."""
+        if not self.enabled:
+            return
+        key = f"cella:text_emb:{model}:{self._query_hash(text)}"
+        self._set(key, embedding, ttl)

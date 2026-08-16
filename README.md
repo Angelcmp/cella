@@ -76,7 +76,13 @@ INFRA=light bash start.sh
 - **Embeddings locales** — FastEmbed, sin API key externa
 - **Exportar conversaciones** — Markdown/JSON/PDF con citas
 - **Reproceso de documentos fallidos** — reintentos automáticos con backoff + botón manual
-- **Observabilidad** — métricas Prometheus (`/metrics`), request-id y logs JSON
+- **Worker DLQ + idempotencia** — claim atómico, reclaim de stuck docs, DLQ explícita tras agotar intentos
+- **Antivirus gestionado** — providers `clamav`/`http`, auditoría de cada escaneo en `av_scan_logs`
+- **TTL de sesión** — expiración configurable + limpieza periódica de tokens revocados
+- **Límites por plan** — contadores de uso (documentos, chats, resúmenes) con 402/429; desactivado en modo local
+- **Observabilidad** — métricas Prometheus (`/metrics`), request-id, logs JSON, OpenTelemetry tracing (OTLP)
+- **Dashboards Grafana** — dashboard preconfigurado (DLQ, 5xx, latencia, stale docs) + alertas
+- **Nginx + TLS** — reverse proxy con Let's Encrypt, HSTS, SSE streaming
 - **Tema claro/oscuro** — Paleta purple + slate + white
 
 ## API
@@ -102,13 +108,15 @@ INFRA=light bash start.sh
 | `GET` | `/models` | Modelos disponibles |
 | `GET` | `/providers` | Proveedores/configuración |
 | `GET` | `/metrics` | Métricas Prometheus (solo si `ENABLE_METRICS=true`) |
+| `GET` | `/worker/status` | Estado del worker (cola, DLQ, docs stuck) |
+| `GET` | `/usage` | Contadores de uso por plan |
 | `GET` | `/health` | Estado del servicio |
 
 ## Testing y CI
 
 | Suite | Comando | Estado |
 |---|---|---|
-| Backend (seguridad, RAG, worker) | `cd apps/api && .venv311/bin/python -m pytest -q` | 20 tests verdes |
+| Backend (seguridad, RAG, worker) | `cd apps/api && .venv311/bin/python -m pytest -q` | 28 tests verdes |
 | TypeScript | `cd apps/web && npm run typecheck` | Sin errores |
 | E2E (Playwright) | `cd apps/web && npm run test:e2e` | 3 specs verdes |
 
