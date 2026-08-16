@@ -22,6 +22,7 @@ os.chdir(os.path.join(os.path.dirname(__file__), '..', 'api'))
 
 from document_processor import DocumentProcessor
 from rag_system import SummaryGenerator, MindmapGenerator
+import config as cfg  # OCR_LOG_ENABLED, TESSERACT_LANGS
 
 def get_file_type_from_path(file_path: str) -> str:
     """Determine file type from file path"""
@@ -94,6 +95,91 @@ def store_chunks_in_database(document_id: str, processing_result: dict):
     except Exception as e:
         print(f"❌ Failed to store chunks: {e}")
         return False
+
+def store_ocr_log(document_id: str, processing_result: dict):
+    """Persist OCR stats (one row per document) when OCR ran.
+
+    Best-effort: never raises. The worker keeps running even if logging
+    fails — OCR stats are observability, not source of truth.
+    """
+    try:
+        from database_simple import SessionLocal, OcrScanLog
+
+        if not cfg.OCR_LOG_ENABLED:
+            return False
+
+        ocr_stats = processing_result.get("ocr_stats") or {}
+        if not ocr_stats.get("pages_ocr") and not ocr_stats.get("pages_failed"):
+            return False
+
+        filename = processing_result.get("filename") or processing_result.get("extraction_metadata", {}).get("filename")
+        request_id = processing_result.get("request_id")
+        langs = processing_result.get("ocr_langs") or cfg.TESSERACT_LANGS
+
+        db = SessionLocal()
+        try:
+            log = OcrScanLog(
+                document_id=document_id,
+                filename=filename,
+                langs=langs,
+                pages_total=processing_result.get("total_pages", 0) or 0,
+                pages_ocr=int(ocr_stats.get("pages_ocr", 0)),
+                pages_failed=int(ocr_stats.get("pages_failed", 0)),
+                chars_extracted=int(ocr_stats.get("chars_ocr", 0)),
+                duration_ms=int(processing_result.get("ocr_duration_ms", 0) or 0),
+                request_id=request_id,
+            )
+            db.add(log)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            print(f"⚠️ Failed to persist OCR log for {document_id}: {e}")
+            return False
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"⚠️ OCR logging skipped (import/lookup failed): {e}")
+        return False
+
+
+def report_ocr_metrics(processing_result: dict):
+    """Push OCR counters to the API process so /metrics reflects them.
+
+    The worker is a separate process from the API, so prometheus_client
+    counters are not shared. We post to /internal/ocr-metrics (best-effort).
+    """
+    try:
+        ocr_stats = processing_result.get("ocr_stats") or {}
+        pages_ocr = int(ocr_stats.get("pages_ocr", 0))
+        chars_ocr = int(ocr_stats.get("chars_ocr", 0))
+        pages_failed = int(ocr_stats.get("pages_failed", 0))
+        if pages_ocr == 0 and pages_failed == 0 and chars_ocr == 0:
+            return
+
+        import json
+        import httpx
+
+        host = os.getenv("API_HOST", "127.0.0.1")
+        port = int(os.getenv("API_PORT", "8000"))
+        payload = {
+            "pages_ocr": pages_ocr,
+            "chars_ocr": chars_ocr,
+            "pages_failed": pages_failed,
+        }
+        try:
+            httpx.post(
+                f"http://{host}:{port}/internal/ocr-metrics",
+                json=payload,
+                timeout=2.0,
+            )
+        except Exception:
+            # API may be down or running in a different host; metrics are
+            # observability, not critical.
+            pass
+    except Exception:
+        pass
+
 
 def generate_document_summary(document_id: str):
     """Generate automatic summary after document processing"""
@@ -199,7 +285,21 @@ def process_document(document_id: str, file_path: str):
                 print(f"   📄 Pages: {result['total_pages']}")
                 print(f"   🔤 Tokens: {result['total_tokens']}")
                 print(f"   📦 Chunks: {result['total_chunks']}")
-                
+
+                # OCR telemetry: persist log row + push counters to /metrics.
+                # Both are best-effort; failures must not fail the job.
+                if result.get("ocr_stats"):
+                    ocr_stats = result["ocr_stats"]
+                    if ocr_stats.get("pages_ocr") or ocr_stats.get("pages_failed"):
+                        print(
+                            f"   🔍 OCR: langs={result.get('ocr_langs')} "
+                            f"pages_ocr={ocr_stats['pages_ocr']} "
+                            f"pages_failed={ocr_stats['pages_failed']} "
+                            f"chars={ocr_stats['chars_ocr']}"
+                        )
+                store_ocr_log(document_id, result)
+                report_ocr_metrics(result)
+
                 # Generate automatic summary and mindmap
                 generate_document_summary(document_id)
                 generate_document_mindmap(document_id)

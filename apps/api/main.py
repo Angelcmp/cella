@@ -10,6 +10,7 @@ import logging
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import Callable, Awaitable
+from pydantic import BaseModel
 
 try:
     # Local import without package context
@@ -256,6 +257,30 @@ async def metrics_endpoint():
 
     body, content_type = render_metrics()
     return Response(content=body, media_type=content_type)
+
+
+class OcrMetricsPayload(BaseModel):
+    pages_ocr: int = 0
+    chars_ocr: int = 0
+    pages_failed: int = 0
+
+
+@app.post("/internal/ocr-metrics", include_in_schema=False)
+async def internal_ocr_metrics(payload: OcrMetricsPayload):
+    """Increment OCR Prometheus counters from the worker process.
+
+    Best-effort endpoint called by `worker.report_ocr_metrics` so /metrics
+    reflects OCR throughput even though the worker is a separate process.
+    """
+    from metrics import ocr_pages_total, ocr_chars_total, ocr_failures_total
+
+    if payload.pages_ocr:
+        ocr_pages_total.inc(payload.pages_ocr)
+    if payload.chars_ocr:
+        ocr_chars_total.inc(payload.chars_ocr)
+    if payload.pages_failed:
+        ocr_failures_total.inc(payload.pages_failed)
+    return {"ok": True}
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

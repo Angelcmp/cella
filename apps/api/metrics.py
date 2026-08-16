@@ -50,6 +50,21 @@ processing_stale = Gauge(
     "Documents stuck in processing (no worker assigned)",
 )
 
+ocr_pages_total = Counter(
+    "cella_ocr_pages_total",
+    "Pages processed via Tesseract OCR",
+)
+
+ocr_chars_total = Counter(
+    "cella_ocr_chars_total",
+    "Characters extracted via Tesseract OCR",
+)
+
+ocr_failures_total = Counter(
+    "cella_ocr_failures_total",
+    "OCR page failures (no text returned)",
+)
+
 
 def update_worker_gauges(db_session):
     """Refresh worker-related gauges from the database."""

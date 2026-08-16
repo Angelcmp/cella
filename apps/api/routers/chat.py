@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+import asyncio
+
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks, Request
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -7,11 +9,14 @@ import re
 import json
 import logging
 import os
+import time
 
-from database_simple import get_db, User, Document, Conversation, Message
+from database_simple import get_db, User, Document, Conversation, Message, DocumentSummary
 from routers.auth import get_current_user
 from rag_system import RAGSystem
 from security.csrf import verify_csrf as csrf_protect
+
+import config as cfg
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -122,11 +127,112 @@ def _validate_documents(db: Session, user_id: str, document_ids: List[str]) -> D
     return titles
 
 
+@router.get("/stats/usage")
+async def usage_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Aggregate usage stats for the Advanced tab of the model settings modal.
+
+    Returns:
+    - messages_total, messages_by_role (user / assistant)
+    - tokens_estimated_total (sum of Message.tokens_estimated + DocumentSummary.tokens_used)
+    - models_used: [{ model, messages, tokens }] sorted by usage desc
+    - conversations_total
+    - last_activity_at
+    """
+    from sqlalchemy import func as sqlfunc
+
+    # Total messages by role
+    role_counts = dict(
+        db.query(Message.role, sqlfunc.count(Message.id))
+        .filter(Message.conversation_id.in_(
+            db.query(Conversation.id).filter(Conversation.user_id == current_user.id)
+        ))
+        .group_by(Message.role)
+        .all()
+    )
+    messages_total = sum(role_counts.values())
+
+    # Tokens estimated (from messages) + actual tokens (from summaries)
+    tokens_messages = (
+        db.query(sqlfunc.coalesce(sqlfunc.sum(Message.tokens_estimated), 0))
+        .filter(Message.conversation_id.in_(
+            db.query(Conversation.id).filter(Conversation.user_id == current_user.id)
+        ))
+        .scalar()
+        or 0
+    )
+    tokens_summaries = (
+        db.query(sqlfunc.coalesce(sqlfunc.sum(DocumentSummary.tokens_used), 0))
+        .filter(DocumentSummary.document_id.in_(
+            db.query(Document.id).filter(Document.user_id == current_user.id)
+        ))
+        .scalar()
+        or 0
+    )
+    tokens_estimated_total = int(tokens_messages) + int(tokens_summaries)
+
+    # Models used — grouped by model field on Message (only assistant messages)
+    model_rows = (
+        db.query(
+            Message.model,
+            sqlfunc.count(Message.id),
+            sqlfunc.coalesce(sqlfunc.sum(Message.tokens_estimated), 0),
+        )
+        .filter(
+            Message.conversation_id.in_(
+                db.query(Conversation.id).filter(Conversation.user_id == current_user.id)
+            ),
+            Message.role == "assistant",
+            Message.model.isnot(None),
+        )
+        .group_by(Message.model)
+        .order_by(sqlfunc.count(Message.id).desc())
+        .limit(10)
+        .all()
+    )
+    models_used = [
+        {
+            "model": row[0],
+            "messages": int(row[1]),
+            "tokens_estimated": int(row[2]),
+        }
+        for row in model_rows
+    ]
+
+    # Conversations total + last activity
+    conv_q = db.query(Conversation).filter(Conversation.user_id == current_user.id)
+    conversations_total = conv_q.count()
+    last_activity_row = (
+        db.query(sqlfunc.max(Message.created_at))
+        .filter(Message.conversation_id.in_(
+            db.query(Conversation.id).filter(Conversation.user_id == current_user.id)
+        ))
+        .scalar()
+    )
+
+    return {
+        "messages_total": messages_total,
+        "messages_by_role": {
+            "user": int(role_counts.get("user", 0)),
+            "assistant": int(role_counts.get("assistant", 0)),
+        },
+        "tokens_estimated_total": tokens_estimated_total,
+        "tokens_from_messages": int(tokens_messages),
+        "tokens_from_summaries": int(tokens_summaries),
+        "models_used": models_used,
+        "conversations_total": conversations_total,
+        "last_activity_at": last_activity_row.isoformat() if last_activity_row else None,
+    }
+
+
 @router.post("/documents/{document_id}")
 async def chat_with_document(
     document_id: str,
     chat_request: ChatRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(csrf_protect),
@@ -187,7 +293,8 @@ async def chat_with_document(
         user_message = Message(
             conversation_id=conversation.id,
             role="user",
-            content=sanitized_message
+            content=sanitized_message,
+            tokens_estimated=len(sanitized_message) // 4,
         )
         db.add(user_message)
         db.commit()
@@ -207,6 +314,7 @@ async def chat_with_document(
                     sanitized_message,
                     chat_request.model,
                     background_tasks,
+                    request,
                 )
             return _stream_chat_response(
                 db,
@@ -216,6 +324,7 @@ async def chat_with_document(
                 sanitized_message,
                 chat_request.model,
                 background_tasks,
+                request,
             )
 
         # Non-streaming path
@@ -244,6 +353,8 @@ async def chat_with_document(
             citations=rag_result["citations"],
             chunks_found=rag_result.get("chunks_found"),
             coverage=rag_result.get("coverage"),
+            model=chat_request.model,
+            tokens_estimated=len(rag_result["response"]) // 4 if rag_result.get("response") else 0,
         )
         db.add(ai_message)
         db.commit()
@@ -285,6 +396,7 @@ def _save_ai_message(
     citations: List[Dict[str, Any]],
     chunks_found: Optional[int],
     coverage: Optional[float],
+    model: Optional[str] = None,
 ) -> None:
     """Background task: persist the streamed assistant response."""
     # This function runs in a background task; the dependency injection-managed
@@ -300,6 +412,8 @@ def _save_ai_message(
                 citations=citations,
                 chunks_found=chunks_found,
                 coverage=coverage,
+                model=model,
+                tokens_estimated=len(full_response) // 4 if full_response else 0,
             )
             db.add(ai_message)
             db.commit()
@@ -307,6 +421,153 @@ def _save_ai_message(
             db.close()
     except Exception as e:
         logger.error(f"Failed to save streamed AI message: {e}")
+
+
+def _chat_event_stream(
+    *,
+    conversation_id: str,
+    citations: List[Dict[str, Any]],
+    chunks_found: Any,
+    coverage: Any,
+    prompt: Optional[str],
+    metadata_response: Optional[str],
+    model: Optional[str],
+    request: Optional[Request],
+    background_tasks: BackgroundTasks,
+) -> Iterator[str]:
+    """Shared SSE generator for single + multi-doc chat.
+
+    Guarantees:
+    - `event: meta` is the first event with citations/stats.
+    - Heartbeat `event: ping` every STREAM_HEARTBEAT_SECONDS while waiting for
+      LLM tokens (keeps proxies alive during long reasoning chains).
+    - `event: done` is **always** the last event, even on error.
+    - Cancellation: when the client disconnects, the generator stops cleanly
+      (the LLM iteration is broken, background save still runs).
+    """
+    full_response = ""
+    start_ts = time.time()
+    thinking_open = False
+    errored: Optional[str] = None
+
+    heartbeat_s = max(int(getattr(cfg, "STREAM_HEARTBEAT_SECONDS", 15)), 1)
+    last_yield_ts = time.time()
+
+    def _beep():
+        return "event: ping\ndata: {}\n\n"
+
+    def _disconnected() -> bool:
+        if request is None:
+            return False
+        # is_disconnected() is async; we use a sync check via the generator
+        # state — Starlette exposes this through request.is_disconnected()
+        # which we'd normally `await`. Inside a sync generator running in a
+        # threadpool, we skip this check: the response body is closed when
+        # the client disconnects, so subsequent `yield from` raises. The
+        # `try/except StopIteration` around the LLM loop catches that.
+        return False
+
+    try:
+        # Initial metadata event (citations, coverage, etc.)
+        meta_payload = {
+            "event": "meta",
+            "conversation_id": conversation_id,
+            "chunks_found": chunks_found,
+            "coverage": coverage,
+            "citations": [
+                {
+                    "page": c.get("page", 0),
+                    "snippet": c.get("snippet", ""),
+                    "similarity": c.get("similarity"),
+                    "document": c.get("document"),
+                }
+                for c in citations
+            ],
+        }
+        yield f"event: meta\ndata: {json.dumps(meta_payload, ensure_ascii=False)}\n\n"
+        last_yield_ts = time.time()
+
+        if metadata_response:
+            # Precomputed answer (metadata, abstention, etc.) — single text_delta
+            full_response = metadata_response
+            yield f"event: text_delta\ndata: {json.dumps({'event': 'text_delta', 'delta': metadata_response}, ensure_ascii=False)}\n\n"
+        elif prompt:
+            # Fallback: synthetic thinking phase for models without reasoning
+            if THINKING_ENABLED and not _is_reasoning_model(model):
+                yield "event: thinking_start\ndata: {}\n\n"
+                thinking_open = True
+                for step in _synthetic_thinking():
+                    yield f"event: thinking_delta\ndata: {json.dumps({'event': 'thinking_delta', 'delta': step}, ensure_ascii=False)}\n\n"
+                    if (time.time() - last_yield_ts) >= heartbeat_s:
+                        yield _beep()
+                        last_yield_ts = time.time()
+
+            try:
+                for kind, token in rag_system.chat_stream(prompt, model=model):
+                    # Heartbeat if we've been silent too long
+                    if (time.time() - last_yield_ts) >= heartbeat_s:
+                        yield _beep()
+                        last_yield_ts = time.time()
+
+                    if kind == "thinking":
+                        if not thinking_open:
+                            yield "event: thinking_start\ndata: {}\n\n"
+                            thinking_open = True
+                        yield f"event: thinking_delta\ndata: {json.dumps({'event': 'thinking_delta', 'delta': token}, ensure_ascii=False)}\n\n"
+                    else:
+                        if thinking_open:
+                            yield "event: thinking_end\ndata: {}\n\n"
+                            thinking_open = False
+                        full_response += token
+                        yield f"event: text_delta\ndata: {json.dumps({'event': 'text_delta', 'delta': token}, ensure_ascii=False)}\n\n"
+            finally:
+                if thinking_open:
+                    yield "event: thinking_end\ndata: {}\n\n"
+
+    except (GeneratorExit, StopIteration):
+        # Client disconnected — exit gracefully, do not emit done/error.
+        logger.info(f"Client disconnected from chat stream (conv={conversation_id})")
+        errored = "client_disconnected"
+        raise
+    except Exception as e:
+        logger.error(f"Streaming chat error: {e}")
+        errored = str(e)
+    finally:
+        # Summary event before terminator (best-effort)
+        try:
+            duration_ms = int((time.time() - start_ts) * 1000)
+            summary_payload = {
+                "duration_ms": duration_ms,
+                "tokens_estimated": len(full_response) // 4,
+                "model": model,
+            }
+            yield f"event: summary\ndata: {json.dumps(summary_payload, ensure_ascii=False)}\n\n"
+        except Exception:
+            pass
+
+        if errored and errored != "client_disconnected":
+            try:
+                yield f"event: error\ndata: {json.dumps({'error': errored}, ensure_ascii=False)}\n\n"
+            except Exception:
+                pass
+
+        # Always emit the terminator — even after error.
+        # This was the missing piece: the FE couldn't tell when a broken
+        # stream was really done, so the assistant bubble stayed empty.
+        try:
+            yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
+        except Exception:
+            pass
+
+        background_tasks.add_task(
+            _save_ai_message,
+            conversation_id,
+            full_response,
+            citations,
+            chunks_found,
+            coverage,
+            model,
+        )
 
 
 def _stream_chat_response(
@@ -317,6 +578,7 @@ def _stream_chat_response(
     user_query: str,
     model: Optional[str],
     background_tasks: BackgroundTasks,
+    request: Optional[Request] = None,
 ) -> StreamingResponse:
     """Build a streaming response generator and return it as SSE."""
     try:
@@ -343,78 +605,18 @@ def _stream_chat_response(
     chunks_found = ctx.get("chunks_found")
     coverage = ctx.get("coverage")
 
-    def event_stream() -> Iterator[str]:
-        full_response = ""
-        try:
-            # Initial metadata event (citations, coverage, etc.)
-            meta_payload = {
-                "event": "meta",
-                "conversation_id": conversation_id,
-                "chunks_found": chunks_found,
-                "coverage": coverage,
-                "citations": [
-                    {
-                        "page": c.get("page", 0),
-                        "snippet": c.get("snippet", ""),
-                        "similarity": c.get("similarity"),
-                        "document": c.get("document"),
-                    }
-                    for c in citations
-                ],
-            }
-            yield f"event: meta\ndata: {json.dumps(meta_payload, ensure_ascii=False)}\n\n"
-
-            if metadata_response:
-                # Precomputed answer (metadata, abstention, etc.)
-                full_response = metadata_response
-                payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
-                yield f"event: text_delta\ndata: {payload}\n\n"
-            else:
-                prompt = ctx.get("prompt")
-                if prompt:
-                    # Fallback: synthetic thinking phase for models without reasoning
-                    thinking_open = False
-                    if THINKING_ENABLED and not _is_reasoning_model(model):
-                        yield "event: thinking_start\ndata: {}\n\n"
-                        thinking_open = True
-                        for step in _synthetic_thinking():
-                            payload = json.dumps({"event": "thinking_delta", "delta": step}, ensure_ascii=False)
-                            yield f"event: thinking_delta\ndata: {payload}\n\n"
-                    try:
-                        for kind, token in rag_system.chat_stream(prompt, model=model):
-                            if kind == "thinking":
-                                if not thinking_open:
-                                    yield "event: thinking_start\ndata: {}\n\n"
-                                    thinking_open = True
-                                payload = json.dumps({"event": "thinking_delta", "delta": token}, ensure_ascii=False)
-                                yield f"event: thinking_delta\ndata: {payload}\n\n"
-                            else:
-                                if thinking_open:
-                                    yield "event: thinking_end\ndata: {}\n\n"
-                                    thinking_open = False
-                                full_response += token
-                                payload = json.dumps({"event": "text_delta", "delta": token}, ensure_ascii=False)
-                                yield f"event: text_delta\ndata: {payload}\n\n"
-                    finally:
-                        if thinking_open:
-                            yield "event: thinking_end\ndata: {}\n\n"
-
-            yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            logger.error(f"Streaming chat error: {e}")
-            yield f"event: error\ndata: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
-        finally:
-            background_tasks.add_task(
-                _save_ai_message,
-                conversation_id,
-                full_response,
-                citations,
-                chunks_found,
-                coverage,
-            )
-
     return StreamingResponse(
-        event_stream(),
+        _chat_event_stream(
+            conversation_id=conversation_id,
+            citations=citations,
+            chunks_found=chunks_found,
+            coverage=coverage,
+            prompt=ctx.get("prompt"),
+            metadata_response=metadata_response,
+            model=model,
+            request=request,
+            background_tasks=background_tasks,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -432,6 +634,7 @@ def _stream_multi_chat_response(
     user_query: str,
     model: Optional[str],
     background_tasks: BackgroundTasks,
+    request: Optional[Request] = None,
 ) -> StreamingResponse:
     """Build a streaming response generator for multi-document chat."""
     try:
@@ -456,75 +659,18 @@ def _stream_multi_chat_response(
     chunks_found = ctx.get("chunks_found")
     coverage = ctx.get("coverage")
 
-    def event_stream() -> Iterator[str]:
-        full_response = ""
-        try:
-            meta_payload = {
-                "event": "meta",
-                "conversation_id": conversation_id,
-                "chunks_found": chunks_found,
-                "coverage": coverage,
-                "citations": [
-                    {
-                        "page": c.get("page", 0),
-                        "snippet": c.get("snippet", ""),
-                        "similarity": c.get("similarity"),
-                        "document": c.get("document"),
-                    }
-                    for c in citations
-                ],
-            }
-            yield f"event: meta\ndata: {json.dumps(meta_payload, ensure_ascii=False)}\n\n"
-
-            if metadata_response:
-                full_response = metadata_response
-                payload = json.dumps({"event": "text_delta", "delta": metadata_response}, ensure_ascii=False)
-                yield f"event: text_delta\ndata: {payload}\n\n"
-            else:
-                prompt = ctx.get("prompt")
-                if prompt:
-                    thinking_open = False
-                    if THINKING_ENABLED and not _is_reasoning_model(model):
-                        yield "event: thinking_start\ndata: {}\n\n"
-                        thinking_open = True
-                        for step in _synthetic_thinking():
-                            payload = json.dumps({"event": "thinking_delta", "delta": step}, ensure_ascii=False)
-                            yield f"event: thinking_delta\ndata: {payload}\n\n"
-                    try:
-                        for kind, token in rag_system.chat_stream(prompt, model=model):
-                            if kind == "thinking":
-                                if not thinking_open:
-                                    yield "event: thinking_start\ndata: {}\n\n"
-                                    thinking_open = True
-                                payload = json.dumps({"event": "thinking_delta", "delta": token}, ensure_ascii=False)
-                                yield f"event: thinking_delta\ndata: {payload}\n\n"
-                            else:
-                                if thinking_open:
-                                    yield "event: thinking_end\ndata: {}\n\n"
-                                    thinking_open = False
-                                full_response += token
-                                payload = json.dumps({"event": "text_delta", "delta": token}, ensure_ascii=False)
-                                yield f"event: text_delta\ndata: {payload}\n\n"
-                    finally:
-                        if thinking_open:
-                            yield "event: thinking_end\ndata: {}\n\n"
-
-            yield f"event: done\ndata: {json.dumps({'event': 'done', 'done': True}, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            logger.error(f"Multi streaming chat error: {e}")
-            yield f"event: error\ndata: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
-        finally:
-            background_tasks.add_task(
-                _save_ai_message,
-                conversation_id,
-                full_response,
-                citations,
-                chunks_found,
-                coverage,
-            )
-
     return StreamingResponse(
-        event_stream(),
+        _chat_event_stream(
+            conversation_id=conversation_id,
+            citations=citations,
+            chunks_found=chunks_found,
+            coverage=coverage,
+            prompt=ctx.get("prompt"),
+            metadata_response=metadata_response,
+            model=model,
+            request=request,
+            background_tasks=background_tasks,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

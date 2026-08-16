@@ -121,3 +121,12 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
 # Encryption secret for stored provider API keys (Fernet)
 LOCAL_ENCRYPTION_KEY = os.getenv("LOCAL_ENCRYPTION_KEY", "")
+
+# OCR (Tesseract) — idiomas por defecto `spa+eng`. Pasar cadena válida de tesseract
+# (ej. `eng`, `spa+eng`, `spa+eng+fra`). El log por documento se persiste si OCR_LOG_ENABLED=true.
+TESSERACT_LANGS = os.getenv("TESSERACT_LANGS", "spa+eng")
+OCR_LOG_ENABLED = _env_bool("OCR_LOG_ENABLED", True)
+
+# SSE streaming — heartbeat keeps the connection alive through proxies while
+# the LLM is still generating (esp. for reasoning models like DeepSeek-R / GLM-4.6).
+STREAM_HEARTBEAT_SECONDS = int(os.getenv("STREAM_HEARTBEAT_SECONDS", "15"))

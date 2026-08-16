@@ -95,7 +95,7 @@ class Conversation(Base):
 
 class Message(Base):
     __tablename__ = "messages"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     conversation_id = Column(String, nullable=False)
     role = Column(String, nullable=False)  # user, assistant
@@ -104,6 +104,9 @@ class Message(Base):
     chunks_found = Column(Integer, default=0)
     coverage = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Telemetry for the stats panel (added 2026-08-16)
+    model = Column(String, nullable=True)
+    tokens_estimated = Column(Integer, default=0)
 
 class DocumentSummary(Base):
     __tablename__ = "doc_summaries"
@@ -190,6 +193,29 @@ class AVScanLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class OcrScanLog(Base):
+    """Auditoría ligera de OCR por documento (Tesseract).
+
+    Una fila por documento procesado, con contadores agregados de páginas y
+    caracteres. Sirve como bitácora de calidad (páginas que necesitaron OCR,
+    fallos) y fuente para métricas Prometheus (`ocr_*`).
+    """
+
+    __tablename__ = "ocr_scan_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, nullable=True, index=True)
+    filename = Column(String, nullable=True)
+    langs = Column(String, nullable=False)        # ej. "spa+eng"
+    pages_total = Column(Integer, default=0)
+    pages_ocr = Column(Integer, default=0)       # páginas que pasaron por OCR
+    pages_failed = Column(Integer, default=0)    # páginas sin texto y OCR falló
+    chars_extracted = Column(Integer, default=0)
+    duration_ms = Column(Integer, default=0)
+    request_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class UsageEvent(Base):
     """Contador de uso por usuario (limites por plan, ventana 24h)."""
 
@@ -216,6 +242,11 @@ class ProviderConfig(Base):
     config = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    # Health telemetry — last test invocation result (added 2026-08-16)
+    last_test_at = Column(DateTime, nullable=True)
+    last_test_ok = Column(Boolean, nullable=True)
+    last_test_latency_ms = Column(Integer, nullable=True)
+    last_test_error = Column(Text, nullable=True)
 
 
 # Create tables
@@ -254,5 +285,122 @@ def _migrate():
             if "action" not in usage_cols:
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE usage_events ADD COLUMN action VARCHAR"))
+
+        # Messages: telemetry columns (added 2026-08-16)
+        if "messages" in insp.get_table_names():
+            msg_cols = {c["name"] for c in insp.get_columns("messages")}
+            for col, ddl in (
+                ("model", "ALTER TABLE messages ADD COLUMN model VARCHAR"),
+                ("tokens_estimated", "ALTER TABLE messages ADD COLUMN tokens_estimated INTEGER DEFAULT 0"),
+            ):
+                if col not in msg_cols:
+                    with engine.begin() as conn:
+                        conn.execute(text(ddl))
+
+        # Provider health telemetry columns (added 2026-08-16)
+        if "provider_configs" in insp.get_table_names():
+            pc_cols = {c["name"] for c in insp.get_columns("provider_configs")}
+            for col, ddl in (
+                ("last_test_at", "ALTER TABLE provider_configs ADD COLUMN last_test_at DATETIME"),
+                ("last_test_ok", "ALTER TABLE provider_configs ADD COLUMN last_test_ok BOOLEAN"),
+                ("last_test_latency_ms", "ALTER TABLE provider_configs ADD COLUMN last_test_latency_ms INTEGER"),
+                ("last_test_error", "ALTER TABLE provider_configs ADD COLUMN last_test_error TEXT"),
+            ):
+                if col not in pc_cols:
+                    with engine.begin() as conn:
+                        conn.execute(text(ddl))
+
+        # OCR scan logs: create table on legacy DBs that predate OcrScanLog.
+        # create_all() in create_tables() handles fresh DBs; this is the
+        # additive backfill for installs that already have rows.
+        if "ocr_scan_logs" not in insp.get_table_names():
+            OcrScanLog.__table__.create(bind=engine, checkfirst=True)
+
+        # ── Data integrity backfills (added 2026-08-16) ──
+        # Idempotent — re-running produces no changes.
+        _data_integrity_backfills()
+
+        # ── Indexes (added 2026-08-16) ──
+        # CREATE INDEX IF NOT EXISTS is idempotent in SQLite.
+        _create_indexes_if_missing()
     except Exception as e:
         print(f"   Migration notice (non-fatal): {e}")
+
+
+def _data_integrity_backfills():
+    """Fix data quality issues from earlier schema versions. All statements
+    are idempotent — re-running produces zero or only-positive changes."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        # 1. Convert the literal string 'null' (a 4-byte ASCII value, not SQL
+        # NULL) on conversations.document_ids → actual NULL. This bug caused
+        # conversation lookup to fail and inserted new rows on every chat.
+        try:
+            conn.execute(
+                text("UPDATE conversations SET document_ids = NULL WHERE document_ids = 'null'")
+            )
+        except Exception as e:
+            print(f"   Backfill conversations.document_ids: {e}")
+
+        # 2. Reclaim documents stuck in 'processing' with stale claims.
+        # A 30-minute threshold is well beyond WORKER_CLAIM_TIMEOUT_SECONDS (default 600s).
+        try:
+            conn.execute(
+                text(
+                    "UPDATE documents SET status = 'failed', "
+                    "last_error = COALESCE(last_error, 'reclaimed_by_cleanup') "
+                    "WHERE status = 'processing' "
+                    "AND (claimed_at IS NULL OR claimed_at < datetime('now', '-30 minutes'))"
+                )
+            )
+        except Exception as e:
+            print(f"   Backfill stuck processing docs: {e}")
+
+        # 3. Delete orphan content rows (parent document no longer exists).
+        # Defensive — should be empty in normal operation.
+        for table in ("doc_faqs", "doc_study_guides", "doc_mindmaps", "doc_summaries"):
+            try:
+                conn.execute(
+                    text(
+                        f"DELETE FROM {table} WHERE document_id NOT IN (SELECT id FROM documents)"
+                    )
+                )
+            except Exception as e:
+                print(f"   Backfill orphan {table}: {e}")
+        try:
+            conn.execute(
+                text("DELETE FROM doc_chunks WHERE document_id NOT IN (SELECT id FROM documents)")
+            )
+        except Exception as e:
+            print(f"   Backfill orphan doc_chunks: {e}")
+        try:
+            conn.execute(
+                text(
+                    "DELETE FROM doc_embeddings WHERE chunk_id NOT IN (SELECT id FROM doc_chunks)"
+                )
+            )
+        except Exception as e:
+            print(f"   Backfill orphan doc_embeddings: {e}")
+
+
+def _create_indexes_if_missing():
+    """Hot-path indexes added 2026-08-16. CREATE INDEX IF NOT EXISTS is
+    idempotent in SQLite (3.8+) — safe to run on every startup."""
+    from sqlalchemy import text
+
+    indexes = [
+        ("ix_doc_chunks_document_id", "doc_chunks", "document_id"),
+        ("ix_doc_embeddings_chunk_id", "doc_embeddings", "chunk_id"),
+        ("ix_messages_conversation_id", "messages", "conversation_id"),
+        ("ix_conversations_user_id", "conversations", "user_id"),
+        ("ix_documents_user_id", "documents", "user_id"),
+    ]
+    with engine.begin() as conn:
+        for name, table, column in indexes:
+            try:
+                conn.execute(
+                    text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({column})")
+                )
+            except Exception as e:
+                print(f"   Index {name}: {e}")
