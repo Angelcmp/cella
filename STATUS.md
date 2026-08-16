@@ -1,5 +1,135 @@
 # Cella — Estado del Proyecto (Agosto 2026)
 
+## Sprint DB cleanup + SSE robustez + embeddings cache + UX modelos (16/08/2026)
+
+### Database cleanup (`apps/api/database_simple.py`)
+- Nuevos helpers `_data_integrity_backfills()` y `_create_indexes_if_missing()` ejecutados por `_migrate()` al startup (idempotentes).
+- **Bug crítico corregido**: `conversations.document_ids` se almacenaba como la cadena literal `'null'` (4 bytes ASCII: `6E 75 6C 6C`) en vez de NULL real, lo que duplicaba filas en cada turno de chat. El backfill convierte esos valores a NULL real.
+- Reclama defensiva de documentos `processing` con `claimed_at` > 30 min → `failed` (estos quedaban atascados por crashes de worker).
+- Borrado de huérfanos en `doc_faqs`, `doc_study_guides`, `doc_mindmaps`, `doc_summaries`, `doc_chunks`, `doc_embeddings` (defensive; ninguno en este DB pero backstop para futuras).
+- 5 índices nuevos (`CREATE INDEX IF NOT EXISTS`): `ix_doc_chunks_document_id`, `ix_doc_embeddings_chunk_id`, `ix_messages_conversation_id`, `ix_conversations_user_id`, `ix_documents_user_id`. Reduce drásticamente el coste del JOIN en `search_relevant_chunks`.
+- Tests: `apps/api/tests/test_db_cleanup.py` (5 verde).
+
+### Embeddings cache en el worker (`apps/api/cache.py` + `apps/worker/document_processor.py`)
+- Nuevos métodos `RAGCache.get_text_embedding(text, model)` / `set_text_embedding(text, model, vec, ttl=None)` con key `cella:text_emb:{model}:{sha256(text)[:16]}`. Redis-first con fallback a MemoryCache LRU 2048 (mismo backend que el resto del cache RAG).
+- `DocumentProcessor.__init__` instancia `self.embed_cache = RAGCache()` y loggea `cache_enabled=...` al boot.
+- `generate_embeddings(chunks)` rediseñado: lookup cache por chunk → embed batch solo de misses → escribe nuevos vectores al cache. Re-indexings del mismo texto son ahora gratis; chunks con overlap entre documentos también.
+- Tests: `apps/api/tests/test_cache.py` (8 verde): disabled, set/get, miss, keys per-model, keys per-text, TTL expiry, full hit no re-embed, partial hit solo misses.
+- Impacto esperado: en un flujo típico de re-indexing el coste de embeddings cae a 0; en el primer indexado cae a 0 en cualquier documento con chunks repetidos.
+
+### SSE streaming robusto (`apps/api/routers/chat.py` + `apps/api/config.py`)
+- `_chat_event_stream` extraído como generador único compartido por single + multi-doc.
+- **Heartbeat** `event: ping` cada `STREAM_HEARTBEAT_SECONDS` (env, default 15) entre yields. Evita que proxies (nginx, Cloudflare) cierren conexiones durante razonamiento largo de DeepSeek-R / GLM-4.6.
+- **`event: done` ahora SIEMPRE es el último evento**, incluso tras error. Antes, un stream roto dejaba el bubble del asistente vacío y el frontend solo se enteraba cuando el reader cerraba.
+- **`event: summary`** con `duration_ms`, `tokens_estimated`, `model` antes del done (telemetría). Frontend lo guarda en `window.__lastStreamSummary` para futuro debug.
+- **`GeneratorExit`/`abort`**: cliente desconecta → salida limpia sin emitir error/done. El worker de background save sigue corriendo.
+- **Dedupe query embedding multi-doc** en `rag_system._retrieve_multi`: calcula una vez al inicio, reutiliza para todos los documentos. Antes hacía N llamadas `embed(query)` por turno multi-doc (1 por doc).
+- `STREAM_HEARTBEAT_SECONDS` añadido a `apps/api/config.py`.
+- Tests: 64/64 backend verde.
+
+### AbortController + botón Stop en /zen
+- `apps/web/src/components/ChatInterface.tsx`: `streamControllerRef` con `AbortController` por mensaje; `stopStreaming()` expuesta al padre; `fetch` con `signal: controller.signal`; listener `abort` cancela el reader; ping ignorado; mensaje cancelado marcado como `_(respuesta detenida)_`; `AbortError` diferenciado de otros errores.
+- `apps/web/src/components/zen/ChatInput.tsx`: prop `onStop?: () => void`; durante `isLoading && onStop` el botón enviar se reemplaza por un botón rojo con `Square` (stop visual claro); click → `onStop()`.
+- `apps/web/src/components/zen/ChatPanel.tsx`: `onCitationClick` ahora real — activa tab `document` del right sidebar y stash de `__pendingCitationPage` en `window` para que el visor PDF haga scroll a la página (wiring de scroll queda pendiente).
+
+### Rediseño del modal "Ajustes de modelos" (alcance B completo)
+- Backend `apps/api/routers/providers.py`: `POST /providers/test` (test sin guardar, devuelve `ok`, `latency_ms`, `response`, `error`); auth/CSRF en todos los endpoints (`Depends(get_current_user)` + `csrf_protect`); catálogo ahora expone `capabilities` (`has_embeddings`, `supports_streaming`, `supports_vision`, `supports_tools`); columnas health en `ProviderConfig` (`last_test_at`, `last_test_ok`, `last_test_latency_ms`, `last_test_error`) persistidas en cada `POST /providers/{id}/test`.
+- Migración SQLite aditiva de las 4 columnas health + validación `provider_type` contra enum.
+- Frontend `apps/web/src/components/zen/store.ts`: slice `providers` con `refreshProviders`, `refreshCatalog`, `createProvider`, `updateProvider`, `deleteProvider`, `testProviderConfig`, `testSavedProvider`, `syncProviderModels`, `setDefaultProvider`.
+- Componentes nuevos:
+  - `CapabilityBadges.tsx` — badges color-coded (Embeddings / Streaming / Visión / Tools).
+  - `ProviderCard.tsx` — health dot + latency + capability badges + acciones (Probar / Editar / Sync / Default / Eliminar).
+  - `AddProviderWizard.tsx` — 3 pasos (elegir tipo / credenciales con test-before-save / modelo por defecto) con toasts.
+  - `EditProviderModal.tsx` — sub-modal de edición con test-before-save.
+- `ProviderSettingsModal.tsx` reescrito con tabs `Proveedores (N) | Modelos | Avanzado`; toasts en lugar de banner global; stats reales en Avanzado (`/chat/stats/usage`); advertencia sobre `LOCAL_ENCRYPTION_KEY` rotation.
+- `ChatInput.tsx`: dropdown de modelos agrupado por proveedor con health dot + latency; link "Configurar modelos…" siempre visible.
+- Tests: `apps/api/tests/test_providers.py` (11 verde).
+
+### Stats reales en modal Avanzado (`apps/api/routers/chat.py`)
+- Nuevo endpoint `GET /chat/stats/usage` agrega:
+  - `messages_total`, `messages_by_role` (user / assistant).
+  - `tokens_estimated_total` (suma de `Message.tokens_estimated` + `DocumentSummary.tokens_used`).
+  - `tokens_from_messages`, `tokens_from_summaries` (desglose).
+  - `models_used` top-10: `[{model, messages, tokens_estimated}]` ordenados por uso desc.
+  - `conversations_total`, `last_activity_at`.
+- Modelo `Message` extendido con `model` y `tokens_estimated` (aditivo). `chat.py` ahora setea estos campos al guardar (user y assistant, streaming y no-streaming).
+- Tests: `apps/api/tests/test_stats.py` (3 verde).
+
+### Landing: rediseño HeroDemo + paleta centralizada
+- `apps/web/src/components/landing/HeroDemo.tsx` reescrito a client component con secuencia typewriter (query + respuesta), ThinkingBlock con timer elapsed en vivo, citas, dropdown agrupado por proveedor con health dot, paleta /zen (Material3 teal).
+- `LandingHeader.tsx`: `h-12`, branding `logo + CELLA` centrado a la izquierda, hover con opacidad + scale + color shift, fondo transparente.
+- `apps/web/src/app/globals.css`: paleta refactorizada a `@theme` con hex únicos + aliases semánticos en `:root` (antes duplicada en `:root` + `.dark` + `.cyber` → fuente única).
+- `apps/web/src/app/page.tsx`: pill `100% local · open source · estilo NotebookLM` eliminado; `py-24 md:py-32` → `py-6 md:py-8` (demo inmediatamente debajo del hero); h1 clamp mínimo `1.5rem` (24 px); footer `© 2026 Cella` (antes `© 2024 Cella Core. Inc.`).
+- Build OK: `/` 5.46 kB / 110 kB First Load.
+
+### OCR configurable y medible (sprint previo 2026-08-16)
+- `TESSERACT_LANGS` (default `spa+eng`) configurable vía env.
+- `OcrScanLog` (database_simple.py) con `pages_total`, `pages_ocr`, `pages_failed`, `chars_extracted`, `duration_ms`, `request_id`.
+- `store_ocr_log` en worker.py; counters Prometheus `cella_ocr_*` via endpoint interno `/internal/ocr-metrics`.
+- 6 tests verde (`tests/test_ocr.py`).
+
+### Configuración nueva
+- `apps/api/config.py`: `TESSERACT_LANGS`, `OCR_LOG_ENABLED`, `STREAM_HEARTBEAT_SECONDS`.
+- `apps/api/.env.example`: bloque OCR documentado.
+
+## Sprint seguridad + observabilidad + despliegue (10/08/2026)
+
+### Antivirus gestionado con auditoría (`security/av.py`)
+- Providers: `clamav` (binario local), `http` (servicio gestionado vía API), `none` (desactivado).
+- Cada escaneo se registra en la tabla `av_scan_logs` (document_id, filename, provider, result, error, duration_ms, request_id).
+- Config: `AV_PROVIDER`, `AV_API_URL`, `AV_API_KEY`, `AV_AUDIT_LOG`, `AV_RETENTION_DAYS`.
+- Test: `test_av_scan_audit_log` en `test_features.py`.
+
+### TTL de sesión y limpieza de tokens (`auth_simple.py`)
+- `SESSION_TTL_MINUTES` controla la expiración de tokens de sesión.
+- `purge_expired_revoked_tokens()`: elimina tokens revocados expirados de SQLite + Redis; ejecutado por worker y en startup.
+- `SESSION_CLEANUP_MINUTES`: intervalo de limpieza periódica.
+- Test: `test_purge_expired_revoked_tokens`.
+
+### Worker DLQ + idempotencia (`worker.py`, `routers/worker.py`)
+- Claim atómico: `worker_id` + `claimed_at` en `Document`; reclaim automático de docs stuck tras `WORKER_CLAIM_TIMEOUT_SECONDS`.
+- DLQ explícita: `Document.dlq` flag; worker marca `dlq=True` tras agotar `WORKER_MAX_ATTEMPTS`.
+- `GET /worker/status`: resumen con `by_status`, `dlq` count, `dlq_entries`.
+- Tests: `test_worker_dlq_flag_set_on_exhaustion`, `test_worker_status_endpoint`.
+
+### OpenTelemetry tracing (`telemetry.py`)
+- `span()` context manager + `inject_tracing_middleware()` para FastAPI.
+- Lazy init: no-op sin deps de OpenTelemetry; activable con `ENABLE_TRACING=true`.
+- OTLP gRPC/HTTP configurable: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`.
+- Config: `ENABLE_TRACING`, `OTEL_SERVICE_NAME`.
+
+### Límites por plan y contadores (`usage.py`)
+- `enforce_limit(db, user, action)`: raise 402 (plan cap) o 429 (ventana 24h) cuando `ENFORCE_PLAN_LIMITS=true`.
+- `record_usage(db, user_id, action)`: persiste `UsageEvent`.
+- `usage_summary(db, user)`: contadores actuales + restantes por plan.
+- `GET /usage`: endpoint público.
+- `SettingsPopover.tsx`: muestra usados/límites en el frontend.
+- `ENFORCE_PLAN_LIMITS=false` por defecto en LOCAL_MODE (solo cuenta, no bloquea).
+- Tests: `test_usage_endpoint_returns_usage`, `test_usage_record_events`, `test_usage_enforce_window_limit`.
+
+### Grafana + Prometheus (`deploy/monitoring/`)
+- `grafana/`: dashboard `cella.json` (DLQ, 5xx, latencia, stale docs), alertas `cella.yml`, provisioning automático.
+- `prometheus/prometheus.yml`: scrape config para `cella-api:8000/metrics`.
+- `docker-compose.yml`: profile `monitoring` con servicios Prometheus + Grafana.
+
+### Nginx + TLS (`deploy/nginx/cella.conf`)
+- Reverse proxy: frontend `:3000` + FastAPI `:8000`, SSE streaming, métricas solo localhost.
+- TLS con Let's Encrypt, HSTS, `ssl_protocols TLSv1.2 TLSv1.3`.
+- Redirect HTTP→HTTPS.
+
+### Tests
+- 8 tests nuevos en `test_features.py`: AV audit, purge TTL, DLQ flag, worker status, usage (3), documents list.
+- Total: 28 tests (20 anteriores + 8 nuevos).
+
+### Configuración nueva (`config.py`, `.env.example`)
+- `SESSION_TTL_MINUTES`, `SESSION_CLEANUP_MINUTES`
+- `AV_PROVIDER`, `AV_API_URL`, `AV_API_KEY`, `AV_AUDIT_LOG`, `AV_RETENTION_DAYS`
+- `ENABLE_TRACING`, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`
+- `ENFORCE_PLAN_LIMITS`, `PLAN_LIMITS_JSON`, `PLAN_LIMITS` (local/free/pro)
+- `WORKER_CLAIM_TIMEOUT_SECONDS`
+
+---
+
 ## Rediseño /zen — Studio, tipografía y Diagrama visual (09/08/2026)
 
 ### Tipografía y layout de lectura
