@@ -352,6 +352,12 @@ export default function ChatInterface({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const streamControllerRef = useRef<AbortController | null>(null);
+
+  const stopStreaming = () => {
+    streamControllerRef.current?.abort();
+  };
+
   const handleSendMessage = async (text: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -366,6 +372,9 @@ export default function ChatInterface({
     // Register conversation in sidebar store if this is the first message
     registerConversationInStore(text);
 
+    const controller = new AbortController();
+    streamControllerRef.current = controller;
+
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/chat/documents/${documentId}`,
@@ -379,6 +388,7 @@ export default function ChatInterface({
             stream: true,
             document_ids: isMulti ? effectiveDocumentIds : undefined,
           }),
+          signal: controller.signal,
         })
       );
 
@@ -398,11 +408,19 @@ export default function ChatInterface({
       }
 
       // Streaming SSE path
-      await handleStreamingResponse(response);
+      await handleStreamingResponse(response, controller.signal);
     } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") {
+        // User cancelled — handled in the finally block.
+        return;
+      }
       toast.error("Error de conexión al enviar el mensaje");
       console.error("Chat error:", error);
       setIsLoading(false);
+    } finally {
+      if (streamControllerRef.current === controller) {
+        streamControllerRef.current = null;
+      }
     }
   };
 
@@ -432,7 +450,10 @@ export default function ChatInterface({
     }
   };
 
-  const handleStreamingResponse = async (response: Response) => {
+  const handleStreamingResponse = async (
+    response: Response,
+    signal: AbortSignal,
+  ) => {
     const reader = response.body?.getReader();
     if (!reader) {
       toast.error("No se pudo leer la respuesta del servidor");
@@ -454,6 +475,7 @@ export default function ChatInterface({
     let buffer = '';
     let pendingCitations: Citation[] = [];
     let pendingConversationId: string | null = null;
+    let sawError = false;
 
     const updateAssistantMessage = (
       updater: (msg: Message) => Message
@@ -467,8 +489,21 @@ export default function ChatInterface({
       });
     };
 
+    // Listen for client-side cancellation
+    const onAbort = () => {
+      try {
+        reader.cancel();
+      } catch {}
+    };
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+
     try {
       while (true) {
+        if (signal.aborted) break;
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -488,6 +523,9 @@ export default function ChatInterface({
 
           try {
             const parsed = JSON.parse(raw);
+            // Ignore heartbeat pings (server keepalive)
+            if (eventType === 'ping') continue;
+
             if (eventType === 'meta' || parsed.event === 'meta') {
               pendingConversationId = parsed.conversation_id || null;
               pendingCitations = (parsed.citations || []).map((c: any) => ({
@@ -522,7 +560,14 @@ export default function ChatInterface({
                 content: msg.content + delta,
                 citations: pendingCitations.length > 0 ? pendingCitations : msg.citations,
               }));
+            } else if (eventType === 'summary' || parsed.event === 'summary') {
+              // Telemetry event from the server (duration, tokens, model).
+              // We don't surface it in the UI yet, but keep it for future use.
+              if (typeof window !== "undefined") {
+                (window as unknown as { __lastStreamSummary?: unknown }).__lastStreamSummary = parsed;
+              }
             } else if (eventType === 'error' || parsed.event === 'error') {
+              sawError = true;
               toast.error(parsed.error || "Error en la respuesta");
             }
           } catch (e) {
@@ -534,11 +579,24 @@ export default function ChatInterface({
       console.error("Streaming error:", error);
       toast.error("Error de conexión durante la respuesta");
     } finally {
-      reader.releaseLock();
+      signal.removeEventListener("abort", onAbort);
+      try {
+        reader.releaseLock();
+      } catch {}
       setIsLoading(false);
       if (pendingConversationId) {
         syncBackendId(pendingConversationId);
       }
+      // If the stream ended because the client cancelled mid-flight, mark
+      // the assistant message so the UI can show a "(detenido)" hint.
+      if (signal.aborted) {
+        updateAssistantMessage(msg => ({
+          ...msg,
+          content: msg.content || '_(respuesta detenida por el usuario)_',
+        }));
+      }
+      // Suppress unused-var warning for sawError (kept for future telemetry)
+      void sawError;
     }
   };
 
@@ -789,6 +847,7 @@ export default function ChatInterface({
         }}
         onUpload={() => onUploadClick?.()}
         isLoading={isLoading}
+        onStop={stopStreaming}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   ArrowUp,
   Paperclip,
@@ -9,14 +9,22 @@ import {
   ChevronDown,
   Check,
   Loader2,
+  SlidersHorizontal,
+  Square,
 } from "lucide-react";
-import { useZenStore, type ModelId } from "./store";
+import { useZenStore, type ModelId, type ProviderConfig } from "./store";
 
 interface ChatInputProps {
   onSend: (message: string, model: ModelId) => void;
   onUpload: () => void;
   isLoading: boolean;
   placeholder?: string;
+  onStop?: () => void;
+}
+
+function healthColor(p: ProviderConfig | undefined): string {
+  if (!p || p.last_test_ok === null || p.last_test_ok === undefined) return "bg-zinc-400";
+  return p.last_test_ok ? "bg-emerald-500" : "bg-red-500";
 }
 
 export default function ChatInput({
@@ -24,14 +32,46 @@ export default function ChatInput({
   onUpload,
   isLoading,
   placeholder = "Pregunta sobre tu documento...",
+  onStop,
 }: ChatInputProps) {
-  const { selectedModel, setSelectedModel, models, setModelsModalOpen } = useZenStore();
+  const {
+    selectedModel,
+    setSelectedModel,
+    models,
+    setModelsModalOpen,
+    providers,
+    refreshProviders,
+  } = useZenStore();
   const [message, setMessage] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentModel = models.find((m) => m.id === selectedModel);
+
+  useEffect(() => {
+    if (modelOpen && providers.length === 0) {
+      refreshProviders();
+    }
+  }, [modelOpen, providers.length, refreshProviders]);
+
+  // Build provider-name -> ProviderConfig map for health dots
+  const providerByName = useMemo(() => {
+    const m = new Map<string, ProviderConfig>();
+    providers.forEach((p) => m.set(p.name, p));
+    return m;
+  }, [providers]);
+
+  // Group models by provider
+  const groupedModels = useMemo(() => {
+    const map = new Map<string, typeof models>();
+    models.forEach((m) => {
+      const list = map.get(m.provider) ?? [];
+      list.push(m);
+      map.set(m.provider, list);
+    });
+    return Array.from(map.entries());
+  }, [models]);
 
   const handleSend = () => {
     if (!message.trim() || isLoading) return;
@@ -82,7 +122,7 @@ export default function ChatInput({
               </button>
 
               {modelOpen && (
-                <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-[var(--outline-variant)]/30 bg-[var(--surface-container-lowest)] shadow-xl py-1 z-50">
+                <div className="absolute bottom-full left-0 mb-1 w-72 max-h-80 overflow-y-auto rounded-lg border border-[var(--outline-variant)]/30 bg-[var(--surface-container-lowest)] shadow-xl py-1 z-50">
                   {models.length === 0 ? (
                     <div className="px-3 py-2 space-y-1.5">
                       <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] leading-snug">
@@ -99,23 +139,64 @@ export default function ChatInput({
                       </button>
                     </div>
                   ) : (
-                    models.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          setSelectedModel(m.id);
-                          setModelOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-1.5 px-3 py-2 font-label-mono text-(length:--zen-fs-secondary) transition-colors ${
-                          selectedModel === m.id
-                            ? "text-[var(--primary-fixed)] bg-[var(--primary)]/5"
-                            : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
-                        }`}
-                      >
-                        <span className="flex-1 text-left truncate">{m.name}</span>
-                        {selectedModel === m.id && <Check className="w-3 h-3 shrink-0" />}
-                      </button>
-                    ))
+                    <>
+                      {groupedModels.map(([providerName, providerModels]) => {
+                        const prov = providerByName.get(providerName);
+                        return (
+                          <div key={providerName} className="py-1">
+                            <div className="flex items-center gap-1.5 px-3 py-1">
+                              <span
+                                className={`inline-block h-1.5 w-1.5 rounded-full ${healthColor(prov)}`}
+                                title={
+                                  prov?.last_test_ok === true
+                                    ? `OK · ${prov.last_test_latency_ms ?? "?"}ms`
+                                    : prov?.last_test_ok === false
+                                    ? "Falló"
+                                    : "Sin probar"
+                                }
+                              />
+                              <span className="font-label-mono text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface)]">
+                                {prov?.label ?? providerName}
+                              </span>
+                              {prov?.last_test_ok === true && prov.last_test_latency_ms != null && (
+                                <span className="font-mono text-[8px] text-[var(--on-surface-variant)]">
+                                  {prov.last_test_latency_ms}ms
+                                </span>
+                              )}
+                            </div>
+                            {providerModels.map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.id);
+                                  setModelOpen(false);
+                                }}
+                                className={`w-full flex items-center gap-1.5 pl-7 pr-3 py-1.5 font-label-mono text-(length:--zen-fs-secondary) transition-colors ${
+                                  selectedModel === m.id
+                                    ? "text-[var(--primary-fixed)] bg-[var(--primary)]/5"
+                                    : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+                                }`}
+                              >
+                                <span className="flex-1 text-left truncate">{m.name}</span>
+                                {selectedModel === m.id && <Check className="w-3 h-3 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      <div className="border-t border-[var(--outline-variant)]/20 pt-1 mt-1">
+                        <button
+                          onClick={() => {
+                            setModelOpen(false);
+                            setModelsModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-1.5 px-3 py-1.5 font-label-mono text-(length:--zen-fs-label) text-[var(--primary-fixed)] hover:bg-[var(--primary)]/5"
+                        >
+                          <SlidersHorizontal className="w-3 h-3" />
+                          Configurar modelos…
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -156,13 +237,19 @@ export default function ChatInput({
               className="flex-1 w-full bg-transparent zen-textarea py-1.5 zen-text-body zen-read-text placeholder:text-[var(--on-surface-variant)]/50 placeholder:font-label-mono max-h-[200px] overflow-y-auto leading-snug [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             />
             <button
-              onClick={handleSend}
-              disabled={!message.trim() || isLoading}
-              className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)] text-[var(--on-primary)] flex items-center justify-center hover:shadow-[0_0_12px_rgba(84,153,181,0.35)] hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:hover:scale-100"
-              title="Enviar"
+              onClick={isLoading && onStop ? onStop : handleSend}
+              disabled={!isLoading && (!message.trim() || isLoading)}
+              title={isLoading && onStop ? "Detener respuesta" : "Enviar"}
+              className={
+                isLoading && onStop
+                  ? "shrink-0 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 hover:scale-105 transition-all duration-200 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+                  : "shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)] text-[var(--on-primary)] flex items-center justify-center hover:shadow-[0_0_12px_rgba(84,153,181,0.35)] hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:hover:scale-100"
+              }
             >
-              {isLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              {isLoading && onStop ? (
+                <Square className="h-3 w-3 fill-current" />
+              ) : isLoading ? (
+                <Loader2 className="w-3.5 w-3.5 animate-spin" />
               ) : (
                 <ArrowUp className="w-3.5 h-3.5" />
               )}
