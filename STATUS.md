@@ -1,4 +1,26 @@
-# Cella — Estado del Proyecto (Agosto 2026)
+# Cella — Estado del Proyecto (Agosto–Septiembre 2026)
+
+## Cierre de pendientes (14/09/2026)
+
+### Salto a la página citada en el visor PDF (cierre del pendiente)
+- `apps/web/src/components/zen/store.ts`: nuevo estado `highlightPage: { page, nonce }` + acciones `setHighlightPage(page)` y `clearHighlightPage()`. El `nonce` se incrementa en cada llamada para forzar el re-salto aunque se vuelva a clicar la misma cita.
+- `apps/web/src/components/zen/ChatPanel.tsx`: `onCitationClick` llama `setHighlightPage(page)` + `setRightTab("document")`; eliminado el stash muerto `window.__pendingCitationPage` (nadie lo leía).
+- `apps/web/src/components/zen/RightSidebar.tsx`: `highlightPage` pasa de estado local (solo lo usaba el grafo) al store; se reenvía a `DocumentViewer` y se resetea con `clearHighlightPage()` al cambiar de documento (evita abrir otro PDF en la página de la cita anterior).
+- `apps/web/src/components/DocumentViewer.tsx`: nuevas props `highlightPage`/`highlightNonce`, reenviadas a `PdfViewer`; el efecto de página usa deps `[highlightPage, highlightNonce]` (aplica también al visor de texto).
+- `apps/web/src/components/PdfViewer.tsx`: props `initialPage` + `highlightNonce`; `onLoadSuccess` salta a la página pedida clampada a `[1, numPages]` en lugar de resetear a 1, y un `useEffect` cubre los saltos posteriores (misma cita o distinta).
+- Flujo completo: clic en la cita `P.N` del chat → `store.highlightPage = { page: N, nonce }` → tab `document` → `DocumentViewer` → `PdfViewer` renderiza la página N.
+
+### Dependencia pdfjs-dist
+- Eliminada la dependencia directa `pdfjs-dist@6.2.108` en `apps/web/package.json` (no se importaba; era redundante con la que trae `react-pdf@10.4.1` → `5.4.296`). El worker sigue fijado a `5.4.296`, ahora coincidente con la versión bundleada. `npm uninstall` actualizó `package-lock.json` (−4 paquetes).
+
+### Docs versionados
+- `.gitignore`: negaciones `!STATUS.md`, `!docs/*.md`, `!docs/**/*.md` (la regla `*.md` dejaba `docs/` sin trackear).
+- `docs/RUNBOOKS.md`, `docs/SCREENSHOTS.md`, `docs/DEMO_TUNNEL.md` añadidos al control de versiones (staging).
+- `README.md`: 28→64 tests, 3→4 specs E2E, endpoints de la API completados (`/providers/test`, `/providers/{id}/test`, `/providers/catalog`, `/chat/stats/usage`, `DELETE /conversations/{id}`, `/internal/ocr-metrics`) y nota sobre la carga del `.env` desde la raíz.
+- `ROADMAP_PENDIENTE.md`: item del salto a la página citada marcado como implementado.
+
+### Verificación (14/09/2026)
+- `npm run typecheck` ✅ · `eslint` de archivos tocados ✅ (0 errores/warnings) · `npm run build` ✅ (12 páginas, `/zen` 165 kB).
 
 ## Sprint DB cleanup + SSE robustez + embeddings cache + UX modelos (16/08/2026)
 
@@ -30,7 +52,7 @@
 ### AbortController + botón Stop en /zen
 - `apps/web/src/components/ChatInterface.tsx`: `streamControllerRef` con `AbortController` por mensaje; `stopStreaming()` expuesta al padre; `fetch` con `signal: controller.signal`; listener `abort` cancela el reader; ping ignorado; mensaje cancelado marcado como `_(respuesta detenida)_`; `AbortError` diferenciado de otros errores.
 - `apps/web/src/components/zen/ChatInput.tsx`: prop `onStop?: () => void`; durante `isLoading && onStop` el botón enviar se reemplaza por un botón rojo con `Square` (stop visual claro); click → `onStop()`.
-- `apps/web/src/components/zen/ChatPanel.tsx`: `onCitationClick` ahora real — activa tab `document` del right sidebar y stash de `__pendingCitationPage` en `window` para que el visor PDF haga scroll a la página (wiring de scroll queda pendiente).
+- `apps/web/src/components/zen/ChatPanel.tsx`: `onCitationClick` ahora real — activa tab `document` del right sidebar y hace scroll a la página citada (`setHighlightPage` → store → `DocumentViewer` → `PdfViewer`).
 
 ### Rediseño del modal "Ajustes de modelos" (alcance B completo)
 - Backend `apps/api/routers/providers.py`: `POST /providers/test` (test sin guardar, devuelve `ok`, `latency_ms`, `response`, `error`); auth/CSRF en todos los endpoints (`Depends(get_current_user)` + `csrf_protect`); catálogo ahora expone `capabilities` (`has_embeddings`, `supports_streaming`, `supports_vision`, `supports_tools`); columnas health en `ProviderConfig` (`last_test_at`, `last_test_ok`, `last_test_latency_ms`, `last_test_error`) persistidas en cada `POST /providers/{id}/test`.

@@ -56,6 +56,7 @@ interface DocumentContent {
 interface DocumentViewerProps {
   documentId: string;
   highlightPage?: number;
+  highlightNonce?: number;
   highlightText?: string;
   onPageClick?: (page: number) => void;
   onFullscreenToggle?: (toggleFn: () => void) => void;
@@ -68,6 +69,7 @@ interface DocumentViewerProps {
 export default function DocumentViewer({ 
   documentId, 
   highlightPage,
+  highlightNonce,
   highlightText,
   onPageClick,
   onFullscreenToggle,
@@ -95,7 +97,7 @@ export default function DocumentViewer({
     if (highlightPage) {
       setCurrentPage(highlightPage);
     }
-  }, [highlightPage]);
+  }, [highlightPage, highlightNonce]);
 
   // Expose functions to parent component
   useEffect(() => {
@@ -364,6 +366,8 @@ export default function DocumentViewer({
         fileUrl={fileUrl}
         title={document.title}
         pages={document.pages}
+        initialPage={highlightPage}
+        highlightNonce={highlightNonce}
         className={className}
       />
     );

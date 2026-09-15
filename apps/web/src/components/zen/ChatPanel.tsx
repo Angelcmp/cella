@@ -345,17 +345,11 @@ export default function ChatPanel() {
         conversationId={activeConversation?.backendId}
         model={selectedModel}
         onCitationClick={(page) => {
-          // Open the right sidebar's document viewer and request a scroll to
-          // the cited page. The Viewer tab is responsible for honouring the
-          // requested page (via a pendingScrollToPage ref or query param);
-          // until that wiring lands, switching tabs is the best we can do.
-          useZenStore.getState().setRightTab("document");
+          // Open the right sidebar's document viewer and jump to the cited page.
           if (typeof page === "number" && page > 0) {
-            // Stash the requested page so the Viewer tab can pick it up.
-            if (typeof window !== "undefined") {
-              (window as unknown as { __pendingCitationPage?: number }).__pendingCitationPage = page;
-            }
+            useZenStore.getState().setHighlightPage(page);
           }
+          useZenStore.getState().setRightTab("document");
         }}
         onUploadClick={() => setShowUpload(true)}
         className="flex-1"

@@ -22,7 +22,6 @@
     "markmap-view": "^0.18.12",
     "mermaid": "^11.16.1",
     "next": "15.4.6",
-    "pdfjs-dist": "^6.2.108",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-force-graph-2d": "^1.29.1",

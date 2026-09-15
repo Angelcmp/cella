@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { FileText, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ interface PdfViewerProps {
   fileUrl: string;
   title: string;
   pages?: number;
+  initialPage?: number;
+  highlightNonce?: number;
   className?: string;
 }
 
@@ -20,10 +22,23 @@ export default function PdfViewer({
   fileUrl,
   title,
   pages: knownPages,
+  initialPage,
+  highlightNonce,
   className = "",
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(
+    initialPage && initialPage > 0 ? initialPage : 1
+  );
+
+  useEffect(() => {
+    // highlightNonce is referenced so re-clicking the same citation (same page)
+    // still triggers the jump.
+    void highlightNonce;
+    if (initialPage && initialPage > 0) {
+      setCurrentPage(initialPage);
+    }
+  }, [initialPage, highlightNonce]);
 
   return (
     <div className={cn("h-full flex flex-col", className)}>
@@ -74,7 +89,8 @@ export default function PdfViewer({
           file={fileUrl}
           onLoadSuccess={({ numPages: np }: { numPages: number }) => {
             setNumPages(np);
-            setCurrentPage(1);
+            const target = initialPage && initialPage > 0 ? Math.min(initialPage, np) : 1;
+            setCurrentPage(target);
           }}
           loading={
             <div className="flex items-center justify-center py-12">

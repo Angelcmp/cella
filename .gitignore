@@ -149,6 +149,9 @@ ENV/
 *.md
 !README.md
 !ROADMAP_PENDIENTE.md
+!STATUS.md
+!docs/*.md
+!docs/**/*.md
 
 # Dev logs
 *.log

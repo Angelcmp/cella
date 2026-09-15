@@ -38,8 +38,10 @@ cella/
 git clone https://github.com/Angelcmp/cella.git && cd cella
 
 # 2. Configurar variables de entorno
-cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.example .env
 # Editar: DEEPSEEK_API_KEY, ZHIPU_API_KEY
+# config.py usa load_dotenv(), que descubre el .env de la raíz aunque se
+# arranque desde apps/api. También vale apps/api/.env si prefieres tenerlo ahí.
 
 # 3. Arrancar (modo light: solo Redis)
 INFRA=light bash start.sh
@@ -68,6 +70,7 @@ INFRA=light bash start.sh
 ## Funcionalidades
 
 - **Chat RAG con citas** — Preguntas con fragmentos exactos y número de página
+- **Salto a la página citada** — Clic en `P.N` abre el visor PDF en esa página
 - **Streaming SSE** — Respuestas en tiempo real con thinking blocks visibles
 - **Resúmenes** — Síntesis ejecutivas con puntos clave generados por IA
 - **Mapas mentales** — Grafos interactivos con Cytoscape.js
@@ -103,10 +106,16 @@ INFRA=light bash start.sh
 | `GET/POST` | `/documents/{id}/faq` | FAQ |
 | `GET/POST/DELETE` | `/documents/{id}/notes` | Notas por documento |
 | `POST` | `/chat/documents/{id}` | Chat RAG (SSE opcional) |
+| `GET` | `/chat/stats/usage` | Estadísticas de uso (mensajes, tokens, modelos top) |
 | `GET` | `/conversations` | Listar conversaciones |
 | `GET` | `/conversations/{id}/export?format=md\|json` | Exportar conversación |
+| `DELETE` | `/conversations/{id}` | Eliminar conversación (con sus mensajes) |
 | `GET` | `/models` | Modelos disponibles |
 | `GET` | `/providers` | Proveedores/configuración |
+| `GET` | `/providers/catalog` | Catálogo de tipos de proveedor + capacidades |
+| `POST` | `/providers/test` | Probar credenciales sin guardar (test-before-save) |
+| `POST` | `/providers/{id}/test` | Probar proveedor guardado (persiste health) |
+| `POST` | `/internal/ocr-metrics` | Métricas OCR desde el worker (interno) |
 | `GET` | `/metrics` | Métricas Prometheus (solo si `ENABLE_METRICS=true`) |
 | `GET` | `/worker/status` | Estado del worker (cola, DLQ, docs stuck) |
 | `GET` | `/usage` | Contadores de uso por plan |
@@ -116,9 +125,9 @@ INFRA=light bash start.sh
 
 | Suite | Comando | Estado |
 |---|---|---|
-| Backend (seguridad, RAG, worker) | `cd apps/api && .venv311/bin/python -m pytest -q` | 28 tests verdes |
+| Backend (seguridad, RAG, worker, OCR, cache, providers) | `cd apps/api && .venv311/bin/python -m pytest -q` | 64 tests verdes |
 | TypeScript | `cd apps/web && npm run typecheck` | Sin errores |
-| E2E (Playwright) | `cd apps/web && npm run test:e2e` | 3 specs verdes |
+| E2E (Playwright) | `cd apps/web && npm run test:e2e` | 4 specs verdes |
 
 CI/CD automatizado en `.github/workflows/ci.yml`: jobs **backend** (pytest), **frontend** (typecheck + lint + build) y **e2e** (Playwright chromium).
 

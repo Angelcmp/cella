@@ -136,7 +136,15 @@ export default function RightSidebar({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { activeDocumentId, documents, rightTab, setRightTab } = useZenStore();
+  const {
+    activeDocumentId,
+    documents,
+    rightTab,
+    setRightTab,
+    highlightPage,
+    setHighlightPage,
+    clearHighlightPage,
+  } = useZenStore();
   const activeDoc = documents.find((d) => d.id === activeDocumentId);
 
   const [quizData, setQuizData] = useState<QuizData | null>(null);
@@ -144,7 +152,6 @@ export default function RightSidebar({
   const [mindmapCode, setMindmapCode] = useState<string>("");
   const [loadingMindmap, setLoadingMindmap] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
-  const [highlightPage, setHighlightPage] = useState<number | undefined>(undefined);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
 
   useEffect(() => {
@@ -152,6 +159,7 @@ export default function RightSidebar({
     setQuizAnswers({});
     setMindmapCode("");
     setSummaryKey((k) => k + 1);
+    clearHighlightPage();
 
     if (!activeDocumentId) return;
 
@@ -174,7 +182,7 @@ export default function RightSidebar({
     };
 
     loadMindmap();
-  }, [activeDocumentId]);
+  }, [activeDocumentId, clearHighlightPage]);
 
   const generateMindmap = async () => {
     if (!activeDocumentId) return;
@@ -231,7 +239,13 @@ export default function RightSidebar({
 
     switch (rightTab) {
       case "document":
-        return <DocumentViewer documentId={activeDoc.id} highlightPage={highlightPage} />;
+        return (
+          <DocumentViewer
+            documentId={activeDoc.id}
+            highlightPage={highlightPage?.page}
+            highlightNonce={highlightPage?.nonce}
+          />
+        );
 
       case "summary":
         return (
