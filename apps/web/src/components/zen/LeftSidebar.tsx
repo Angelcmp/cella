@@ -231,11 +231,11 @@ export default function LeftSidebar() {
   return (
     <div className="flex flex-col h-full">
       {/* Notebook header */}
-      <div className="p-4 mb-1 flex items-center gap-2">
+      <div className="px-4 py-3.5 mb-1 flex items-center gap-2">
         <svg className="w-4 h-4" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="var(--primary-fixed)" />
         </svg>
-        <span className="font-label-mono text-[14px] uppercase tracking-[0.15em] text-[var(--primary)]">
+        <span className="text-[14px] font-semibold text-[var(--on-surface)]">
           Cella
         </span>
       </div>
@@ -245,7 +245,7 @@ export default function LeftSidebar() {
         <div className="px-2 py-1.5">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white font-label-mono text-(length:--zen-fs-body) hover:opacity-90 transition-opacity"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white text-(length:--zen-fs-body) font-medium hover:opacity-90 transition-opacity"
             title="Nueva conversación"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
@@ -255,7 +255,7 @@ export default function LeftSidebar() {
 
         {/* Fuentes */}
         <div className="px-2 py-1 flex items-center justify-between">
-          <span className="font-label-mono text-(length:--zen-fs-heading) uppercase tracking-[0.12em] text-[var(--on-surface-variant)]/80">
+          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80">
             Fuentes
           </span>
           <button
@@ -268,7 +268,7 @@ export default function LeftSidebar() {
         </div>
         <nav className="space-y-0.5">
           {filteredDocuments.length === 0 ? (
-            <p className="font-label-mono text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/50 px-3 py-2 leading-relaxed">
+            <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/60 px-3 py-2 leading-relaxed">
               {loadingDocs
                 ? "Cargando fuentes..."
                 : activeProject
@@ -292,12 +292,12 @@ export default function LeftSidebar() {
 
         {/* Conversaciones */}
         <div className="px-2 pt-3 pb-1 flex items-center justify-between">
-          <span className="font-label-mono text-(length:--zen-fs-heading) uppercase tracking-[0.12em] text-[var(--on-surface-variant)]/80">
+          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80">
             Conversaciones
           </span>
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-0.5 font-label-mono text-(length:--zen-fs-body) uppercase text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
+            className="flex items-center gap-0.5 text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/70 hover:text-[var(--primary-fixed)] transition-colors"
             title="Nuevo chat"
           >
             <Plus className="w-2.5 h-2.5" />
@@ -312,15 +312,15 @@ export default function LeftSidebar() {
             <ConversationItem key={conv.id} conversation={conv} />
           ))}
           {conversations.length === 0 ? (
-            <p className="font-label-mono text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/40 px-3 py-2">
+            <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/50 px-3 py-2">
               Sin conversaciones
             </p>
           ) : filteredConversations.length === 0 && activeProject ? (
-            <p className="font-label-mono text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/40 px-3 py-2">
+            <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/50 px-3 py-2">
               Sin conversaciones en este proyecto
             </p>
           ) : filteredConversations.length === 0 ? (
-            <p className="font-label-mono text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/40 px-3 py-2">
+            <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/50 px-3 py-2">
               Sin conversaciones
             </p>
           ) : null}
@@ -328,7 +328,7 @@ export default function LeftSidebar() {
 
         {/* Proyectos */}
         <div className="px-2 pt-3 pb-1 flex items-center justify-between">
-          <span className="font-label-mono text-(length:--zen-fs-heading) uppercase tracking-[0.12em] text-[var(--on-surface-variant)]/80">
+          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80">
             Proyectos
           </span>
           <button
@@ -362,10 +362,10 @@ export default function LeftSidebar() {
                       toggleProject(project.id);
                     }
                   }}
-                  className={`w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md font-label-mono text-(length:--zen-fs-body) transition-colors cursor-pointer ${
+                  className={`w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-(length:--zen-fs-body) transition-colors cursor-pointer ${
                     activeProjectId === project.id
-                      ? "text-[var(--primary)] bg-[var(--surface-container-high)]"
-                      : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
+                      ? "text-[var(--primary-fixed)] bg-[var(--zen-hover)]"
+                      : "text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
                   }`}
                 >
                   {expandedProjects.has(project.id) ? (
@@ -390,7 +390,7 @@ export default function LeftSidebar() {
                       "p-0.5 rounded transition-opacity shrink-0",
                       project.isDefault
                         ? "opacity-0 pointer-events-none"
-                        : "opacity-0 group-hover/proj:opacity-100 text-[var(--on-surface-variant)]/60 hover:text-red-500"
+                        : "opacity-0 group-hover/proj:opacity-100 text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)]"
                     )}
                     title={project.isDefault ? "No se puede eliminar el proyecto por defecto" : "Eliminar proyecto"}
                   >
@@ -407,7 +407,7 @@ export default function LeftSidebar() {
                         <div key={doc.id} className="group/doc flex items-center gap-1">
                           <button
                             onClick={() => handleSelectDocument(doc.id)}
-                            className={`flex-1 flex items-center px-2 py-0.5 rounded-md font-label-mono text-[10px] transition-colors truncate ${
+                            className={`flex-1 flex items-center px-2 py-0.5 rounded-md text-[11px] transition-colors truncate ${
                               activeDocumentId === doc.id
                                 ? "text-[var(--primary)]"
                                 : "text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)]"
@@ -424,7 +424,7 @@ export default function LeftSidebar() {
                                 e.stopPropagation();
                                 removeDocFromProject(project.id, doc.id);
                               }}
-                              className="p-0.5 rounded opacity-0 group-hover/doc:opacity-100 transition-opacity text-[var(--on-surface-variant)]/40 hover:text-red-500 shrink-0"
+                              className="p-0.5 rounded opacity-0 group-hover/doc:opacity-100 transition-opacity text-[var(--on-surface-variant)]/40 hover:text-[var(--on-surface)] shrink-0"
                               title="Quitar del proyecto"
                             >
                               <X className="w-2.5 h-2.5" />
@@ -435,7 +435,7 @@ export default function LeftSidebar() {
                     })}
                     <button
                       onClick={() => setAddDocToProjectId(addDocToProjectId === project.id ? null : project.id)}
-                      className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md font-label-mono text-[10px] text-[var(--on-surface-variant)]/40 hover:text-[var(--on-surface)] transition-colors"
+                      className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--on-surface-variant)]/50 hover:text-[var(--on-surface)] transition-colors"
                     >
                       <Plus className="w-2.5 h-2.5" />
                       Añadir documento
@@ -451,7 +451,7 @@ export default function LeftSidebar() {
                                 addDocToProject(project.id, doc.id);
                                 setAddDocToProjectId(null);
                               }}
-                              className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md font-label-mono text-[10px] text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors truncate"
+                              className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--on-surface-variant)]/70 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors truncate"
                             >
                               <Plus className="w-2.5 h-2.5 shrink-0" />
                               <span className="truncate text-left">{doc.title}</span>
@@ -481,7 +481,7 @@ export default function LeftSidebar() {
                     if (e.key === "Escape") setIsCreating(false);
                   }}
                   placeholder="Nombre del proyecto"
-                  className="flex-1 font-label-mono text-(length:--zen-fs-body) bg-transparent border-b border-[var(--outline-variant)] px-1 py-0 text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/40 outline-none focus:border-[var(--primary)]"
+                  className="flex-1 text-(length:--zen-fs-body) bg-transparent border-b border-[var(--zen-line)] px-1 py-0 text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/40 outline-none focus:border-[var(--primary-fixed)]"
                   autoFocus
                 />
                 <button onClick={handleCreateProject} className="text-[var(--primary)]">
@@ -491,7 +491,7 @@ export default function LeftSidebar() {
             ) : (
               <button
                 onClick={() => setIsCreating(true)}
-                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md font-label-mono text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/50 hover:text-[var(--on-surface)] transition-colors"
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/60 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
               >
                 <Plus className="w-2.5 h-2.5" />
                 Nuevo proyecto
@@ -502,7 +502,7 @@ export default function LeftSidebar() {
       </div>
 
       {/* Bottom actions */}
-      <div className="p-3 border-t border-[var(--outline-variant)]/10 flex items-center justify-between">
+      <div className="p-3 border-t border-[var(--zen-line)] flex items-center justify-between">
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setShowSettings(true)}

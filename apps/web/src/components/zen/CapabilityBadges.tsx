@@ -51,7 +51,7 @@ export default function CapabilityBadges({ capabilities, size = "sm" }: Props) {
         .map(({ key, Icon, label, color, bg }) => (
           <span
             key={key}
-            className={`inline-flex items-center rounded font-label-mono uppercase tracking-wider ${dim} ${bg} ${color}`}
+            className={`inline-flex items-center rounded uppercase tracking-wider ${dim} ${bg} ${color}`}
             title={label}
           >
             <Icon className={iconSize} />

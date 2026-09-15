@@ -113,15 +113,12 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
   };
 
   return (
-    <Card className={`shadow-card transition-all duration-300 hover:shadow-lg ${className}`}>
+    <Card className={`transition-colors duration-200 ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="relative">
-              <div className="absolute inset-0 bg-[var(--primary-container)] rounded-lg blur-sm opacity-30"></div>
-              <Sparkles className="relative h-5 w-5 text-[var(--primary-fixed)]" />
-            </div>
-            <CardTitle className="font-label-mono text-(length:--zen-fs-heading) font-medium text-[var(--on-surface)]">
+            <Sparkles className="h-5 w-5 text-[var(--primary-fixed)]" />
+            <CardTitle className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)]">
               Resumen IA
             </CardTitle>
           </div>
@@ -203,14 +200,14 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
           <div className="space-y-4 animate-fade-in">
             {/* Quick Stats */}
             <div className="flex items-center space-x-3 text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60">
-              <span className="font-label-mono">Generado {formatDate(summary.generatedAt)}</span>
+              <span>Generado {formatDate(summary.generatedAt)}</span>
               {summary.pageCount && (
-                <Badge variant="outline" className="font-label-mono text-(length:--zen-fs-label)">
+                <Badge variant="outline" className="text-(length:--zen-fs-label)">
                   {summary.pageCount} páginas
                 </Badge>
               )}
               {summary.wordCount && (
-                <Badge variant="outline" className="font-label-mono text-(length:--zen-fs-label)">
+                <Badge variant="outline" className="text-(length:--zen-fs-label)">
                   ~{summary.wordCount} palabras
                 </Badge>
               )}
@@ -226,7 +223,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="font-label-mono text-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] text-(length:--zen-fs-label) p-0"
+                className="text-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] text-(length:--zen-fs-label) p-0"
               >
                 {isExpanded ? 'Ver menos' : 'Ver más'}
               </Button>
@@ -237,7 +234,7 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Key Points */}
                 {summary.keyPoints && summary.keyPoints.length > 0 && (
                   <div>
-                    <h4 className="font-label-mono zen-text-heading font-medium zen-read-text mb-2">Puntos clave:</h4>
+                    <h4 className="zen-text-heading font-medium zen-read-text mb-2">Puntos clave:</h4>
                     <ul className="space-y-1 zen-text-body zen-read-text">
                       {summary.keyPoints.map((point, index) => (
                         <li key={index} className="flex items-start space-x-2">
@@ -252,13 +249,13 @@ export function DocumentSummary({ documentId, documentTitle, className = "" }: D
                 {/* Topics */}
                 {summary.topics && summary.topics.length > 0 && (
                   <div>
-                    <h4 className="font-label-mono zen-text-heading font-medium zen-read-text mb-2">Temas principales:</h4>
+                    <h4 className="zen-text-heading font-medium zen-read-text mb-2">Temas principales:</h4>
                     <div className="flex flex-wrap gap-1">
                       {summary.topics.map((topic, index) => (
                         <Badge
                           key={index}
                           variant="outline"
-                          className="font-label-mono text-(length:--zen-fs-secondary) border-0 text-[var(--primary-fixed)] whitespace-normal break-words text-left max-w-full shrink px-2 py-1"
+                          className="text-(length:--zen-fs-secondary) border-0 text-[var(--primary-fixed)] whitespace-normal break-words text-left max-w-full shrink px-2 py-1"
                         >
                           {topic}
                         </Badge>

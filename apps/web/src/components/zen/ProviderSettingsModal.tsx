@@ -125,7 +125,7 @@ export default function ProviderSettingsModal() {
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`-mb-px border-b-2 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider transition-colors ${
+                className={`-mb-px border-b-2 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider transition-colors ${
                   tab === t.key
                     ? "border-[var(--primary-fixed)] text-[var(--primary-fixed)]"
                     : "border-transparent text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
@@ -139,7 +139,7 @@ export default function ProviderSettingsModal() {
           {tab === "providers" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
+                <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
                   {providersLoading
                     ? "Cargando…"
                     : providers.length === 0
@@ -149,15 +149,15 @@ export default function ProviderSettingsModal() {
                 <button
                   type="button"
                   onClick={() => setWizardOpen(true)}
-                  className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)]"
+                  className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)]"
                 >
                   <Plus className="h-3 w-3" /> Añadir
                 </button>
               </div>
 
               {!providersLoading && providers.length === 0 && (
-                <div className="rounded-xl border border-dashed border-[var(--outline-variant)]/40 bg-[var(--surface-container)]/30 p-6 text-center">
-                  <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
+                <div className="rounded-xl border border-dashed border-[var(--zen-line)]/40 bg-[var(--surface-container)]/30 p-6 text-center">
+                  <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
                     Empieza añadiendo un proveedor
                   </p>
                   <p className="mt-1 text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
@@ -166,7 +166,7 @@ export default function ProviderSettingsModal() {
                   <button
                     type="button"
                     onClick={() => setWizardOpen(true)}
-                    className="mt-3 inline-flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)]"
+                    className="mt-3 inline-flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)]"
                   >
                     <Plus className="h-3 w-3" /> Configurar el primero
                   </button>
@@ -210,7 +210,7 @@ export default function ProviderSettingsModal() {
 
           {tab === "models" && (
             <div className="space-y-3">
-              <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
+              <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
                 {providers.length === 0
                   ? "Configura un proveedor para ver los modelos disponibles."
                   : `${groupedModels.reduce((acc, [, ms]) => acc + ms.length, 0)} modelos en ${groupedModels.length} proveedores`}
@@ -220,14 +220,14 @@ export default function ProviderSettingsModal() {
                 return (
                   <div
                     key={providerName}
-                    className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3"
+                    className="rounded-lg border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3"
                   >
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+                      <span className="text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
                         {provider?.label ?? providerName}
                       </span>
                       {provider?.is_default && (
-                        <span className="rounded bg-[var(--primary-fixed)]/15 px-1.5 py-px font-label-mono text-[9px] uppercase tracking-wider text-[var(--primary-fixed)]">
+                        <span className="rounded bg-[var(--primary-fixed)]/15 px-1.5 py-px text-[9px] uppercase tracking-wider text-[var(--primary-fixed)]">
                           Default
                         </span>
                       )}
@@ -240,7 +240,7 @@ export default function ProviderSettingsModal() {
                         >
                           <span className="truncate">{m.id}</span>
                           {m.id === provider?.default_model && (
-                            <span className="ml-2 font-label-mono text-[9px] text-[var(--primary-fixed)]">
+                            <span className="ml-2 text-[9px] text-[var(--primary-fixed)]">
                               ★
                             </span>
                           )}
@@ -257,7 +257,7 @@ export default function ProviderSettingsModal() {
                   refreshProviders();
                   toast.success("Lista actualizada");
                 }}
-                className="rounded-md bg-[var(--surface-container-high)]/50 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+                className="rounded-md bg-[var(--zen-hover)]/60 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
               >
                 Refrescar desde backend
               </button>
@@ -266,16 +266,16 @@ export default function ProviderSettingsModal() {
 
           {tab === "advanced" && (
             <div className="space-y-3">
-              <div className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3">
+              <div className="rounded-lg border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+                  <h4 className="text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
                     Uso
                   </h4>
                   <button
                     type="button"
                     onClick={() => refreshUsageStats()}
                     disabled={usageStatsLoading}
-                    className="rounded-md bg-[var(--surface-container-high)]/50 px-2 py-0.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] disabled:opacity-50"
+                    className="rounded-md bg-[var(--zen-hover)]/60 px-2 py-0.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] disabled:opacity-50"
                   >
                     {usageStatsLoading ? "…" : "Refrescar"}
                   </button>
@@ -314,12 +314,12 @@ export default function ProviderSettingsModal() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3">
-                <h4 className="font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+              <div className="rounded-lg border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3">
+                <h4 className="text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
                   Modelos usados
                 </h4>
                 {!usageStats || usageStats.models_used.length === 0 ? (
-                  <p className="mt-2 font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
+                  <p className="mt-2 text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
                     Aún no hay mensajes de asistente registrados.
                   </p>
                 ) : (
@@ -342,8 +342,8 @@ export default function ProviderSettingsModal() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3">
-                <h4 className="font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+              <div className="rounded-lg border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3">
+                <h4 className="text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
                   Proveedores
                 </h4>
                 <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px] sm:grid-cols-4">
@@ -366,8 +366,8 @@ export default function ProviderSettingsModal() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3">
-                <h4 className="font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+              <div className="rounded-lg border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3">
+                <h4 className="text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
                   Cifrado
                 </h4>
                 <p className="mt-1 text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">

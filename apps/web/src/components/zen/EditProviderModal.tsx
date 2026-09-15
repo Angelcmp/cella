@@ -98,21 +98,21 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
       <div className="space-y-3">
         {isOpenAICompat && (
           <div>
-            <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+            <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
               Base URL
             </label>
             <input
               type="text"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+              className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
             />
           </div>
         )}
 
         {!isOllama && (
           <div>
-            <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+            <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
               API key {provider.has_api_key && "(deja vacío para mantener la actual)"}
             </label>
             <div className="relative">
@@ -121,7 +121,7 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={provider.has_api_key ? "••••••••" : "sk-..."}
-                className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 pr-9 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+                className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 pr-9 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
               />
               <button
                 type="button"
@@ -136,13 +136,13 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
         )}
 
         <div>
-          <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+          <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
             Modelo por defecto
           </label>
           <select
             value={defaultModel}
             onChange={(e) => setDefaultModel(e.target.value)}
-            className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+            className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
           >
             {models.map((m) => (
               <option key={m} value={m}>
@@ -152,9 +152,9 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
           </select>
         </div>
 
-        <label className="flex cursor-pointer items-center justify-between rounded-md border border-[var(--outline-variant)]/40 bg-[var(--surface-container)]/30 p-2.5">
+        <label className="flex cursor-pointer items-center justify-between rounded-md border border-[var(--zen-line)]/40 bg-[var(--surface-container)]/30 p-2.5">
           <div>
-            <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
+            <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
               Usar también para embeddings
             </p>
             <p className="font-mono text-[10px] text-[var(--on-surface-variant)]">
@@ -169,7 +169,7 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
           />
         </label>
 
-        <div className="flex items-center justify-between rounded-md border border-[var(--outline-variant)]/40 bg-[var(--surface-container)]/30 p-2.5">
+        <div className="flex items-center justify-between rounded-md border border-[var(--zen-line)]/40 bg-[var(--surface-container)]/30 p-2.5">
           <p className="font-mono text-[10px] text-[var(--on-surface-variant)]">
             Prueba en vivo (llamada real a la API)
           </p>
@@ -177,7 +177,7 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
             type="button"
             onClick={handleTest}
             disabled={testing}
-            className="flex items-center gap-1.5 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-50"
           >
             {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
             Probar
@@ -203,7 +203,7 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
+          className="rounded-md px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
         >
           Cancelar
         </button>
@@ -211,7 +211,7 @@ export default function EditProviderModal({ open, provider, onClose, onSaved }: 
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
+          className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
         >
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
           Guardar

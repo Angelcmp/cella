@@ -163,7 +163,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
 
   return (
     <CellaDialog open={open} onClose={onClose} maxWidth="640px" title="Añadir proveedor">
-      <div className="flex items-center gap-2 pb-3 font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
+      <div className="flex items-center gap-2 pb-3 text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -195,10 +195,10 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
                   className={`flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-all ${
                     selected
                       ? "border-[var(--primary-fixed)] bg-[var(--primary-fixed)]/8"
-                      : "border-[var(--outline-variant)]/40 hover:border-[var(--primary-fixed)]/40"
+                      : "border-[var(--zen-line)]/40 hover:border-[var(--primary-fixed)]/40"
                   }`}
                 >
-                  <span className="font-label-mono text-[10px] uppercase tracking-wider text-[var(--on-surface)]">
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--on-surface)]">
                     {TYPE_ICONS[t]} {entry.label}
                   </span>
                   <span className="font-mono text-[9px] text-[var(--on-surface-variant)]">
@@ -214,7 +214,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
       {step === 1 && (
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+            <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
               Nombre
             </label>
             <input
@@ -222,8 +222,8 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="ej. mi-openai"
-              className={`w-full rounded-md border bg-[var(--surface-container-high)]/50 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50 ${
-                nameError ? "border-red-500" : "border-[var(--outline-variant)]"
+              className={`w-full rounded-md border bg-[var(--zen-hover)]/60 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50 ${
+                nameError ? "border-red-500" : "border-[var(--zen-line)]"
               }`}
             />
             {nameError && (
@@ -233,7 +233,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
 
           {providerType === "openai_compat" && (
             <div>
-              <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+              <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
                 Base URL
               </label>
               <input
@@ -241,14 +241,14 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder="http://localhost:1234/v1"
-                className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+                className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
               />
             </div>
           )}
 
           {needsKey && (
             <div>
-              <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+              <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
                 API key
               </label>
               <div className="relative">
@@ -257,7 +257,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 pr-9 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+                  className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 pr-9 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
                 />
                 <button
                   type="button"
@@ -274,9 +274,9 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-md border border-[var(--outline-variant)]/40 bg-[var(--surface-container)]/30 p-2.5">
+          <div className="flex items-center justify-between rounded-md border border-[var(--zen-line)]/40 bg-[var(--surface-container)]/30 p-2.5">
             <div>
-              <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
+              <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
                 Probar conexión
               </p>
               <p className="font-mono text-[10px] text-[var(--on-surface-variant)]">
@@ -287,7 +287,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
               type="button"
               onClick={handleTest}
               disabled={!step1Valid || testing}
-              className="flex items-center gap-1.5 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-50"
             >
               {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
               Probar
@@ -317,13 +317,13 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
       {step === 2 && (
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block font-label-mono text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
+            <label className="mb-1 block text-[length:var(--zen-fs-secondary)] uppercase tracking-wider text-[var(--on-surface-variant)]">
               Modelo por defecto
             </label>
             <select
               value={defaultModel}
               onChange={(e) => setDefaultModel(e.target.value)}
-              className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]/50 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
+              className="w-full rounded-md border border-[var(--zen-line)] bg-[var(--zen-hover)]/60 px-3 py-2 text-[length:var(--zen-fs-body)] outline-none focus:border-[var(--primary-fixed)]/50"
             >
               {(models.length ? models : catalogEntry?.models || []).map((m) => (
                 <option key={m} value={m}>
@@ -334,9 +334,9 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
           </div>
 
           {capabilities?.has_embeddings && (
-            <label className="flex cursor-pointer items-center justify-between rounded-md border border-[var(--outline-variant)]/40 bg-[var(--surface-container)]/30 p-2.5">
+            <label className="flex cursor-pointer items-center justify-between rounded-md border border-[var(--zen-line)]/40 bg-[var(--surface-container)]/30 p-2.5">
               <div>
-                <p className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
+                <p className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
                   Usar también para embeddings
                 </p>
                 <p className="font-mono text-[10px] text-[var(--on-surface-variant)]">
@@ -372,7 +372,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
         <button
           type="button"
           onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
-          className="flex items-center gap-1 rounded-md px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
+          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
         >
           <ArrowLeft className="h-3 w-3" />
           {step === 0 ? "Cancelar" : "Atrás"}
@@ -383,7 +383,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
             type="button"
             onClick={() => setStep(step + 1)}
             disabled={(step === 0 && !step0Valid) || (step === 1 && !step1Valid)}
-            className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
+            className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
           >
             Continuar
             <ArrowRight className="h-3 w-3" />
@@ -393,7 +393,7 @@ export default function AddProviderWizard({ open, onClose, onSaved }: Props) {
             type="button"
             onClick={handleSave}
             disabled={saving || !name}
-            className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 font-label-mono text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
+            className="flex items-center gap-1 rounded-md bg-[var(--primary-fixed)]/90 px-3 py-1.5 text-[length:var(--zen-fs-label)] uppercase tracking-wider text-white hover:bg-[var(--primary-fixed)] disabled:opacity-40"
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
             Guardar

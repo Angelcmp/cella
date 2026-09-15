@@ -56,6 +56,7 @@ interface DocumentContent {
 interface DocumentViewerProps {
   documentId: string;
   highlightPage?: number;
+  highlightNonce?: number;
   highlightText?: string;
   onPageClick?: (page: number) => void;
   onFullscreenToggle?: (toggleFn: () => void) => void;
@@ -68,6 +69,7 @@ interface DocumentViewerProps {
 export default function DocumentViewer({ 
   documentId, 
   highlightPage,
+  highlightNonce,
   highlightText,
   onPageClick,
   onFullscreenToggle,
@@ -95,7 +97,7 @@ export default function DocumentViewer({
     if (highlightPage) {
       setCurrentPage(highlightPage);
     }
-  }, [highlightPage]);
+  }, [highlightPage, highlightNonce]);
 
   // Expose functions to parent component
   useEffect(() => {
@@ -327,10 +329,9 @@ export default function DocumentViewer({
 
   if (isLoading) {
     return (
-      <Card className={cn("shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]", className)}>
-        <CardContent className="p-6 text-center animate-fade-in">
+      <Card className={cn("border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-none", className)}>
+        <CardContent className="p-6 text-center">
           <div className="relative mb-4 inline-flex">
-            <div className="absolute inset-0 bg-[var(--gradient-zen-glow)] rounded-2xl blur-lg opacity-40"></div>
             <FileText className="relative h-12 w-12 text-[var(--primary-fixed)] mx-auto animate-pulse" />
           </div>
           <p className="text-[var(--on-surface-variant)]">Cargando documento...</p>
@@ -341,7 +342,7 @@ export default function DocumentViewer({
 
   if (!document) {
     return (
-      <Card className={cn("shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]", className)}>
+      <Card className={cn("border border-[var(--zen-line)] bg-[var(--zen-panel)]", className)}>
         <CardContent className="p-6 text-center">
           <FileText className="h-12 w-12 text-[var(--on-surface-variant)]/60 mx-auto mb-4" />
           <h3 className="text-(length:--zen-fs-title) font-semibold text-[var(--on-surface)] mb-2">
@@ -364,6 +365,8 @@ export default function DocumentViewer({
         fileUrl={fileUrl}
         title={document.title}
         pages={document.pages}
+        initialPage={highlightPage}
+        highlightNonce={highlightNonce}
         className={className}
       />
     );
@@ -376,7 +379,7 @@ export default function DocumentViewer({
         <div className="w-16 flex-shrink-0 space-y-4">
           {/* Page Navigation */}
           {documentContent && documentContent.pages.length > 1 && (
-            <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]/90 h-fit sticky top-2">
+            <Card className="border border-[var(--zen-line)] bg-[var(--zen-panel)] h-fit sticky top-2">
               <CardContent className="p-2 max-h-96 overflow-y-auto">
                 <div className="space-y-1">
                   {documentContent.pages.map((page) => (
@@ -385,8 +388,8 @@ export default function DocumentViewer({
                       className={cn(
                         "flex items-center justify-center w-12 h-8 rounded-md cursor-pointer transition-all text-(length:--zen-fs-label) font-medium border",
                         currentPage === page.page_number
-                          ? "bg-[var(--primary-fixed)]/20 border-[var(--primary-fixed)] text-[var(--primary-fixed)] shadow-soft"
-                          : "text-[var(--on-surface-variant)] border-transparent hover:bg-[var(--surface-container-high)]/70"
+                          ? "bg-[var(--primary-fixed)]/20 border-[var(--primary-fixed)] text-[var(--primary-fixed)]"
+                          : "text-[var(--on-surface-variant)] border-transparent hover:bg-[var(--zen-hover)]"
                       )}
                       onClick={() => goToPage(page.page_number)}
                       title={`Página ${page.page_number}`}
@@ -400,7 +403,7 @@ export default function DocumentViewer({
           )}
           
           {/* Controls Card */}
-          <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]/90 h-fit sticky top-2">
+          <Card className="border border-[var(--zen-line)] bg-[var(--zen-panel)] h-fit sticky top-2">
             <CardContent className="p-2">
               <div className="space-y-2">
                 {/* Page Navigation */}
@@ -436,7 +439,7 @@ export default function DocumentViewer({
                     size="sm"
                     onClick={control.action}
                     disabled={control.disabled}
-                    className="w-9 h-9 p-0 border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]/80"
+                    className="w-9 h-9 p-0 border-[var(--zen-line)] text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
                     title={control.title}
                   >
                     <control.icon className="h-3.5 w-3.5" />
@@ -447,7 +450,7 @@ export default function DocumentViewer({
                   variant={readingMode ? "gradient" : "outline"}
                   size="sm"
                   onClick={() => setReadingMode(!readingMode)}
-                  className={readingMode ? "w-9 h-9 p-0 text-[var(--on-primary)]" : "w-9 h-9 p-0 border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]/80"}
+                  className={readingMode ? "w-9 h-9 p-0 text-[var(--on-primary)]" : "w-9 h-9 p-0 border-[var(--zen-line)] text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"}
                   title={readingMode ? "Modo Normal" : "Modo Lectura"}
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -463,9 +466,9 @@ export default function DocumentViewer({
 
         {/* Document Viewer */}
         {document.status === 'indexed' && (
-          <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-[var(--surface-container-lowest)] p-6 overflow-auto' : ''}`}>
+          <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-[var(--zen-panel)] p-6 overflow-auto' : ''}`}>
             {/* Document Content - Directly visible */}
-            <Card className="shadow-soft border border-[var(--outline-variant)] bg-[var(--surface-container)]">
+            <Card className="border border-[var(--zen-line)] bg-[var(--zen-panel)]">
               <CardContent className="p-0">
                 {isLoadingContent ? (
                   <div className="text-center py-12">
@@ -477,7 +480,7 @@ export default function DocumentViewer({
                     {getCurrentPageData() ? (
                       <div className="relative">
                         {/* Page Header */}
-                        <div className="bg-[var(--surface-container-high)] px-6 py-3 border-b border-[var(--outline-variant)]">
+                        <div className="bg-[var(--zen-hover)] px-6 py-3 border-b border-[var(--zen-line)]">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <span className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface-variant)]">
@@ -497,11 +500,11 @@ export default function DocumentViewer({
                         </div>
                         
                         {/* Document Paper */}
-                        <div className={`${readingMode ? 'bg-[var(--surface-container-high)]' : 'bg-[var(--surface-container-high)]/50'} p-6 min-h-[600px]`}>
+                        <div className={`${readingMode ? 'bg-[var(--zen-hover)]' : 'bg-[var(--zen-hover)]'} p-6 min-h-[600px]`}>
                           <div 
-                            className={`bg-[var(--surface-container-lowest)] text-[var(--on-surface)] mx-auto transition-all duration-200 ${
+                            className={`bg-[var(--zen-panel)] text-[var(--on-surface)] mx-auto transition-all duration-200 ${
                               readingMode 
-                                ? 'shadow-2xl border border-[var(--outline-variant)]'
+                                ? 'border border-[var(--zen-line)]'
                                 : `${styles.paperShadow} ${styles.paperTexture} rounded-lg`
                             }`}
                             style={{ 
@@ -523,7 +526,7 @@ export default function DocumentViewer({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-[var(--surface-container-high)]">
+                      <div className="text-center py-12 bg-[var(--zen-hover)]">
                         <FileText className="h-12 w-12 text-[var(--on-surface-variant)]/60 mx-auto mb-4" />
                         <p className="text-[var(--on-surface-variant)]/60">No hay contenido disponible para esta página</p>
                       </div>

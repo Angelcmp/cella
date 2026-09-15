@@ -131,12 +131,12 @@ export default function NotesTab({ documentId }: { documentId: string }) {
 
   return (
     <div className="p-4 space-y-3">
-      <h3 className="font-label-mono text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)] flex items-center gap-1.5">
+      <h3 className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)] flex items-center gap-1.5">
         <StickyNote className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
         Notas
       </h3>
 
-      <div className="rounded-xl border border-[var(--outline-variant)] p-2">
+      <div className="rounded-xl border border-[var(--zen-line)] p-2">
         <textarea
           ref={inputRef}
           value={draft}
@@ -160,13 +160,13 @@ export default function NotesTab({ documentId }: { documentId: string }) {
       </div>
 
       {notes.length === 0 ? (
-        <p className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 text-center py-4">
+        <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 text-center py-4">
           Sin notas todavía
         </p>
       ) : (
         <div className="space-y-2">
           {notes.map((note) => (
-            <div key={note.id} className="group rounded-xl border border-[var(--outline-variant)] p-3">
+            <div key={note.id} className="group rounded-xl border border-[var(--zen-line)] p-3">
               {editingId === note.id ? (
                 <div>
                   <textarea
@@ -197,7 +197,7 @@ export default function NotesTab({ documentId }: { documentId: string }) {
                     {note.content}
                   </p>
                   <div className="flex items-center justify-between mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60">
+                    <span className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60">
                       {note.updated_at ? new Date(note.updated_at).toLocaleString() : ""}
                     </span>
                     <div className="flex items-center gap-2">

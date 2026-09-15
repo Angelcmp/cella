@@ -140,6 +140,8 @@ interface ZenState {
   rightTab: RightTab;
   chatDocumentIds: string[];
 
+  highlightPage: { page: number; nonce: number } | null;
+
   conversations: Conversation[];
   selectedModel: ModelId;
   models: ZenModel[];
@@ -165,6 +167,8 @@ interface ZenState {
   setActiveConversation: (id: string | null) => void;
   setRightTab: (tab: RightTab) => void;
   setChatDocumentIds: (ids: string[]) => void;
+  setHighlightPage: (page: number) => void;
+  clearHighlightPage: () => void;
 
   setConversations: (convs: Conversation[]) => void;
   addConversation: (conv: Conversation) => void;
@@ -204,6 +208,7 @@ export const useZenStore = create<ZenState>((set, get) => ({
   activeConversationId: null,
   rightTab: "mindmap",
   chatDocumentIds: [],
+  highlightPage: null,
 
   conversations: [],
   selectedModel: "",
@@ -263,6 +268,11 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setActiveConversation: (id) => set({ activeConversationId: id }),
   setRightTab: (tab) => set({ rightTab: tab }),
   setChatDocumentIds: (ids) => set({ chatDocumentIds: ids }),
+  setHighlightPage: (page) =>
+    set((state) => ({
+      highlightPage: { page, nonce: (state.highlightPage?.nonce ?? 0) + 1 },
+    })),
+  clearHighlightPage: () => set({ highlightPage: null }),
 
   setConversations: (convs) => {
     set({ conversations: convs });

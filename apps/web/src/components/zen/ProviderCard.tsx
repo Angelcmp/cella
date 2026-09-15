@@ -70,7 +70,7 @@ export default function ProviderCard({
       : "Sin probar";
 
   return (
-    <div className="rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)]/60 p-3 transition-all hover:border-[var(--primary-fixed)]/40">
+    <div className="rounded-xl border border-[var(--zen-line)]/40 bg-[var(--surface-container-low)]/60 p-3 transition-all hover:border-[var(--primary-fixed)]/40">
       <div className="flex items-start gap-3">
         <div className="mt-1 flex flex-col items-center gap-1">
           <span
@@ -78,7 +78,7 @@ export default function ProviderCard({
             title={`${healthLabel}${provider.last_test_error ? ` — ${provider.last_test_error}` : ""}`}
           />
           {provider.last_test_ok === true && provider.last_test_latency_ms != null && (
-            <span className="font-label-mono text-[8px] text-[var(--on-surface-variant)]">
+            <span className="text-[8px] text-[var(--on-surface-variant)]">
               {provider.last_test_latency_ms}ms
             </span>
           )}
@@ -86,23 +86,23 @@ export default function ProviderCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="truncate font-label-mono text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
+            <h4 className="truncate text-[length:var(--zen-fs-heading)] font-semibold text-[var(--on-surface)]">
               {provider.label}
             </h4>
             {provider.is_default ? (
-              <span className="inline-flex items-center gap-0.5 rounded bg-[var(--primary-fixed)]/15 px-1.5 py-px font-label-mono text-[9px] uppercase tracking-wider text-[var(--primary-fixed)]">
+              <span className="inline-flex items-center gap-0.5 rounded bg-[var(--primary-fixed)]/15 px-1.5 py-px text-[9px] uppercase tracking-wider text-[var(--primary-fixed)]">
                 <Star className="h-2.5 w-2.5 fill-current" /> Default
               </span>
             ) : provider.has_api_key ? (
-              <span className="rounded bg-emerald-500/10 px-1.5 py-px font-label-mono text-[9px] uppercase tracking-wider text-emerald-700">
+              <span className="rounded bg-emerald-500/10 px-1.5 py-px text-[9px] uppercase tracking-wider text-emerald-700">
                 API key
               </span>
             ) : provider.provider_type === "ollama" ? (
-              <span className="rounded bg-zinc-500/10 px-1.5 py-px font-label-mono text-[9px] uppercase tracking-wider text-zinc-600">
+              <span className="rounded bg-zinc-500/10 px-1.5 py-px text-[9px] uppercase tracking-wider text-zinc-600">
                 Local
               </span>
             ) : (
-              <span className="rounded bg-amber-500/10 px-1.5 py-px font-label-mono text-[9px] uppercase tracking-wider text-amber-700">
+              <span className="rounded bg-amber-500/10 px-1.5 py-px text-[9px] uppercase tracking-wider text-amber-700">
                 Sin key
               </span>
             )}
@@ -112,7 +112,7 @@ export default function ProviderCard({
             {provider.base_url || catalog?.base_url || "—"}
           </div>
 
-          <div className="mt-1.5 flex items-center gap-3 font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
+          <div className="mt-1.5 flex items-center gap-3 text-[length:var(--zen-fs-secondary)] text-[var(--on-surface-variant)]">
             <span>
               {provider.models.length} modelo{provider.models.length === 1 ? "" : "s"}
             </span>
@@ -144,7 +144,7 @@ export default function ProviderCard({
               handleAction("test", onTest, "Conexión verificada", "Error al probar")
             }
             disabled={busy !== null}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] disabled:opacity-50"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] disabled:opacity-50"
             title="Probar conexión"
             aria-label="Probar conexión"
           >
@@ -157,7 +157,7 @@ export default function ProviderCard({
           <button
             type="button"
             onClick={onEdit}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
             title="Editar"
             aria-label="Editar"
           >
@@ -176,7 +176,7 @@ export default function ProviderCard({
               )
             }
             disabled={busy !== null}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] disabled:opacity-50"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] disabled:opacity-50"
             title={provider.provider_type === "ollama" ? "Sincronizar modelos desde Ollama" : "Restablecer desde catálogo"}
             aria-label="Sincronizar"
           >
@@ -193,7 +193,7 @@ export default function ProviderCard({
                 handleAction("default", onSetDefault, "Marcado como default", "Error")
               }
               disabled={busy !== null}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] disabled:opacity-50"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] disabled:opacity-50"
               title="Marcar como default"
               aria-label="Marcar como default"
             >

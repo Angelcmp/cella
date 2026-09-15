@@ -82,7 +82,7 @@ export default function FaqTab({ documentId }: { documentId: string }) {
     return (
       <div className="p-6 text-center space-y-4">
         <HelpCircle className="w-8 h-8 mx-auto text-[var(--on-surface-variant)]/60" />
-        <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
+        <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
           Genera preguntas frecuentes con respuestas y páginas de referencia
         </p>
         <button
@@ -99,14 +99,14 @@ export default function FaqTab({ documentId }: { documentId: string }) {
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-label-mono text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)] flex items-center gap-1.5">
+        <h3 className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)] flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
           Preguntas frecuentes
         </h3>
         <button
           onClick={generate}
           disabled={generating}
-          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
           title="Regenerar"
         >
           {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -114,12 +114,12 @@ export default function FaqTab({ documentId }: { documentId: string }) {
       </div>
 
       {faqs.map((faq, i) => (
-        <div key={i} className="rounded-xl border border-[var(--outline-variant)] overflow-hidden">
+        <div key={i} className="rounded-xl border border-[var(--zen-line)] overflow-hidden">
           <button
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--surface-container-high)] transition-colors"
+            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--zen-hover)] transition-colors"
           >
-            <span className="font-label-mono text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface)]">
+            <span className="text-(length:--zen-fs-secondary) font-medium text-[var(--on-surface)]">
               {i + 1}. {faq.question}
             </span>
             <span className="text-[var(--on-surface-variant)]/60 text-(length:--zen-fs-secondary) shrink-0">

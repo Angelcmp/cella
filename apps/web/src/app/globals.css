@@ -467,9 +467,55 @@ section.bg-background {
   --secondary-fixed: #3B494A;
   --tertiary-fixed: #006D72;
 
+  /* ── Minimal zen surfaces (rediseño minimalista) ──
+     Superficies planas, una sola línea divisoria y una única elevación. */
+  --zen-canvas: #F7FAFA;
+  --zen-panel: #FFFFFF;
+  --zen-panel-alt: #EFF4F4;
+  --zen-line: #E4E9EA;
+  --zen-hover: #EFF4F4;
+  --zen-elev-1: 0 1px 2px rgba(11, 21, 21, 0.05);
+  --zen-elev-2: 0 4px 12px rgba(11, 21, 21, 0.06);
+
   overscroll-behavior: none;
-  background-color: var(--bg-primary);
+  background-color: var(--zen-canvas);
   font-family: var(--font-body);
+}
+
+/* Dark mode overrides for the zen/Material3 tokens (antes no existían:
+   en oscuro el shell de /zen seguía usando superficies claras). */
+.dark .cyber {
+  --zen-canvas: #10352C;
+  --zen-panel: #165241;
+  --zen-panel-alt: #1D5A4A;
+  --zen-line: rgba(167, 216, 222, 0.16);
+  --zen-hover: rgba(167, 216, 222, 0.08);
+  --zen-elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --zen-elev-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+
+  --surface: #14493C;
+  --surface-container-lowest: #165241;
+  --surface-container-low: #14493C;
+  --surface-container: #165241;
+  --surface-container-high: #1D5A4A;
+  --surface-container-highest: #245F50;
+  --outline-variant: rgba(167, 216, 222, 0.18);
+  --on-surface: #E8F3F1;
+  --on-surface-variant: #A7D8DE;
+  --primary-fixed: #0E7C82;
+  --primary-container: #2A6B70;
+  --on-primary-container: #D6F3F5;
+  --secondary-fixed: #A7D8DE;
+  --tertiary-fixed: #7BC8E0;
+  --zen-read-bg: #165241;
+}
+
+/* Superficies shadcn neutralizadas dentro de /zen (planas, sin sombra). */
+.cyber [data-slot="card"] {
+  background-color: var(--zen-panel);
+  border-color: var(--zen-line);
+  box-shadow: none;
+  border-radius: var(--radius-base);
 }
 
 .font-label-mono {
