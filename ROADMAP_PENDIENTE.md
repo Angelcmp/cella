@@ -103,6 +103,7 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - [x] Docs y landing: escala tipográfica reducida en `/docs`, logo actualizado a `#A7D8DE`
 - [x] Salto a la página citada en el visor PDF (14/09/2026): clic en `P.N` del chat → `store.highlightPage {page, nonce}` → tab `document` → `DocumentViewer` → `PdfViewer.initialPage` (clamp `[1, numPages]`). `nonce` fuerza re-salto en la misma cita; `clearHighlightPage()` al cambiar de documento. Eliminado el stash muerto `window.__pendingCitationPage` (`store.ts`, `ChatPanel.tsx`, `RightSidebar.tsx`, `DocumentViewer.tsx`, `PdfViewer.tsx`)
 - [x] pdfjs-dist: eliminada la dependencia directa `6.2.108` (no usada); se usa la `5.4.296` bundleada por `react-pdf@10.4.1`
+- [x] Rediseño minimalista de `/zen` (14/09/2026): tokens `--zen-*` en `globals.css` (+ overrides `.dark .cyber`), shell plano sin grid/scanlines/glass, Studio monocromo, visor sin textura/gradientes, dark mode con persistencia (`cella-theme` antes del paint). Solo cosmético, paleta teal intacta
 - [x] Límites por plan y contadores (solo si se reactiva modo servidor/SaaS)
   - ✅ `usage.py`: `enforce_limit` (plan cap=402, window=429) + `record_usage` + `usage_summary`; `ENFORCE_PLAN_LIMITS` off en LOCAL_MODE; model `UsageEvent`; endpoint `GET /usage`; frontend muestra usados/límites en `SettingsPopover`
 

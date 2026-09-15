@@ -85,11 +85,11 @@ export default function DiagramTab({ documentId }: { documentId: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] shrink-0">
+      <div className="flex items-center gap-1 px-3 py-1.5 shrink-0">
         <button
           onClick={save}
           disabled={saving}
-          className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors disabled:opacity-40"
+          className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors disabled:opacity-40"
           title="Guardar cambios"
         >
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
@@ -97,7 +97,7 @@ export default function DiagramTab({ documentId }: { documentId: string }) {
         <button
           onClick={regenerate}
           disabled={saving}
-          className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors disabled:opacity-40"
+          className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors disabled:opacity-40"
           title="Regenerar"
         >
           <RefreshCw className="w-3 h-3" />
@@ -106,11 +106,11 @@ export default function DiagramTab({ documentId }: { documentId: string }) {
       <textarea
         value={editable}
         onChange={(e) => setEditable(e.target.value)}
-        className="w-full h-[40%] min-h-[140px] bg-[var(--surface-container-lowest)] border-0 resize-none p-3 zen-text-body zen-read-text font-mono leading-relaxed outline-none focus:ring-1 focus:ring-[var(--primary-fixed)]/30 shrink-0"
+        className="w-full h-[40%] min-h-[140px] bg-[var(--zen-panel)] border-0 resize-none p-3 zen-text-body zen-read-text font-mono leading-relaxed outline-none focus:ring-1 focus:ring-[var(--primary-fixed)]/30 shrink-0"
         placeholder="Edita el código Mermaid..."
         spellCheck={false}
       />
-      <div className="flex-1 min-h-0 border-t border-[var(--outline-variant)]/20 p-2">
+      <div className="flex-1 min-h-0 border-t border-[var(--zen-line)]/20 p-2">
         <MindmapRenderer code={editable} />
       </div>
     </div>

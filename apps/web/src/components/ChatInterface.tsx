@@ -153,7 +153,7 @@ export default function ChatInterface({
         if (match) {
           const clean = segment.slice(1, -1);
           return (
-            <span key={`pg-${si}`} className="inline-block px-1.5 py-px rounded bg-[var(--primary-fixed)]/8 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium">
+            <span key={`pg-${si}`} className="inline-block px-1.5 py-px rounded bg-[var(--primary-fixed)]/8 text-[var(--primary-fixed)] font-medium text-(length:--zen-fs-label)">
               {clean}
             </span>
           );
@@ -730,7 +730,7 @@ export default function ChatInterface({
                 className={cn(
                   "max-w-[700px] rounded-xl px-4 py-3 zen-text-body leading-relaxed zen-read-text",
                   message.role === "user" &&
-                    "bg-[var(--surface-container-high)]/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+                    "bg-[var(--zen-hover)]"
                 )}
               >
                 {message.role === "assistant" && message.thinkingStartedAt && (
@@ -745,13 +745,13 @@ export default function ChatInterface({
                 </div>
 
                 {message.citations && message.citations.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-[var(--outline-variant)]/50">
+                  <div className="mt-3 pt-3 border-t border-[var(--zen-line)]">
                     <button
                       onClick={() => toggleCitations(message.id)}
                       className="flex items-center gap-1.5 w-full text-left zen-text-body zen-read-text hover:opacity-70 transition-opacity"
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--primary-fixed)" }} />
-                      <span className="font-label-mono font-medium">
+                      <span className="font-medium">
                         Citas ({message.citations.length})
                       </span>
                       {expandedCitations.has(message.id) ? (
@@ -766,11 +766,11 @@ export default function ChatInterface({
                         {message.citations.map((citation, index) => (
                           <div
                             key={index}
-                            className="flex items-start gap-2 pl-2 border-l-2 border-[var(--outline-variant)]/30"
+                            className="flex items-start gap-2 pl-2 border-l-2 border-[var(--zen-line)]"
                           >
                             <button
                               onClick={() => onCitationClick?.(citation.page)}
-                              className="shrink-0 px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-label-mono text-(length:--zen-fs-label) font-medium hover:bg-[var(--primary-fixed)]/20 transition-colors cursor-pointer"
+                              className="shrink-0 px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-medium text-(length:--zen-fs-label) hover:bg-[var(--primary-fixed)]/20 transition-colors cursor-pointer"
                             >
                               P.{citation.page}
                             </button>
@@ -788,7 +788,7 @@ export default function ChatInterface({
               <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                 <button
                   onClick={() => copyToClipboard(message.content)}
-                  className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+                  className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
                   title="Copiar respuesta"
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -798,14 +798,14 @@ export default function ChatInterface({
                     <button
                       onClick={() => exportConversation("md")}
                       title="Exportar Markdown"
-                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => exportConversation("json")}
                       title="Exportar JSON"
-                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+                      className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
                     >
                       <Braces className="w-3.5 h-3.5" />
                     </button>
@@ -819,7 +819,7 @@ export default function ChatInterface({
         {messages.length === 1 && !isLoading && (
           <div className="flex items-start gap-2">
             <div className="max-w-[85%]">
-              <p className="text-(length:--zen-fs-label) uppercase tracking-[0.15em] text-[var(--on-surface-variant)]/60 mb-2 px-1">
+              <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 mb-2 px-1">
                 Preguntas sugeridas
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -827,7 +827,7 @@ export default function ChatInterface({
                   <button
                     key={prompt}
                     onClick={() => handleSendMessage(prompt)}
-                    className="px-2.5 py-1.5 rounded-full border border-[var(--outline-variant)]/30 bg-[var(--surface-container-high)]/40 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:border-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] transition-colors text-left"
+                    className="px-2.5 py-1.5 rounded-full border border-[var(--zen-line)] bg-[var(--zen-panel)] text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:border-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] transition-colors text-left"
                   >
                     {prompt}
                   </button>

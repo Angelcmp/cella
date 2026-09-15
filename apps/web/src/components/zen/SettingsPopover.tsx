@@ -66,17 +66,17 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={ref}
-        className="absolute bottom-14 left-3 w-52 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-glow py-1 z-50"
+        className="absolute bottom-14 left-3 w-52 rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] py-1 z-50"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-3 py-2">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">
+          <p className="text-[10px] text-[var(--text-muted)] mb-2">
             Ajustes
           </p>
 
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
           >
             {theme === "dark" ? (
               <Sun className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
@@ -86,14 +86,14 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
             <span>Modo {theme === "dark" ? "claro" : "oscuro"}</span>
           </button>
 
-          <div className="my-1 border-t border-[var(--border-subtle)]" />
+          <div className="my-1 border-t border-[var(--zen-line)]" />
 
           <button
             onClick={() => {
               onClose();
               setModelsModalOpen(true);
             }}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
             Modelos e IA
@@ -102,7 +102,7 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
           <Link
             href="/docs"
             onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             Documentación
@@ -111,7 +111,7 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
           <Link
             href="/"
             onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             Volver al inicio
@@ -119,8 +119,8 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
 
           {usage && (
             <>
-              <div className="my-1 border-t border-[var(--border-subtle)]" />
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">
+              <div className="my-1 border-t border-[var(--zen-line)]" />
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">
                 Uso (24h)
               </p>
               <div className="flex items-center gap-1.5 mb-2">

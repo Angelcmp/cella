@@ -74,10 +74,10 @@ export default function ConversationItem({ conversation }: ConversationItemProps
     <div className="relative">
       <div
         onClick={handleSelect}
-        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md font-label-mono text-[10px] transition-colors cursor-pointer ${
+        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] transition-colors cursor-pointer ${
           isActive
-            ? "text-[var(--on-surface)] bg-[var(--surface-container-high)]"
-            : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+            ? "text-[var(--on-surface)] bg-[var(--zen-hover)]"
+            : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
         }`}
       >
         {editing ? (
@@ -93,18 +93,18 @@ export default function ConversationItem({ conversation }: ConversationItemProps
                 if (e.key === "Enter") handleSaveEdit();
                 if (e.key === "Escape") handleCancelEdit();
               }}
-              className="flex-1 text-[10px] bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)] rounded px-1.5 py-0.5 text-[var(--on-surface)] outline-none focus:border-[var(--primary-fixed)]"
+              className="flex-1 text-[12px] bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded px-1.5 py-0.5 text-[var(--on-surface)] outline-none focus:border-[var(--primary-fixed)]"
               autoFocus
             />
             <button
               onClick={handleSaveEdit}
-              className="p-0.5 text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] rounded"
+              className="p-0.5 text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] rounded"
             >
               <Check className="w-3 h-3" />
             </button>
             <button
               onClick={handleCancelEdit}
-              className="p-0.5 text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] rounded"
+              className="p-0.5 text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] rounded"
             >
               <X className="w-3 h-3" />
             </button>
@@ -122,7 +122,7 @@ export default function ConversationItem({ conversation }: ConversationItemProps
                 e.stopPropagation();
                 setMenuOpen((v) => !v);
               }}
-              className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+              className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
             >
               <MoreHorizontal className="w-3 h-3" />
             </button>
@@ -133,21 +133,21 @@ export default function ConversationItem({ conversation }: ConversationItemProps
       {menuOpen && !editing && (
         <div
           ref={menuRef}
-          className="absolute right-0 top-8 z-30 w-48 bg-[var(--surface-container-lowest)]/95 backdrop-blur-xl border border-[var(--outline-variant)]/20 rounded-xl shadow-xl py-1"
+          className="absolute right-0 top-8 z-30 w-48 bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded-lg shadow-[var(--zen-elev-2)] py-1"
           onClick={(e) => e.stopPropagation()}
         >
           {!showDeleteConfirm ? (
             <>
               <button
                 onClick={() => { setEditing(true); setMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors font-label-mono"
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
                 Renombrar
               </button>
               <button
                 onClick={() => { togglePinConversation(conversation.id); setMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] transition-colors font-label-mono"
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
               >
                 {conversation.pinned ? (
                   <PinOff className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
@@ -156,10 +156,10 @@ export default function ConversationItem({ conversation }: ConversationItemProps
                 )}
                 {conversation.pinned ? "Quitar fijado" : "Fijar"}
               </button>
-              <div className="border-t border-[var(--outline-variant)]/10 my-1" />
+              <div className="border-t border-[var(--zen-line)] my-1" />
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-500 hover:bg-red-500/10 transition-colors font-label-mono"
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-500 hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Eliminar
@@ -167,17 +167,17 @@ export default function ConversationItem({ conversation }: ConversationItemProps
             </>
           ) : (
             <div className="p-3 space-y-2">
-              <p className="text-[12px] text-[var(--on-surface)] font-label-mono">¿Eliminar conversación?</p>
+              <p className="text-[12px] text-[var(--on-surface)]">¿Eliminar conversación?</p>
               <div className="flex gap-2">
                 <button
                   onClick={handleDelete}
-                  className="flex-1 py-1.5 text-[12px] font-label-mono rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                  className="flex-1 py-1.5 text-[12px] rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                 >
                   Eliminar
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-1.5 text-[12px] font-label-mono rounded-lg bg-[var(--surface-container-high)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] transition-colors"
+                  className="flex-1 py-1.5 text-[12px] rounded-lg bg-[var(--zen-hover)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] transition-colors"
                 >
                   Cancelar
                 </button>

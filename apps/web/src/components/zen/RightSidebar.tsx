@@ -33,88 +33,22 @@ interface ToolCard {
   id: RightTab;
   title: string;
   icon: React.ReactNode;
-  color: {
-    hover: string;
-    active: string;
-  };
 }
 
 const toolBase =
-  "bg-white/40 backdrop-blur-md shadow-[0_4px_16px_rgba(22,82,65,0.10)] text-[var(--on-surface)]";
+  "border border-[var(--zen-line)] bg-[var(--zen-panel)] text-[var(--on-surface-variant)]";
+const toolHover = "hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)]";
+const toolActive = "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)] border-[var(--primary-fixed)]/30";
 
 const tools: ToolCard[] = [
-  {
-    id: "document",
-    title: "Visor Documento",
-    icon: <FileText className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-red-100 hover:text-red-700 hover:shadow-[0_4px_16px_rgba(239,68,68,0.25)]",
-      active: "bg-red-100 text-red-700 shadow-[0_4px_16px_rgba(239,68,68,0.25)]",
-    },
-  },
-  {
-    id: "summary",
-    title: "Resumen Ejecutivo",
-    icon: <Sparkles className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-green-100 hover:text-green-700 hover:shadow-[0_4px_16px_rgba(34,197,94,0.25)]",
-      active: "bg-green-100 text-green-700 shadow-[0_4px_16px_rgba(34,197,94,0.25)]",
-    },
-  },
-  {
-    id: "mindmap",
-    title: "Grafo de Ideas",
-    icon: <Share2 className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-blue-100 hover:text-blue-700 hover:shadow-[0_4px_16px_rgba(59,130,246,0.25)]",
-      active: "bg-blue-100 text-blue-700 shadow-[0_4px_16px_rgba(59,130,246,0.25)]",
-    },
-  },
-  {
-    id: "quiz",
-    title: "Quiz Module",
-    icon: <ListChecks className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-yellow-100 hover:text-yellow-700 hover:shadow-[0_4px_16px_rgba(234,179,8,0.25)]",
-      active: "bg-yellow-100 text-yellow-700 shadow-[0_4px_16px_rgba(234,179,8,0.25)]",
-    },
-  },
-  {
-    id: "guide",
-    title: "Guía Estudio",
-    icon: <BookOpen className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-purple-100 hover:text-purple-700 hover:shadow-[0_4px_16px_rgba(168,85,247,0.25)]",
-      active: "bg-purple-100 text-purple-700 shadow-[0_4px_16px_rgba(168,85,247,0.25)]",
-    },
-  },
-  {
-    id: "faq",
-    title: "FAQ Auto",
-    icon: <HelpCircle className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-pink-100 hover:text-pink-700 hover:shadow-[0_4px_16px_rgba(236,72,153,0.25)]",
-      active: "bg-pink-100 text-pink-700 shadow-[0_4px_16px_rgba(236,72,153,0.25)]",
-    },
-  },
-  {
-    id: "notes",
-    title: "Notas Rápidas",
-    icon: <StickyNote className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-gray-100 hover:text-gray-700 hover:shadow-[0_4px_16px_rgba(75,85,99,0.25)]",
-      active: "bg-gray-100 text-gray-700 shadow-[0_4px_16px_rgba(75,85,99,0.25)]",
-    },
-  },
-  {
-    id: "diagram",
-    title: "Diagrama",
-    icon: <GitFork className="w-4 h-4" />,
-    color: {
-      hover: "hover:bg-teal-100 hover:text-teal-700 hover:shadow-[0_4px_16px_rgba(20,184,166,0.25)]",
-      active: "bg-teal-100 text-teal-700 shadow-[0_4px_16px_rgba(20,184,166,0.25)]",
-    },
-  },
+  { id: "document", title: "Visor Documento", icon: <FileText className="w-4 h-4" /> },
+  { id: "summary", title: "Resumen Ejecutivo", icon: <Sparkles className="w-4 h-4" /> },
+  { id: "mindmap", title: "Grafo de Ideas", icon: <Share2 className="w-4 h-4" /> },
+  { id: "quiz", title: "Quiz Module", icon: <ListChecks className="w-4 h-4" /> },
+  { id: "guide", title: "Guía Estudio", icon: <BookOpen className="w-4 h-4" /> },
+  { id: "faq", title: "FAQ Auto", icon: <HelpCircle className="w-4 h-4" /> },
+  { id: "notes", title: "Notas Rápidas", icon: <StickyNote className="w-4 h-4" /> },
+  { id: "diagram", title: "Diagrama", icon: <GitFork className="w-4 h-4" /> },
 ];
 
 interface QuizQuestion {
@@ -226,10 +160,10 @@ export default function RightSidebar({
       return (
         <div className="h-full flex items-center justify-center p-4">
           <div className="text-center max-w-[180px] space-y-2">
-            <div className="w-8 h-8 rounded-xl bg-[var(--surface-container-high)] mx-auto flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[var(--zen-hover)] mx-auto flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
             </div>
-            <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/60 leading-relaxed">
+            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/60 leading-relaxed">
               Selecciona una fuente para activar los procesos de Studio.
             </p>
           </div>
@@ -267,7 +201,7 @@ export default function RightSidebar({
           return (
             <div className="p-6 text-center space-y-4">
               <Share2 className="w-8 h-8 mx-auto text-[var(--on-surface-variant)]/60" />
-              <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
+              <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
                 Genera un mapa mental interactivo del documento.
               </p>
               <button
@@ -283,11 +217,11 @@ export default function RightSidebar({
 
         return (
           <div className="flex flex-col h-full">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
               <div className="flex-1" />
               <button
                 onClick={generateMindmap}
-                className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+                className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
                 title="Regenerar"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -320,7 +254,7 @@ export default function RightSidebar({
           return (
             <div className="p-6 text-center space-y-4">
               <HelpCircle className="w-8 h-8 mx-auto text-[var(--on-surface-variant)]/60" />
-              <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
+              <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]">
                 Genera preguntas para evaluar tu comprensión del documento.
               </p>
               <button
@@ -343,7 +277,7 @@ export default function RightSidebar({
               const correctIdx = correctLetter ? correctLetter.charCodeAt(0) - 65 : -1;
 
               return (
-                <div key={i} className="p-2.5 rounded-lg bg-[var(--surface-container-high)]/50 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                <div key={i} className="p-2.5 rounded-lg bg-[var(--zen-hover)]/60">
                   <p className="zen-text-body zen-read-text mb-1.5">
                     {i + 1}. {q.question}
                   </p>
@@ -364,14 +298,14 @@ export default function RightSidebar({
                             }
                           }}
                           disabled={isAnswered}
-                          className={`w-full text-left font-label-mono text-(length:--zen-fs-secondary) px-2 py-1 rounded transition-colors ${
+                          className={`w-full text-left text-(length:--zen-fs-secondary) px-2 py-1 rounded transition-colors ${
                             showCorrect
                               ? "bg-green-100 text-green-700"
                               : showWrong
                               ? "bg-red-100 text-red-700"
                               : isAnswered
                               ? "text-[var(--on-surface-variant)]/40 cursor-default"
-                              : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] cursor-pointer"
+                              : "text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] cursor-pointer"
                           }`}
                         >
                           {letter}) {opt}
@@ -386,11 +320,11 @@ export default function RightSidebar({
             })}
             <button
               onClick={generateQuiz}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
               title="Regenerar quiz"
             >
               <RefreshCw className="w-3 h-3" />
-              <span className="font-label-mono text-(length:--zen-fs-label) uppercase tracking-[0.12em]">Regenerar</span>
+              <span className="text-(length:--zen-fs-label)">Regenerar</span>
             </button>
           </div>
         );
@@ -413,18 +347,18 @@ export default function RightSidebar({
     <div className="flex flex-col h-full">
       {/* Studio header */}
       <div
-        className={`p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center ${
+        className={`p-4 flex items-center ${
           collapsed ? "justify-center" : "justify-between"
         }`}
       >
         {!collapsed && (
-          <span className="font-label-mono text-(length:--zen-fs-heading) uppercase tracking-[0.15em] text-[var(--tertiary-fixed)]">
+          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)]">
             Studio
           </span>
         )}
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors cursor-pointer"
           title={collapsed ? "Expandir aside" : "Reducir aside"}
         >
           {collapsed ? (
@@ -445,8 +379,8 @@ export default function RightSidebar({
                 key={tool.id}
                 onClick={() => setRightTab(tool.id)}
                 title={tool.title}
-                className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 cursor-pointer shrink-0 ${toolBase} ${
-                  isActive ? tool.color.active : tool.color.hover
+                className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-200 cursor-pointer shrink-0 ${toolBase} ${
+                  isActive ? toolActive : toolHover
                 }`}
               >
                 {tool.icon}
@@ -456,7 +390,7 @@ export default function RightSidebar({
         </div>
       ) : activeDoc ? (
         /* Reduced: compact tool bar (gives content full visibility) */
-        <div className="px-2 py-1.5 flex items-center gap-1 overflow-x-auto shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
           {tools.map((tool) => {
             const isActive = rightTab === tool.id;
             return (
@@ -464,8 +398,8 @@ export default function RightSidebar({
                 key={tool.id}
                 onClick={() => setRightTab(tool.id)}
                 title={tool.title}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 cursor-pointer shrink-0 ${toolBase} ${
-                  isActive ? tool.color.active : tool.color.hover
+                className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-200 cursor-pointer shrink-0 ${toolBase} ${
+                  isActive ? toolActive : toolHover
                 }`}
               >
                 {tool.icon}
@@ -483,12 +417,12 @@ export default function RightSidebar({
                 <button
                   key={tool.id}
                   onClick={() => setRightTab(tool.id)}
-                  className={`flex flex-col items-center justify-center gap-1 w-full max-w-[150px] p-2.5 rounded-xl transition-all duration-200 cursor-pointer ${toolBase} ${
-                    isActive ? tool.color.active : tool.color.hover
+                  className={`flex flex-col items-center justify-center gap-1 w-full max-w-[150px] p-2.5 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
+                    isActive ? toolActive : toolHover
                   }`}
                 >
                   {tool.icon}
-                  <h4 className="font-label-mono text-(length:--zen-fs-body) text-center truncate">
+                  <h4 className="text-(length:--zen-fs-body) text-center truncate">
                     {tool.title}
                   </h4>
                 </button>

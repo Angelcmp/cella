@@ -225,11 +225,11 @@ export default function ObsidianGraph({ code, nodesMeta, onNodeClick }: Obsidian
   );
 
   return (
-    <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden bg-[var(--surface-container-low)] relative">
-      <div className="absolute right-2 top-2 z-10 flex gap-1 bg-[var(--surface-container-lowest)]/95 backdrop-blur-sm rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-1">
+    <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden bg-[var(--zen-panel)] border border-[var(--zen-line)] relative">
+      <div className="absolute right-2 top-2 z-10 flex gap-1 bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded-lg p-1">
         <button
           onClick={() => fgRef.current?.zoomToFit(400, 60)}
-          className="px-2 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)] hover:text-[var(--on-surface)] transition-colors font-label-mono text-(length:--zen-fs-label)"
+          className="px-2 h-7 flex items-center justify-center rounded text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors text-(length:--zen-fs-label)"
           title="Ajustar vista"
         >
           Ajustar

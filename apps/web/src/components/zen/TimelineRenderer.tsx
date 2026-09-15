@@ -22,7 +22,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
   return (
     <div className="w-full max-w-sm mx-auto">
       {title && (
-        <p className="font-label-mono text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] text-center mb-5 truncate px-2">
+        <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] text-center mb-5 truncate px-2">
           {title}
         </p>
       )}
@@ -32,7 +32,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
             "absolute left-[16.66%] right-[16.66%] top-[11px] h-0.5",
             failed
               ? "bg-red-500/30"
-              : "bg-[var(--outline-variant)]"
+              : "bg-[var(--zen-line)]"
           )}
         />
         <div
@@ -59,8 +59,8 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
                       : done
                         ? "border-[var(--primary-fixed)] bg-[var(--primary-fixed)] text-[#003739]"
                         : active
-                          ? "border-[var(--primary-fixed)] bg-[var(--surface-container-lowest)] text-[var(--primary-fixed)]"
-                          : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]/60"
+                          ? "border-[var(--primary-fixed)] bg-[var(--zen-panel)] text-[var(--primary-fixed)]"
+                          : "border-[var(--zen-line)] bg-[var(--zen-panel)] text-[var(--on-surface-variant)]/60"
                   )}
                 >
                   {failed ? (
@@ -79,7 +79,7 @@ export default function TimelineRenderer({ status, title }: TimelineRendererProp
                 </div>
                 <span
                   className={cn(
-                    "font-label-mono text-(length:--zen-fs-label) transition-colors",
+                    "text-(length:--zen-fs-label) transition-colors",
                     failed
                       ? "text-red-500"
                       : done || active

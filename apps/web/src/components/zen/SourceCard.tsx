@@ -35,10 +35,10 @@ export default function SourceCard({
     <div
       onClick={onSelect}
       className={cn(
-        "group flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
+        "group flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors cursor-pointer",
         active
-          ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-          : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container-high)]"
+          ? "bg-[var(--zen-hover)] text-[var(--on-surface)]"
+          : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
       )}
     >
       <span
@@ -48,7 +48,7 @@ export default function SourceCard({
       />
 
       <span className="flex-1 min-w-0">
-        <span className="block truncate font-label-mono [font-size:10px] leading-tight">
+        <span className="block truncate text-[11px] leading-tight">
           {doc.title}
         </span>
       </span>
@@ -86,10 +86,10 @@ export default function SourceCard({
                 "w-3 h-3 rounded border flex items-center justify-center transition-colors",
                 chatChecked
                   ? "bg-[var(--primary-fixed)] border-[var(--primary-fixed)]"
-                  : "border-[var(--outline-variant)]"
+                  : "border-[var(--zen-line)]"
               )}
             >
-              {chatChecked && <Check className="w-2 h-2 text-[var(--on-primary-container)]" />}
+              {chatChecked && <Check className="w-2 h-2 text-white" />}
             </span>
           </label>
         )}

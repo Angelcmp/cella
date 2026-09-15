@@ -22,6 +22,33 @@
 ### Verificación (14/09/2026)
 - `npm run typecheck` ✅ · `eslint` de archivos tocados ✅ (0 errores/warnings) · `npm run build` ✅ (12 páginas, `/zen` 165 kB).
 
+## Rediseño minimalista de `/zen` (14/09/2026)
+
+Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la paleta teal de Cella. Solo cosmético: sin cambios de layout, anchos ni navegación.
+
+### Tokens (`apps/web/src/app/globals.css`)
+- Nuevos: `--zen-canvas`, `--zen-panel`, `--zen-panel-alt`, `--zen-line`, `--zen-hover`, `--zen-elev-1/2`.
+- Nuevo bloque `.dark .cyber` que remapea los tokens zen/Material3 (antes, en oscuro, el shell de `/zen` seguía usando superficies claras).
+- `.cyber [data-slot="card"]`: superficies shadcn planas (anula `shadow-card`).
+- Se dejan de usar en `/zen`: `.technical-grid`, `.scanlines`, `.text-chrome`, `.glass*`, `--gradient-zen-glow`, `--paper-texture` (siguen disponibles para la landing/docs).
+
+### Shell (`ZenLayout.tsx`)
+- Eliminado el fondo "cyber" (grid técnico, blob `blur-[120px]`, scanlines `mix-blend-overlay`).
+- Asides opacos con borde 1px `--zen-line`, sin `backdrop-blur` ni sombras de color. Anchos y posicionamiento intactos.
+
+### Componentes
+- **Sidebar izquierdo** (`LeftSidebar`, `SourceCard`, `ConversationItem`): listas planas, etiquetas sans (sin mono uppercase), hover `--zen-hover`, sin rojos decorativos.
+- **Centro** (`ChatPanel`, `ChatInterface`, `ChatInput`): welcome sin gradientes/glows; botón enviar sólido `--primary-fixed`; input con borde 1px; burbuja de usuario `--zen-hover`.
+- **Studio** (`RightSidebar`): las 8 paletas de tool-cards colapsan a monocromo (activa `--primary-container`/`--primary-fixed`, borde `--zen-line`).
+- **Visor** (`DocumentViewer`, `PdfViewer`, `DocumentSummary`, `ObsidianGraph`): fuera textura de papel, `--gradient-zen-glow` y sombras multicapa.
+- **Tabs y modales** (`DiagramTab`, `StudyGuideTab`, `FaqTab`, `NotesTab`, `TimelineRenderer`, `UploadModal`, `CellaDialog`, `SettingsPopover`): alineados a los tokens zen.
+
+### Dark mode
+- `app/layout.tsx`: script bloqueante que aplica `cella-theme` desde `localStorage` antes del primer paint (evita FOUC); `suppressHydrationWarning` en `<html>`.
+
+### Verificación
+- `npm run typecheck` ✅ · `eslint` de archivos tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 50 kB, 164 kB First Load).
+
 ## Sprint DB cleanup + SSE robustez + embeddings cache + UX modelos (16/08/2026)
 
 ### Database cleanup (`apps/api/database_simple.py`)

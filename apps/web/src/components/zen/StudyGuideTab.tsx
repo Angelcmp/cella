@@ -122,7 +122,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
         <button
           onClick={generate}
           disabled={generating}
-          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--surface-container-high)] transition-colors"
+          className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
           title="Regenerar"
         >
           {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -130,7 +130,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       </div>
 
       {guide.objectives && guide.objectives.length > 0 && (
-        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+        <div className="p-3 rounded-xl bg-[var(--zen-hover)]/50">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Objetivos</p>
           <ul className="space-y-1">
             {guide.objectives.map((o, i) => (
@@ -144,7 +144,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.key_concepts && guide.key_concepts.length > 0 && (
-        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+        <div className="p-3 rounded-xl bg-[var(--zen-hover)]/50">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Conceptos clave</p>
           <div className="space-y-2">
             {guide.key_concepts.map((c, i) => (
@@ -161,7 +161,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       {guide.sections && guide.sections.length > 0 && (
         <div className="space-y-3">
           {guide.sections.map((s, i) => (
-            <div key={i} className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+            <div key={i} className="p-3 rounded-xl bg-[var(--zen-hover)]/50">
               <p className="zen-text-heading zen-read-text">
                 {s.title}
                 {s.pages && <span className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 ml-1">[{s.pages}]</span>}
@@ -193,7 +193,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.checkpoints && guide.checkpoints.length > 0 && (
-        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+        <div className="p-3 rounded-xl bg-[var(--zen-hover)]/50">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Checkpoints</p>
           <ul className="space-y-1">
             {guide.checkpoints.map((c, i) => (
@@ -207,7 +207,7 @@ export default function StudyGuideTab({ documentId, documentTitle }: { documentI
       )}
 
       {guide.review_questions && guide.review_questions.length > 0 && (
-        <div className="p-3 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] bg-[var(--surface-container-high)]/30">
+        <div className="p-3 rounded-xl bg-[var(--zen-hover)]/50">
           <p className="text-(length:--zen-fs-label) uppercase tracking-wider text-[var(--on-surface-variant)]/60 mb-2 font-medium">Preguntas de repaso</p>
           <ul className="space-y-1">
             {guide.review_questions.map((q, i) => (

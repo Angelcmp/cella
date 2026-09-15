@@ -54,10 +54,10 @@ export default function CellaDialog({
       ref={ref}
       onClick={handleBackdrop}
       style={{ maxWidth, ...style }}
-      className={`celladialog m-auto rounded-[16px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0 text-[var(--text-primary)] shadow-soft outline-none ${className}`}
+      className={`celladialog m-auto rounded-[16px] border border-[var(--zen-line)] bg-[var(--zen-panel)] p-0 text-[var(--text-primary)] shadow-[var(--zen-elev-2)] outline-none ${className}`}
     >
       {title != null && (
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--zen-line)]">
           <div className="text-(length:--zen-fs-title) font-semibold text-[var(--text-primary)]">{title}</div>
           <button
             onClick={onClose}

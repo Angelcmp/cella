@@ -43,14 +43,14 @@ export default function PdfViewer({
   return (
     <div className={cn("h-full flex flex-col", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--outline-variant)] bg-[var(--surface-container-high)]/70 shrink-0">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--zen-line)] bg-[var(--zen-panel)] shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <FileText className="w-4 h-4 text-[var(--primary-fixed)] shrink-0" />
-          <span className="font-label-mono text-(length:--zen-fs-heading) text-[var(--on-surface)] truncate">
+          <span className="text-(length:--zen-fs-heading) text-[var(--on-surface)] truncate">
             {title}
           </span>
           {numPages && (
-            <span className="font-label-mono text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 shrink-0">
+            <span className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 shrink-0">
               Pág. {currentPage} / {numPages}
             </span>
           )}
@@ -76,7 +76,7 @@ export default function PdfViewer({
         {(numPages || knownPages) && (
           <Badge
             variant="outline"
-            className="font-label-mono text-(length:--zen-fs-label) border-[var(--primary-fixed)] text-[var(--primary-fixed)] bg-[var(--primary-fixed)]/10 shrink-0"
+            className="text-(length:--zen-fs-label) border-[var(--primary-fixed)] text-[var(--primary-fixed)] bg-[var(--primary-fixed)]/10 shrink-0"
           >
             {numPages ?? knownPages} páginas
           </Badge>
@@ -84,7 +84,7 @@ export default function PdfViewer({
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 overflow-y-auto bg-[var(--surface-container-high)]/30">
+      <div className="flex-1 overflow-y-auto bg-[var(--zen-canvas)]">
         <Document
           file={fileUrl}
           onLoadSuccess={({ numPages: np }: { numPages: number }) => {
@@ -114,7 +114,7 @@ export default function PdfViewer({
             renderTextLayer={false}
             renderAnnotationLayer={false}
             width={520}
-            className="mb-2 mt-2 shadow-[0_2px_12px_rgba(22,82,65,0.15)]"
+            className="mb-2 mt-2 shadow-[0_1px_3px_rgba(11,21,21,0.08)]"
           />
         </Document>
       </div>
