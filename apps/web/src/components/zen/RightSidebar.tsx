@@ -36,9 +36,10 @@ interface ToolCard {
 }
 
 const toolBase =
-  "border border-[var(--zen-line)] bg-[var(--zen-panel)] text-[var(--on-surface-variant)]";
+  "bg-[var(--zen-panel-alt)] border-l-2 border-transparent text-[var(--on-surface-variant)]";
 const toolHover = "hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)]";
-const toolActive = "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)] border-[var(--primary-fixed)]/30";
+const toolActive =
+  "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)] border-l-2 border-[var(--primary-fixed)]";
 
 const tools: ToolCard[] = [
   { id: "document", title: "Visor Documento", icon: <FileText className="w-4 h-4" /> },
@@ -347,12 +348,12 @@ export default function RightSidebar({
     <div className="flex flex-col h-full">
       {/* Studio header */}
       <div
-        className={`p-4 flex items-center ${
+        className={`h-12 px-4 flex items-center border-b border-[var(--zen-line)] shrink-0 ${
           collapsed ? "justify-center" : "justify-between"
         }`}
       >
         {!collapsed && (
-          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)]">
+          <span className="text-[13px] font-semibold text-[var(--on-surface)]">
             Studio
           </span>
         )}

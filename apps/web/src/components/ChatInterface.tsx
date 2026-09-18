@@ -766,7 +766,7 @@ export default function ChatInterface({
                         {message.citations.map((citation, index) => (
                           <div
                             key={index}
-                            className="flex items-start gap-2 pl-2 border-l-2 border-[var(--zen-line)]"
+                            className="flex items-start gap-2 rounded-md bg-[var(--zen-panel-alt)] border-l-2 border-[var(--primary-fixed)] px-2.5 py-1.5"
                           >
                             <button
                               onClick={() => onCitationClick?.(citation.page)}
