@@ -1,5 +1,21 @@
 # Cella — Estado del Proyecto (Agosto–Septiembre 2026)
 
+## `/zen`: composición final de 3 paneles (17/09/2026)
+
+Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (UI tipo Claude/Anthropic): 3 paneles contiguos con headers uniformes, sin tocar funciones.
+
+- **`ZenLayout.tsx`**: rebalanceo de anchos → izquierda **288px**, derecha expandida **440px** (colapsada **56px**), centro flexible. Se mantienen divisores de 1px y superficies planas (sin sombras).
+- **Headers uniformes `h-12`** (título + acción) en los 3 paneles:
+  - Izquierdo (`LeftSidebar`): "Fuentes" + `+` (subir); se elimina el label duplicado del cuerpo.
+  - Central (`ChatPanel`): título del documento (+ nombre del proyecto) y acción de selección multi-doc; header también en los estados welcome/procesando/fallido.
+  - Derecho (`RightSidebar`): "Studio" + acción colapsar/expandir.
+- **`ChatInput.tsx`**: barra única redondeada (`+` adjuntar · textarea · chip de modelo · **botón teal circular**), en lugar de la caja con dos filas.
+- **Tarjetas neutras con acento teal** (borde izquierdo): citas en `ChatInterface` y tool-cards del Studio en `RightSidebar`.
+- Tipografía de la respuesta IA: se mantiene **Inter** (decisión del cliente); paleta teal intacta.
+
+### Verificación (17/09/2026)
+- `npm run typecheck` ✅ · `eslint` de tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 49.4 kB / 163 kB First Load) · `npm run test:e2e` ✅ 4/4 · captura visual del build ✅.
+
 ## Diseño unificado de la suite y retiro del modo oscuro (18/09/2026)
 
 Objetivo: llevar el lenguaje minimalista de `/zen` a la **landing** y **`/docs`**, conservando la paleta teal y **sin romper funcionalidades** (rutas, CTAs, anchors, búsqueda). Modo claro único.
