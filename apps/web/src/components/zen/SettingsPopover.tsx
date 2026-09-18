@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
-  Moon,
-  Sun,
   BookOpen,
   Sparkles,
   ArrowLeft,
@@ -28,17 +26,9 @@ interface UsageData {
 }
 
 export default function SettingsPopover({ open, onClose }: SettingsPopoverProps) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [usage, setUsage] = useState<UsageData | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const setModelsModalOpen = useZenStore((s) => s.setModelsModalOpen);
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
-    }
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -49,18 +39,6 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
   }, [open]);
 
   if (!open) return null;
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark", newTheme === "dark");
-      document.documentElement.setAttribute("data-theme", newTheme);
-      try {
-        localStorage.setItem("cella-theme", newTheme);
-      } catch {}
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
@@ -73,20 +51,6 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
           <p className="text-[10px] text-[var(--text-muted)] mb-2">
             Ajustes
           </p>
-
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
-          >
-            {theme === "dark" ? (
-              <Sun className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-            )}
-            <span>Modo {theme === "dark" ? "claro" : "oscuro"}</span>
-          </button>
-
-          <div className="my-1 border-t border-[var(--zen-line)]" />
 
           <button
             onClick={() => {

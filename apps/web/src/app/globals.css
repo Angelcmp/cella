@@ -6,8 +6,8 @@
   - Single source of truth: @theme defines the hex values.
   - :root exposes semantic aliases (var(--accent-primary)) consumed by
     every component and by .cyber.
-  - .dark only re-aliases semantic tokens; hex values stay in @theme.
   - .cyber inherits from :root and adds zen/Material3 tokens.
+  - Modo oscuro retirado (solo-light hasta nueva versión).
 */
 
 @theme {
@@ -25,6 +25,9 @@
   --color-cella-accent-primary: #5499B5;
   --color-cella-accent-strong: #4E818E;
   --color-cella-accent-highlight: #9FC8F2;
+
+  /* Una sola fuente mono para todo el proyecto (Tailwind `font-mono`). */
+  --font-mono: var(--font-mono-stack);
 }
 
 :root {
@@ -32,7 +35,7 @@
   --font-heading: var(--font-serif, "Source Serif 4", Georgia, "Times New Roman", serif);
   --font-display: var(--font-grotesk, "Space Grotesk", "Inter", sans-serif);
   --font-body: var(--font-sans, "Inter", system-ui, sans-serif);
-  --font-mono-stack: var(--font-mono, "JetBrains Mono", "SFMono-Regular", monospace);
+  --font-mono-stack: var(--font-jetbrains, "JetBrains Mono", "SFMono-Regular", monospace);
 
   /* Semantic aliases — the public API components depend on. */
   --bg-primary: var(--color-cella-bg-primary);
@@ -60,7 +63,6 @@
   --shadow-card: 0 15px 30px rgba(22, 82, 65, 0.08);
   --shadow-glow: 0 30px 60px rgba(84, 153, 181, 0.28);
 
-  --paper-texture: url("/textures/paper-noise.png");
   --gradient-zen-glow: linear-gradient(135deg, #A7D8DE 0%, #5499B5 45%, #4E818E 100%);
   --gradient-midnight: linear-gradient(180deg, #165241 0%, #0E3B30 100%);
   --gradient-chrome: linear-gradient(100deg, #F5FAFB 0%, #A7D8DE 30%, #9FC8F2 52%, #E6EFF2 72%, #5499B5 100%);
@@ -86,41 +88,6 @@
   --destructive-foreground: #FFFFFF;
 }
 
-.dark {
-  color-scheme: dark;
-
-  /* Re-aliases for dark mode. Hex values stay in @theme. */
-  --bg-primary: #165241;
-  --bg-surface: #1D5A4A;
-  --bg-muted: #1D5A4A;
-  --bg-card: #1D5A4A;
-
-  --text-primary: #E8F3F1;
-  --text-secondary: #A7D8DE;
-  --text-muted: #7BA6A8;
-
-  --accent-brand: #A7D8DE;
-  --accent-primary: #9FC8F2;
-  --accent-strong: #A7D8DE;
-  --accent-highlight: #5499B5;
-
-  --border-subtle: rgba(167, 216, 222, 0.18);
-  --border-strong: rgba(167, 216, 222, 0.32);
-  --ring: rgba(159, 200, 242, 0.35);
-
-  --bubble-user: rgba(29, 90, 74, 0.7);
-  --bubble-ai: rgba(22, 82, 65, 0.85);
-
-  --shadow-soft: 0 25px 50px rgba(0, 0, 0, 0.55);
-  --shadow-card: 0 20px 35px rgba(0, 0, 0, 0.45);
-
-  --muted: #1E293B;
-  --primary-foreground: #0F172A;
-  --accent-foreground: #0F172A;
-  --destructive: #F87171;
-  --destructive-foreground: #0F172A;
-}
-
 * {
   border-color: var(--border-subtle);
 }
@@ -140,26 +107,9 @@ body {
   overflow-x: hidden;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: var(--paper-texture);
-  background-size: 600px 600px;
-  opacity: 0.04;
-  mix-blend-mode: multiply;
-}
-
 ::selection {
   background-color: var(--accent-primary);
   color: var(--primary-foreground);
-}
-
-.dark ::selection {
-  background-color: var(--accent-highlight);
-  color: #0F0C0A;
 }
 
 main {
@@ -381,11 +331,6 @@ section.bg-background {
   -webkit-backdrop-filter: blur(14px);
 }
 
-.dark .glass-panel {
-  background-color: rgba(22, 82, 65, 0.45);
-  border-color: rgba(167, 216, 222, 0.22);
-}
-
 /* Glassmorphism utilities */
 .glass {
   background-color: rgba(255, 255, 255, 0.42);
@@ -395,11 +340,6 @@ section.bg-background {
   box-shadow: 0 8px 32px rgba(22, 82, 65, 0.12);
 }
 
-.dark .glass {
-  background-color: rgba(29, 90, 74, 0.40);
-  border-color: rgba(167, 216, 222, 0.20);
-}
-
 .glass-card {
   background-color: rgba(255, 255, 255, 0.38);
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -407,11 +347,6 @@ section.bg-background {
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 10px 30px rgba(22, 82, 65, 0.10);
   border-radius: var(--radius-lg);
-}
-
-.dark .glass-card {
-  background-color: rgba(22, 82, 65, 0.42);
-  border-color: rgba(167, 216, 222, 0.18);
 }
 
 .glass-chip {
@@ -480,34 +415,6 @@ section.bg-background {
   overscroll-behavior: none;
   background-color: var(--zen-canvas);
   font-family: var(--font-body);
-}
-
-/* Dark mode overrides for the zen/Material3 tokens (antes no existían:
-   en oscuro el shell de /zen seguía usando superficies claras). */
-.dark .cyber {
-  --zen-canvas: #10352C;
-  --zen-panel: #165241;
-  --zen-panel-alt: #1D5A4A;
-  --zen-line: rgba(167, 216, 222, 0.16);
-  --zen-hover: rgba(167, 216, 222, 0.08);
-  --zen-elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
-  --zen-elev-2: 0 4px 12px rgba(0, 0, 0, 0.45);
-
-  --surface: #14493C;
-  --surface-container-lowest: #165241;
-  --surface-container-low: #14493C;
-  --surface-container: #165241;
-  --surface-container-high: #1D5A4A;
-  --surface-container-highest: #245F50;
-  --outline-variant: rgba(167, 216, 222, 0.18);
-  --on-surface: #E8F3F1;
-  --on-surface-variant: #A7D8DE;
-  --primary-fixed: #0E7C82;
-  --primary-container: #2A6B70;
-  --on-primary-container: #D6F3F5;
-  --secondary-fixed: #A7D8DE;
-  --tertiary-fixed: #7BC8E0;
-  --zen-read-bg: #165241;
 }
 
 /* Superficies shadcn neutralizadas dentro de /zen (planas, sin sombra). */
@@ -620,10 +527,6 @@ section.bg-background {
   -webkit-background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-}
-
-.dark .text-chrome {
-  background-image: linear-gradient(100deg, #E8F3F1 0%, #A7D8DE 32%, #9FC8F2 55%, #E6F0F4 75%, #7BC8E0 100%);
 }
 
 .y2k-grid {
@@ -977,10 +880,6 @@ pre {
   body {
     background: #FFFFFF;
     color: #111827;
-  }
-
-  body::before {
-    display: none;
   }
 
   a {
