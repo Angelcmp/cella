@@ -1,5 +1,35 @@
 # Cella — Estado del Proyecto (Agosto–Septiembre 2026)
 
+## Diseño unificado de la suite y retiro del modo oscuro (18/09/2026)
+
+Objetivo: llevar el lenguaje minimalista de `/zen` a la **landing** y **`/docs`**, conservando la paleta teal y **sin romper funcionalidades** (rutas, CTAs, anchors, búsqueda). Modo claro único.
+
+### Sistema de diseño (`apps/web/src/app/globals.css`)
+- **Modo oscuro retirado por completo**: eliminados los bloques `.dark` (tokens, selection, glass, `.cyber`, `text-chrome`); sin script de tema ni `data-theme` en `layout.tsx`; sin toggle en `SettingsPopover`; `sonner` fijado en claro. No hay variantes Tailwind `dark:`.
+- Una sola fuente mono: `--font-mono` mapeado a `--font-mono-stack` (JetBrains); variable de `next/font` renombrada a `--font-jetbrains`.
+- Eliminada la textura de papel global (`body::before` / `--paper-texture`).
+- Accesibilidad: `:focus-visible` consistente y `prefers-reduced-motion` global.
+- Limpieza: fuera utilidades muertas (`.technical-grid`, `.scanlines`, `.text-chrome`, `.y2k-*`, `.pixel-corners`, `.glass*`, `.hover-*`, `.reveal-*`, `.tilt-hover`, `.wipe-in`, `.h2-underline`, `.animate-*` sin uso, `.badge-*`, `.tablet-pill`, `.chat-input`) y variables `--gradient-*`.
+
+### Landing (`app/page.tsx`, `components/landing/*`)
+- Fuera overlays fijos (grid + scanlines + aurora) y cian hardcodeado; fondo plano.
+- Hero sin gradiente ni `drop-shadow` y **fix del H1** (se quitó el `fontSize` inline que anulaba el `clamp`); CTA sólido + outline; header plano con borde 1px.
+- Cards de pasos, footer y `MarqueeTicker` planos; `HeroDemo` con chrome claro, `STUDIO_TOOLS` monocromo y tokens zen.
+
+### `/docs` (`app/docs/*`)
+- Tokens zen en toda la sección; header/sidebar planos (sin blur); prosa/código/tablas planas; `styles.css` sin ámbar/marrón; progreso de lectura sólido.
+- **Fix TOC**: el índice ahora se genera (deriva de las secciones/divs con `id`) y observa esas secciones.
+- **Fix estado activo del sidebar**: por `hashchange` + `IntersectionObserver` (antes usaba `usePathname`, que nunca incluye el hash).
+
+### Eliminación de código muerto
+- `components/landing/FeaturePanels.tsx` (no importado) y la fuente Work Sans.
+- Variantes `glow` (badge) y `gradient` (button) sin uso; `DocumentViewer` usa `variant="default"` para el modo lectura.
+
+### Verificación (18/09/2026)
+- `npm run typecheck` ✅ · `eslint` de archivos tocados sin errores nuevos ✅ · `npm run build` ✅ (`/` 109 kB, `/docs` 117 kB, `/zen` 163 kB First Load) · `npm run test:e2e` ✅ 4/4.
+
+*Nota: la sección siguiente ("Rediseño minimalista de /zen") documenta su dark mode persistente, que quedó **retirado** en este cambio.*
+
 ## Cierre de pendientes (14/09/2026)
 
 ### Salto a la página citada en el visor PDF (cierre del pendiente)
