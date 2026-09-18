@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Source_Serif_4, Space_Grotesk, Inter, JetBrains_Mono, Work_Sans } from "next/font/google";
+import { Source_Serif_4, Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
@@ -25,12 +25,6 @@ const jetBrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const workSans = Work_Sans({
-  variable: "--font-landing",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -94,7 +88,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${sourceSerif.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} ${workSans.variable} antialiased`}
+        className={`${sourceSerif.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <StructuredData />

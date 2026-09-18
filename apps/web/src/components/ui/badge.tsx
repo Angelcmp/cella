@@ -17,8 +17,6 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white",
         outline:
           "border-[var(--border-subtle)] text-[var(--text-secondary)]",
-        glow:
-          "border-0 bg-[var(--gradient-zen-glow)] text-[var(--primary-foreground)] shadow-glow",
       },
     },
     defaultVariants: {
