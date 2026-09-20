@@ -23,6 +23,7 @@ Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (
 - **Asides plegables + scroll oculto**: scrollbars ocultas en `/zen` (scroll funcional por rueda/teclado); botón colapsar/expandir en el aside izquierdo con rail de iconos; secciones **Fuentes** y **Conversaciones** plegables.
 - **Studio ghost**: botones sin relleno ni borde (hover `--zen-hover`, activo con acento tenue); `ChatInput` con borde `--outline-variant` y foco sutil.
 - **Modales**: `HistoryModal` a **760px** con filas/tipografía mayores y tokens zen; `CellaDialog` al 100% hasta `maxWidth` y backdrop más sutil; `SettingsPopover` sin icono en "Uso (24h)", etiquetas completas alineadas y menú en un solo color.
+- **ChatInput y detalles**: el foco ya no pinta borde celeste; selector de modelo simplificado (sin punto/acento) y dropdown alineado a la derecha; bordes de separación de asides en **gris transparente** (`--zen-line` = `rgba(11,21,21,0.10)`); botón de **Historial** movido al header del aside izquierdo; iconos de acción en **negro suave**; "Nueva conversación" con fondo transparente y **hover teal**; la confirmación de borrado de conversación pasa de dropdown inline a **modal centrado**.
 - *No se migraron `ZenUploadZone` ni los modales de proveedores (fuera del alcance acordado).*
 
 ### Verificación (17/09/2026)
