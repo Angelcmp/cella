@@ -19,7 +19,10 @@ Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (
 - **Studio**: tool-cards adaptativas (2 columnas en paneles angostos, 3 en `2xl`) sin truncar labels; estado vacío a `max-w-[240px]` y texto `/80`.
 - **`ChatInput`**: selector de modelo `max-w-[160px]`.
 - **Header central**: botón de nueva conversación (`+`).
-- **Pulido visual**: header del aside izquierdo vuelve a "Cella" (+ label "Fuentes" en el cuerpo); scrollbars discretas en `.cyber`; items de Fuentes/Conversaciones con más aire y `rounded-lg`; burbuja de usuario `rounded-2xl` y más espacio entre mensajes/párrafos; `code`/`blockquote` migrados a tokens zen (borde de acento); foco del input con sombra sutil; botones de navegación del `PdfViewer` con hover.
+- **Pulido visual**: header del aside izquierdo vuelve a "Cella" (+ label "Fuentes" en el cuerpo); items de Fuentes/Conversaciones con más aire y `rounded-lg`; burbuja de usuario `rounded-2xl` y más espacio entre mensajes/párrafos; `code`/`blockquote` migrados a tokens zen (borde de acento); foco del input con sombra sutil; botones de navegación del `PdfViewer` con hover.
+- **Asides plegables + scroll oculto**: scrollbars ocultas en `/zen` (scroll funcional por rueda/teclado); botón colapsar/expandir en el aside izquierdo con rail de iconos; secciones **Fuentes** y **Conversaciones** plegables.
+- **Studio ghost**: botones sin relleno ni borde (hover `--zen-hover`, activo con acento tenue); `ChatInput` con borde `--outline-variant` y foco sutil.
+- **Modales**: `HistoryModal` a **760px** con filas/tipografía mayores y tokens zen; `CellaDialog` al 100% hasta `maxWidth` y backdrop más sutil; `SettingsPopover` sin icono en "Uso (24h)", etiquetas completas alineadas y menú en un solo color.
 - *No se migraron `ZenUploadZone` ni los modales de proveedores (fuera del alcance acordado).*
 
 ### Verificación (17/09/2026)
