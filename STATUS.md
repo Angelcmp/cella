@@ -4,7 +4,7 @@
 
 Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (UI tipo Claude/Anthropic): 3 paneles contiguos con headers uniformes, sin tocar funciones.
 
-- **`ZenLayout.tsx`**: rebalanceo de anchos → izquierda **288px**, derecha expandida **440px** (colapsada **56px**), centro flexible. Se mantienen divisores de 1px y superficies planas (sin sombras).
+- **`ZenLayout.tsx`**: izquierda **288px**, derecha responsive **440px** base / **480px** (`lg`) / **620px** (`2xl`) — colapsada **72px** —, centro flexible. Se mantienen divisores de 1px y superficies planas (sin sombras).
 - **Headers uniformes `h-12`** (título + acción) en los 3 paneles:
   - Izquierdo (`LeftSidebar`): "Fuentes" + `+` (subir); se elimina el label duplicado del cuerpo.
   - Central (`ChatPanel`): título del documento (+ nombre del proyecto) y acción de selección multi-doc; header también en los estados welcome/procesando/fallido.
@@ -13,8 +13,16 @@ Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (
 - **Tarjetas neutras con acento teal** (borde izquierdo): citas en `ChatInterface` y tool-cards del Studio en `RightSidebar`.
 - Tipografía de la respuesta IA: se mantiene **Inter** (decisión del cliente); paleta teal intacta.
 
+### Ajustes de visibilidad y compacidad (17/09/2026)
+- **Historial**: `HistoryModal` no tenía disparador; se añadió botón en el pie del aside izquierdo (`setShowHistory(true)`). Iconos del pie (Ajustes · Modelos · Historial) a `w-4` y con contraste.
+- **`SettingsPopover`** y **`ThinkingBlock`**: migrados de tokens legacy a tokens zen (contraste AA; texto 10→11/13px).
+- **Studio**: tool-cards adaptativas (2 columnas en paneles angostos, 3 en `2xl`) sin truncar labels; estado vacío a `max-w-[240px]` y texto `/80`.
+- **`ChatInput`**: selector de modelo `max-w-[160px]`.
+- **Header central**: botón de nueva conversación (`+`).
+- *No se migraron `ZenUploadZone` ni los modales de proveedores (fuera del alcance acordado).*
+
 ### Verificación (17/09/2026)
-- `npm run typecheck` ✅ · `eslint` de tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 49.4 kB / 163 kB First Load) · `npm run test:e2e` ✅ 4/4 · captura visual del build ✅.
+- `npm run typecheck` ✅ · `eslint` de tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 49.4 kB / 163 kB First Load) · `npm run test:e2e` ✅ 4/4 · capturas en 1280 y 1600 ✅.
 
 ## Diseño unificado de la suite y retiro del modo oscuro (18/09/2026)
 
