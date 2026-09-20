@@ -164,7 +164,7 @@ export default function ChatInterface({
         codeSplit.forEach((codeSeg, ci) => {
           if (codeSeg.startsWith('`') && codeSeg.endsWith('`')) {
             segments2.push(
-              <code key={`c-${si}-${ci}`} className="bg-muted text-foreground/90 px-1.5 py-0.5 rounded font-mono text-[0.9em]">
+              <code key={`c-${si}-${ci}`} className="bg-[var(--zen-panel-alt)] text-[var(--on-surface)] px-1.5 py-0.5 rounded font-mono text-[0.9em]">
                 {codeSeg.slice(1, -1)}
               </code>
             );
@@ -217,7 +217,7 @@ export default function ChatInterface({
       blocks.push(
         <pre
           key={`pre-${blockIndex++}`}
-          className="bg-muted text-foreground border border-border rounded-md p-3 my-3 overflow-x-auto text-sm"
+          className="bg-[var(--zen-panel-alt)] text-[var(--on-surface)] border border-[var(--zen-line)] rounded-lg p-3 my-3 overflow-x-auto text-sm"
         >
           <code className="font-mono whitespace-pre">{code}</code>
         </pre>
@@ -285,7 +285,7 @@ export default function ChatInterface({
         if (/^\s*>\s*/m.test(paragraph)) {
           const lines = paragraph.split(/\n+/).map(l => l.replace(/^\s*>\s*/, '').trim()).filter(Boolean);
           return (
-            <blockquote key={`${seedKey}-q-${idx}`} className="border-l-4 border-border pl-3 py-1 my-2 text-muted-foreground italic">
+            <blockquote key={`${seedKey}-q-${idx}`} className="border-l-2 border-[var(--primary-fixed)] bg-[var(--zen-panel-alt)] rounded-r-md pl-3 py-2 my-2 text-[var(--on-surface-variant)] italic">
               {lines.map((l, i2) => (
                 <p key={`${seedKey}-q-${idx}-${i2}`} className="mb-1 last:mb-0">
                   {renderInlineRich(l)}
@@ -323,7 +323,7 @@ export default function ChatInterface({
         }
 
         return (
-          <p key={`${seedKey}-p-${idx}`} className="mb-2 zen-text-body leading-relaxed zen-read-text">
+          <p key={`${seedKey}-p-${idx}`} className="mb-3 last:mb-0 zen-text-body leading-relaxed zen-read-text">
             {renderInlineRich(cleanParagraph)}
           </p>
         );
@@ -709,7 +709,7 @@ export default function ChatInterface({
   return (
     <div       className={cn("flex flex-col h-full bg-transparent", className)}>
       <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-[792px] mx-auto space-y-6">
+        <div className="max-w-[792px] mx-auto space-y-5">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -728,9 +728,10 @@ export default function ChatInterface({
             >
               <div
                 className={cn(
-                  "max-w-[700px] rounded-xl px-4 py-3 zen-text-body leading-relaxed zen-read-text",
-                  message.role === "user" &&
-                    "bg-[var(--zen-hover)]"
+                  "max-w-[700px] zen-text-body leading-relaxed zen-read-text",
+                  message.role === "user"
+                    ? "rounded-2xl rounded-br-md bg-[var(--zen-hover)] px-4 py-2.5"
+                    : "py-0.5"
                 )}
               >
                 {message.role === "assistant" && message.thinkingStartedAt && (

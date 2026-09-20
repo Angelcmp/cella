@@ -74,7 +74,7 @@ export default function ConversationItem({ conversation }: ConversationItemProps
     <div className="relative">
       <div
         onClick={handleSelect}
-        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] transition-colors cursor-pointer ${
+        className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer ${
           isActive
             ? "text-[var(--on-surface)] bg-[var(--zen-hover)]"
             : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"

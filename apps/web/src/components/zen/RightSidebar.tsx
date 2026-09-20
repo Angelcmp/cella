@@ -418,7 +418,7 @@ export default function RightSidebar({
                 <button
                   key={tool.id}
                   onClick={() => setRightTab(tool.id)}
-                  className={`flex flex-col items-center justify-center gap-1 w-full p-2.5 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
+                  className={`flex flex-col items-center justify-center gap-1.5 w-full p-3 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
                     isActive ? toolActive : toolHover
                   }`}
                 >

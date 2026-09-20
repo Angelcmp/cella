@@ -35,7 +35,7 @@ export default function SourceCard({
     <div
       onClick={onSelect}
       className={cn(
-        "group flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors cursor-pointer",
+        "group flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer",
         active
           ? "bg-[var(--zen-hover)] text-[var(--on-surface)]"
           : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
@@ -48,7 +48,7 @@ export default function SourceCard({
       />
 
       <span className="flex-1 min-w-0">
-        <span className="block truncate text-[11px] leading-tight">
+        <span className="block truncate text-[12px] leading-snug">
           {doc.title}
         </span>
       </span>

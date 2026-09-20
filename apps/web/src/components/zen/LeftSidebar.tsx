@@ -238,15 +238,15 @@ export default function LeftSidebar() {
             <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="currentColor" />
           </svg>
           <span className="text-[13px] font-semibold text-[var(--on-surface)] truncate">
-            Fuentes
+            Cella
           </span>
         </div>
         <button
           onClick={() => setShowUpload(true)}
-          className="p-1.5 rounded-md text-[var(--on-surface-variant)]/70 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+          className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
           title="Añadir fuente"
         >
-          <PlusCircle className="w-3.5 h-3.5" />
+          <PlusCircle className="w-4 h-4" />
         </button>
       </div>
 
@@ -255,7 +255,7 @@ export default function LeftSidebar() {
         <div className="px-2 py-1.5">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white text-(length:--zen-fs-body) font-medium hover:opacity-90 transition-opacity"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white text-(length:--zen-fs-body) font-medium hover:opacity-90 transition-opacity"
             title="Nueva conversación"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
@@ -263,6 +263,11 @@ export default function LeftSidebar() {
           </button>
         </div>
 
+        <div className="px-2 pt-2 pb-1">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--on-surface-variant)]/70">
+            Fuentes
+          </span>
+        </div>
         <nav className="space-y-0.5">
           {filteredDocuments.length === 0 ? (
             <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/60 px-3 py-2 leading-relaxed">
