@@ -35,11 +35,9 @@ interface ToolCard {
   icon: React.ReactNode;
 }
 
-const toolBase =
-  "bg-[var(--zen-panel-alt)] border-l-2 border-transparent text-[var(--on-surface-variant)]";
+const toolBase = "bg-transparent text-[var(--on-surface-variant)]";
 const toolHover = "hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)]";
-const toolActive =
-  "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)] border-l-2 border-[var(--primary-fixed)]";
+const toolActive = "bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)]";
 
 const tools: ToolCard[] = [
   { id: "document", title: "Visor Documento", icon: <FileText className="w-4 h-4" /> },

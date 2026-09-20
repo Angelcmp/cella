@@ -343,26 +343,16 @@ section.bg-background {
   font-family: var(--font-body);
 }
 
-/* Scrollbars discretas dentro de /zen (efecto minimalista). */
+/* Scrollbars ocultas dentro de /zen: el scroll sigue funcionando (rueda,
+   trackpad, teclado) pero sin barra visible. */
+.cyber * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 .cyber ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.cyber ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.cyber ::-webkit-scrollbar-thumb {
-  background-color: var(--outline-variant);
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 999px;
-}
-.cyber ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--on-surface-variant);
-}
-.cyber {
-  scrollbar-width: thin;
-  scrollbar-color: var(--outline-variant) transparent;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* Superficies shadcn neutralizadas dentro de /zen (planas, sin sombra). */
@@ -539,9 +529,9 @@ section.bg-background {
 }
 
 .celladialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(11, 21, 21, 0.35);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 @keyframes dialogIn {

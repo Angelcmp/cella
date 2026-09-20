@@ -104,11 +104,11 @@ export default function ChatInput({
   return (
     <div className="flex-shrink-0 px-4 pb-4 bg-[var(--zen-read-bg)]">
       <div className="max-w-[792px] mx-auto">
-        <div className="bg-[var(--zen-panel)] rounded-2xl border border-[var(--zen-line)] focus-within:border-[var(--primary-fixed)]/50 focus-within:shadow-[0_2px_10px_rgba(11,21,21,0.05)] transition-all duration-200">
+        <div className="bg-[var(--zen-panel)] rounded-2xl border border-[var(--outline-variant)]/70 shadow-[0_1px_2px_rgba(11,21,21,0.03)] hover:border-[var(--outline-variant)] focus-within:border-[var(--primary-fixed)]/40 focus-within:shadow-[0_2px_12px_rgba(11,21,21,0.06)] transition-all duration-200">
           <div className="flex items-end gap-1 px-2 py-1.5">
             <button
               onClick={onUpload}
-              className="shrink-0 w-8 h-8 mb-0.5 rounded-full text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+              className="shrink-0 w-8 h-8 mb-0.5 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
               title="Adjuntar archivo"
             >
               <Plus className="w-4 h-4" />

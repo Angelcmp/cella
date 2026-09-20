@@ -53,15 +53,15 @@ export default function CellaDialog({
     <dialog
       ref={ref}
       onClick={handleBackdrop}
-      style={{ maxWidth, ...style }}
-      className={`celladialog m-auto rounded-[16px] border border-[var(--zen-line)] bg-[var(--zen-panel)] p-0 text-[var(--text-primary)] shadow-[var(--zen-elev-2)] outline-none ${className}`}
+      style={{ width: "100%", maxWidth, ...style }}
+      className={`celladialog m-auto rounded-2xl border border-[var(--zen-line)] bg-[var(--zen-panel)] p-0 text-[var(--on-surface)] shadow-[var(--zen-elev-2)] outline-none ${className}`}
     >
       {title != null && (
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--zen-line)]">
-          <div className="text-(length:--zen-fs-title) font-semibold text-[var(--text-primary)]">{title}</div>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--zen-line)]">
+          <div className="text-(length:--zen-fs-title) font-semibold text-[var(--on-surface)]">{title}</div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
             aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
