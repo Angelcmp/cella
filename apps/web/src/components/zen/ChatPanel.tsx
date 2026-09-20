@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Loader2, Files, Check, RotateCcw, GraduationCap, SquarePen, Rocket } from "lucide-react";
+import { Loader2, Files, Check, RotateCcw, GraduationCap, SquarePen, Rocket, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useZenStore, type ZenDocument } from "./store";
 import ChatInterface from "@/components/ChatInterface";
@@ -59,6 +59,18 @@ function PanelHeader({ title, children }: { title: string; children?: ReactNode 
   );
 }
 
+function NewChatButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+      title="Nueva conversación"
+    >
+      <Plus className="w-4 h-4" />
+    </button>
+  );
+}
+
 export default function ChatPanel() {
   const {
     activeDocumentId,
@@ -73,6 +85,8 @@ export default function ChatPanel() {
     ensureDefaultProject,
     chatDocumentIds,
     setChatDocumentIds,
+    addConversation,
+    setActiveConversation,
   } = useZenStore();
 
   const [showUpload, setShowUpload] = useState(false);
@@ -91,6 +105,20 @@ export default function ChatPanel() {
   };
 
   const isMultiChat = chatDocumentIds.length > 1;
+
+  const handleNewChat = () => {
+    const conv = {
+      id: crypto.randomUUID(),
+      title: "Nueva conversación",
+      pinned: false,
+      projectId: activeProjectId,
+      documentId: activeDocumentId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    addConversation(conv);
+    setActiveConversation(conv.id);
+  };
 
   const handleUploadComplete = (doc: ZenDocument) => {
     addDocument(doc);
@@ -143,7 +171,9 @@ export default function ChatPanel() {
   if (!activeDoc) {
     return (
       <div className="flex-1 flex flex-col min-h-0">
-        <PanelHeader title="Cella" />
+        <PanelHeader title="Cella">
+          <NewChatButton onClick={handleNewChat} />
+        </PanelHeader>
         <WelcomeState onUpload={() => setShowUpload(true)} />
 
         <ChatInput
@@ -256,7 +286,8 @@ export default function ChatPanel() {
       <PanelHeader
         title={activeProject ? `${activeProject.name} / ${activeDoc.title}` : activeDoc.title}
       >
-        <div className="relative">
+        <div className="flex items-center gap-1">
+          <div className="relative">
           <button
             onClick={() => setDocPickerOpen((v) => !v)}
             className={cn(
@@ -311,6 +342,8 @@ export default function ChatPanel() {
               </div>
             </>
           )}
+          </div>
+          <NewChatButton onClick={handleNewChat} />
         </div>
       </PanelHeader>
 

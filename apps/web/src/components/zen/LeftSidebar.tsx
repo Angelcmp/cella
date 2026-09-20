@@ -13,6 +13,7 @@ import {
   MessageSquarePlus,
   Trash2,
   X,
+  History,
 } from "lucide-react";
 import { useZenStore, type ZenDocument, type Conversation } from "./store";
 import SourceCard from "./SourceCard";
@@ -499,20 +500,27 @@ export default function LeftSidebar() {
 
       {/* Bottom actions */}
       <div className="p-3 border-t border-[var(--zen-line)] flex items-center justify-between">
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setShowSettings(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes"
           >
-            <Settings className="w-3 h-3" />
+            <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={() => setModelsModalOpen(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes de modelos"
           >
-            <SlidersHorizontal className="w-3 h-3" />
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+            title="Historial"
+          >
+            <History className="w-4 h-4" />
           </button>
         </div>
       </div>

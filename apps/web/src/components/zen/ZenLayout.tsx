@@ -26,7 +26,7 @@ export default function ZenLayout() {
       {/* Right aside: Studio */}
       <aside
         className={`fixed right-0 top-0 h-full bg-[var(--zen-panel)] z-50 flex flex-col border-l border-[var(--zen-line)] transition-[width] duration-300 ${
-          rightCollapsed ? "w-14" : "w-[440px]"
+          rightCollapsed ? "w-[72px]" : "w-[440px] lg:w-[480px] 2xl:w-[620px]"
         }`}
       >
         <RightSidebar
@@ -38,7 +38,9 @@ export default function ZenLayout() {
       {/* Center */}
       <div
         className={`relative z-10 flex flex-col h-full bg-[var(--zen-read-bg)] transition-[padding] duration-300 ${
-          rightCollapsed ? "pl-72 pr-14" : "pl-72 pr-[440px]"
+          rightCollapsed
+            ? "pl-72 pr-[72px]"
+            : "pl-72 pr-[440px] lg:pr-[480px] 2xl:pr-[620px]"
         }`}
       >
         <main className="relative pt-0 min-h-0 flex-1 flex flex-col">

@@ -48,7 +48,7 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-3 py-2">
-          <p className="text-[10px] text-[var(--text-muted)] mb-2">
+          <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">
             Ajustes
           </p>
 
@@ -57,49 +57,49 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
               onClose();
               setModelsModalOpen(true);
             }}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--on-surface)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+            <Sparkles className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
             Modelos e IA
           </button>
 
           <Link
             href="/docs"
             onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--on-surface)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
           >
-            <BookOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <BookOpen className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
             Documentación
           </Link>
 
           <Link
             href="/"
             onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--on-surface)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <ArrowLeft className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
             Volver al inicio
           </Link>
 
           {usage && (
             <>
               <div className="my-1 border-t border-[var(--zen-line)]" />
-              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+              <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">
                 Uso (24h)
               </p>
               <div className="flex items-center gap-1.5 mb-2">
-                <BarChart3 className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
-                <div className="flex-1 grid grid-cols-2 gap-x-1 gap-y-0.5 text-[10px]">
-                  <span className="text-[var(--text-muted)]">Docs</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
+                <BarChart3 className="w-3 h-3 text-[var(--on-surface-variant)] shrink-0" />
+                <div className="flex-1 grid grid-cols-2 gap-x-1 gap-y-0.5 text-[11px]">
+                  <span className="text-[var(--on-surface-variant)]">Docs</span>
+                  <span className="text-right text-[var(--on-surface)] tabular-nums">
                     {usage.documents.used}{usage.documents.limit ? `/${usage.documents.limit}` : ""}
                   </span>
-                  <span className="text-[var(--text-muted)]">Chats</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
+                  <span className="text-[var(--on-surface-variant)]">Chats</span>
+                  <span className="text-right text-[var(--on-surface)] tabular-nums">
                     {usage.chats_per_day.used}{usage.chats_per_day.limit ? `/${usage.chats_per_day.limit}` : ""}
                   </span>
-                  <span className="text-[var(--text-muted)]">Sum.</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
+                  <span className="text-[var(--on-surface-variant)]">Sum.</span>
+                  <span className="text-right text-[var(--on-surface)] tabular-nums">
                     {usage.summaries_per_day.used}{usage.summaries_per_day.limit ? `/${usage.summaries_per_day.limit}` : ""}
                   </span>
                 </div>

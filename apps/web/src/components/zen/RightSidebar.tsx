@@ -160,11 +160,11 @@ export default function RightSidebar({
     if (!activeDoc) {
       return (
         <div className="h-full flex items-center justify-center p-4">
-          <div className="text-center max-w-[180px] space-y-2">
+          <div className="text-center max-w-[240px] space-y-2">
             <div className="w-8 h-8 rounded-xl bg-[var(--zen-hover)] mx-auto flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
             </div>
-            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/60 leading-relaxed">
+            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/80 leading-relaxed">
               Selecciona una fuente para activar los procesos de Studio.
             </p>
           </div>
@@ -411,14 +411,14 @@ export default function RightSidebar({
       ) : (
         /* Tool cards grid */
         <div className="p-3">
-          <div className="grid grid-cols-3 gap-2 justify-items-center">
+          <div className="grid grid-cols-2 2xl:grid-cols-3 gap-2">
             {tools.map((tool) => {
               const isActive = rightTab === tool.id;
               return (
                 <button
                   key={tool.id}
                   onClick={() => setRightTab(tool.id)}
-                  className={`flex flex-col items-center justify-center gap-1 w-full max-w-[150px] p-2.5 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
+                  className={`flex flex-col items-center justify-center gap-1 w-full p-2.5 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
                     isActive ? toolActive : toolHover
                   }`}
                 >

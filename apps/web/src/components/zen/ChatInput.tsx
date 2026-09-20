@@ -132,7 +132,7 @@ export default function ChatInput({
                 title="Seleccionar modelo"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-fixed)]" />
-                <span className="text-(length:--zen-fs-label) font-medium text-[var(--on-surface)] max-w-[120px] truncate">
+                <span className="text-(length:--zen-fs-label) font-medium text-[var(--on-surface)] max-w-[160px] truncate">
                   {currentModel?.name || (models.length === 0 ? "Sin modelo" : "Seleccionar")}
                 </span>
                 <ChevronDown className={`w-2.5 h-2.5 text-[var(--on-surface-variant)] transition-transform ${modelOpen ? "rotate-180" : ""}`} />
