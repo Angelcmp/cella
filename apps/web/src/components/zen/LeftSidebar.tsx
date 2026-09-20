@@ -252,21 +252,21 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
         <div className="flex-1 flex flex-col items-center gap-1 p-2">
           <button
             onClick={handleNewChat}
-            className="w-9 h-9 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
             title="Nueva conversación"
           >
             <MessageSquarePlus className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowUpload(true)}
-            className="w-9 h-9 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
             title="Añadir fuente"
           >
             <PlusCircle className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowHistory(true)}
-            className="w-9 h-9 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
             title="Historial"
           >
             <History className="w-4 h-4" />
@@ -275,14 +275,14 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
         <div className="p-2 border-t border-[var(--zen-line)] flex flex-col items-center gap-1">
           <button
             onClick={() => setShowSettings(true)}
-            className="w-9 h-9 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
             title="Ajustes"
           >
             <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={() => setModelsModalOpen(true)}
-            className="w-9 h-9 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
             title="Ajustes de modelos"
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -309,15 +309,22 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
         </div>
         <div className="flex items-center gap-0.5">
           <button
+            onClick={() => setShowHistory(true)}
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            title="Historial"
+          >
+            <History className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setShowUpload(true)}
-            className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
             title="Añadir fuente"
           >
             <PlusCircle className="w-4 h-4" />
           </button>
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
             title="Reducir aside"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -330,7 +337,7 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
         <div className="px-2 py-1.5">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white text-(length:--zen-fs-body) font-medium hover:opacity-90 transition-opacity"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-transparent border border-[var(--zen-line)] text-[var(--on-surface)] text-(length:--zen-fs-body) font-medium hover:bg-[var(--primary-fixed)] hover:text-white hover:border-transparent transition-colors"
             title="Nueva conversación"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
@@ -597,24 +604,17 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowSettings(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface)]/80 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes"
           >
             <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={() => setModelsModalOpen(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface)]/80 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes de modelos"
           >
             <SlidersHorizontal className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowHistory(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
-            title="Historial"
-          >
-            <History className="w-4 h-4" />
           </button>
         </div>
       </div>
