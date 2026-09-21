@@ -447,10 +447,10 @@ export default function DocumentViewer({
                 ))}
                 
                 <Button
-                  variant={readingMode ? "gradient" : "outline"}
+                  variant={readingMode ? "default" : "outline"}
                   size="sm"
                   onClick={() => setReadingMode(!readingMode)}
-                  className={readingMode ? "w-9 h-9 p-0 text-[var(--on-primary)]" : "w-9 h-9 p-0 border-[var(--zen-line)] text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"}
+                  className={readingMode ? "w-9 h-9 p-0 bg-[var(--primary-fixed)] text-white hover:opacity-90" : "w-9 h-9 p-0 border-[var(--zen-line)] text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"}
                   title={readingMode ? "Modo Normal" : "Modo Lectura"}
                 >
                   <Eye className="h-3.5 w-3.5" />

@@ -57,7 +57,7 @@ export default function PdfViewer({
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage <= 1}
-            className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] disabled:opacity-30 transition-colors"
             title="Página anterior"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -67,7 +67,7 @@ export default function PdfViewer({
               setCurrentPage((p) => Math.min(numPages ?? p, p + 1))
             }
             disabled={!!numPages && currentPage >= numPages}
-            className="p-1 rounded text-[var(--on-surface-variant)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] disabled:opacity-30 transition-colors"
             title="Página siguiente"
           >
             <ChevronRight className="w-4 h-4" />

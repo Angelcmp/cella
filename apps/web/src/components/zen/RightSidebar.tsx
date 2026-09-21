@@ -35,10 +35,9 @@ interface ToolCard {
   icon: React.ReactNode;
 }
 
-const toolBase =
-  "border border-[var(--zen-line)] bg-[var(--zen-panel)] text-[var(--on-surface-variant)]";
+const toolBase = "bg-transparent text-[var(--on-surface-variant)]";
 const toolHover = "hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)]";
-const toolActive = "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)] border-[var(--primary-fixed)]/30";
+const toolActive = "bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)]";
 
 const tools: ToolCard[] = [
   { id: "document", title: "Visor Documento", icon: <FileText className="w-4 h-4" /> },
@@ -159,11 +158,11 @@ export default function RightSidebar({
     if (!activeDoc) {
       return (
         <div className="h-full flex items-center justify-center p-4">
-          <div className="text-center max-w-[180px] space-y-2">
+          <div className="text-center max-w-[240px] space-y-2">
             <div className="w-8 h-8 rounded-xl bg-[var(--zen-hover)] mx-auto flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-[var(--primary-fixed)]" />
             </div>
-            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/60 leading-relaxed">
+            <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)]/80 leading-relaxed">
               Selecciona una fuente para activar los procesos de Studio.
             </p>
           </div>
@@ -347,12 +346,12 @@ export default function RightSidebar({
     <div className="flex flex-col h-full">
       {/* Studio header */}
       <div
-        className={`p-4 flex items-center ${
+        className={`h-12 px-4 flex items-center border-b border-[var(--zen-line)] shrink-0 ${
           collapsed ? "justify-center" : "justify-between"
         }`}
       >
         {!collapsed && (
-          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface)]">
+          <span className="text-[13px] font-semibold text-[var(--on-surface)]">
             Studio
           </span>
         )}
@@ -410,14 +409,14 @@ export default function RightSidebar({
       ) : (
         /* Tool cards grid */
         <div className="p-3">
-          <div className="grid grid-cols-3 gap-2 justify-items-center">
+          <div className="grid grid-cols-2 2xl:grid-cols-3 gap-2">
             {tools.map((tool) => {
               const isActive = rightTab === tool.id;
               return (
                 <button
                   key={tool.id}
                   onClick={() => setRightTab(tool.id)}
-                  className={`flex flex-col items-center justify-center gap-1 w-full max-w-[150px] p-2.5 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
+                  className={`flex flex-col items-center justify-center gap-1.5 w-full p-3 rounded-xl transition-colors duration-200 cursor-pointer ${toolBase} ${
                     isActive ? toolActive : toolHover
                   }`}
                 >

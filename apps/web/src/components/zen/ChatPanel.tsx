@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Files, Check, RotateCcw, GraduationCap, SquarePen, Rocket } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Loader2, Files, Check, RotateCcw, GraduationCap, SquarePen, Rocket, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useZenStore, type ZenDocument } from "./store";
 import ChatInterface from "@/components/ChatInterface";
@@ -50,6 +50,27 @@ function WelcomeState({ onUpload }: { onUpload: () => void }) {
   );
 }
 
+function PanelHeader({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="h-12 px-4 flex items-center justify-between border-b border-[var(--zen-line)] shrink-0">
+      <span className="text-[13px] font-semibold text-[var(--on-surface)] truncate">{title}</span>
+      {children}
+    </div>
+  );
+}
+
+function NewChatButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+      title="Nueva conversación"
+    >
+      <Plus className="w-4 h-4" />
+    </button>
+  );
+}
+
 export default function ChatPanel() {
   const {
     activeDocumentId,
@@ -64,6 +85,8 @@ export default function ChatPanel() {
     ensureDefaultProject,
     chatDocumentIds,
     setChatDocumentIds,
+    addConversation,
+    setActiveConversation,
   } = useZenStore();
 
   const [showUpload, setShowUpload] = useState(false);
@@ -82,6 +105,20 @@ export default function ChatPanel() {
   };
 
   const isMultiChat = chatDocumentIds.length > 1;
+
+  const handleNewChat = () => {
+    const conv = {
+      id: crypto.randomUUID(),
+      title: "Nueva conversación",
+      pinned: false,
+      projectId: activeProjectId,
+      documentId: activeDocumentId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    addConversation(conv);
+    setActiveConversation(conv.id);
+  };
 
   const handleUploadComplete = (doc: ZenDocument) => {
     addDocument(doc);
@@ -134,6 +171,9 @@ export default function ChatPanel() {
   if (!activeDoc) {
     return (
       <div className="flex-1 flex flex-col min-h-0">
+        <PanelHeader title="Cella">
+          <NewChatButton onClick={handleNewChat} />
+        </PanelHeader>
         <WelcomeState onUpload={() => setShowUpload(true)} />
 
         <ChatInput
@@ -156,6 +196,7 @@ export default function ChatPanel() {
   if (activeDoc.status === "pending" || activeDoc.status === "processing") {
     return (
       <div className="flex-1 flex flex-col min-h-0">
+        <PanelHeader title={activeDoc.title} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-md text-center space-y-5">
             <div className="w-12 h-12 rounded-xl bg-[var(--zen-panel)] border border-[var(--zen-line)] mx-auto flex items-center justify-center">
@@ -186,6 +227,7 @@ export default function ChatPanel() {
   if (activeDoc.status === "failed") {
     return (
       <div className="flex-1 flex flex-col min-h-0">
+        <PanelHeader title={activeDoc.title} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-md space-y-4">
             <div className="w-12 h-12 rounded-xl bg-red-500/10 mx-auto flex items-center justify-center">
@@ -241,32 +283,29 @@ export default function ChatPanel() {
   // Active document indexed → chat
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-4 pt-2 pb-0.5 relative shrink-0">
-        <button
-          onClick={() => setDocPickerOpen((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-colors border border-transparent",
-            isMultiChat
-              ? "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)]"
-              : "text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
-          )}
-          title="Seleccionar documentos para el chat"
-        >
-          <Files className="w-3 h-3" />
-          {isMultiChat
-            ? `${chatDocumentIds.length} documentos`
-            : "Chat con 1 documento"}
-        </button>
-        <span className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] truncate">
-          {activeProject
-            ? `${activeProject.name} / ${activeDoc.title}`
-            : activeDoc.title}
-        </span>
+      <PanelHeader
+        title={activeProject ? `${activeProject.name} / ${activeDoc.title}` : activeDoc.title}
+      >
+        <div className="flex items-center gap-1">
+          <div className="relative">
+          <button
+            onClick={() => setDocPickerOpen((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-colors border border-transparent",
+              isMultiChat
+                ? "bg-[var(--primary-container)]/40 text-[var(--primary-fixed)]"
+                : "text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
+            )}
+            title="Seleccionar documentos para el chat"
+          >
+            <Files className="w-3.5 h-3.5" />
+            {isMultiChat ? `${chatDocumentIds.length} docs` : "1 doc"}
+          </button>
 
-        {docPickerOpen && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setDocPickerOpen(false)} />
-            <div className="absolute left-2 top-9 z-40 w-72 max-h-72 overflow-y-auto bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded-lg shadow-[var(--zen-elev-2)] p-2">
+          {docPickerOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setDocPickerOpen(false)} />
+              <div className="absolute right-0 top-9 z-40 w-72 max-h-72 overflow-y-auto bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded-lg shadow-[var(--zen-elev-2)] p-2">
               <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)] px-2 pb-1.5">
                 Selecciona documentos (chat multi-doc)
               </p>
@@ -300,10 +339,13 @@ export default function ChatPanel() {
                   </button>
                 ))
               )}
-            </div>
-          </>
-        )}
-      </div>
+              </div>
+            </>
+          )}
+          </div>
+          <NewChatButton onClick={handleNewChat} />
+        </div>
+      </PanelHeader>
 
       <ChatInterface
         documentId={activeDoc.id}

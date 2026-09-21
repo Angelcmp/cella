@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import {
   ArrowUp,
-  Paperclip,
-  Mic,
-  Terminal,
+  Plus,
   ChevronDown,
   Check,
   Loader2,
@@ -104,25 +102,43 @@ export default function ChatInput({
   }, [message]);
 
   return (
-    <div className="flex-shrink-0 px-3 pb-2 bg-[var(--zen-read-bg)]">
-      <div className="max-w-[792px] mx-auto bg-[var(--zen-read-bg)]">
-        <div className="bg-[var(--zen-panel)] rounded-xl p-1.5 border border-[var(--zen-line)] focus-within:border-[var(--primary-fixed)]/50 transition-colors duration-200">
-          <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1">
-            <div className="relative" ref={dropdownRef}>
+    <div className="flex-shrink-0 px-4 pb-4 bg-[var(--zen-read-bg)]">
+      <div className="max-w-[792px] mx-auto">
+        <div className="bg-[var(--zen-panel)] rounded-2xl border border-[var(--outline-variant)]/70 shadow-[0_1px_2px_rgba(11,21,21,0.03)] hover:border-[var(--outline-variant)] focus-within:border-[var(--outline-variant)] focus-within:shadow-[0_2px_12px_rgba(11,21,21,0.06)] transition-all duration-200">
+          <div className="flex items-end gap-1 px-2 py-1.5">
+            <button
+              onClick={onUpload}
+              className="shrink-0 w-8 h-8 mb-0.5 rounded-lg text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+              title="Adjuntar archivo"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={isLoading}
+              rows={1}
+              className="flex-1 w-full bg-transparent zen-textarea py-2 zen-text-body zen-read-text placeholder:text-[var(--on-surface-variant)]/50 max-h-[200px] overflow-y-auto leading-snug [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            />
+
+            <div className="relative shrink-0 mb-0.5" ref={dropdownRef}>
               <button
                 onClick={() => setModelOpen(!modelOpen)}
-                className="flex items-center gap-1.5 rounded px-1.5 py-0.5 hover:bg-[var(--zen-hover)] transition-colors"
+                className="flex items-center gap-1 rounded-lg px-2 h-8 text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
                 title="Seleccionar modelo"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-fixed)]" />
-                <span className="text-(length:--zen-fs-label) font-medium text-[var(--on-surface)]">
+                <span className="text-(length:--zen-fs-label) max-w-[160px] truncate">
                   {currentModel?.name || (models.length === 0 ? "Sin modelo" : "Seleccionar")}
                 </span>
-                <ChevronDown className={`w-2.5 h-2.5 text-[var(--on-surface-variant)] transition-transform ${modelOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-3 h-3 transition-transform ${modelOpen ? "rotate-180" : ""}`} />
               </button>
 
               {modelOpen && (
-                <div className="absolute bottom-full left-0 mb-1 w-72 max-h-80 overflow-y-auto rounded-lg border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] py-1 z-50">
+                <div className="absolute bottom-full right-0 mb-1 w-72 max-h-80 overflow-y-auto rounded-lg border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] py-1 z-50">
                   {models.length === 0 ? (
                     <div className="px-3 py-2 space-y-1.5">
                       <p className="text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] leading-snug">
@@ -133,7 +149,7 @@ export default function ChatInput({
                           setModelOpen(false);
                           setModelsModalOpen(true);
                         }}
-                        className="w-full text-left text-(length:--zen-fs-secondary) text-[var(--primary-fixed)] hover:underline"
+                        className="w-full text-left text-(length:--zen-fs-secondary) text-[var(--on-surface)] hover:underline"
                       >
                         Abrir ajustes de modelos →
                       </button>
@@ -173,7 +189,7 @@ export default function ChatInput({
                                 }}
                                 className={`w-full flex items-center gap-1.5 pl-7 pr-3 py-1.5 text-(length:--zen-fs-secondary) transition-colors ${
                                   selectedModel === m.id
-                                    ? "text-[var(--primary-fixed)] bg-[var(--primary)]/5"
+                                    ? "text-[var(--on-surface)] bg-[var(--zen-hover)]"
                                     : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
                                 }`}
                               >
@@ -190,7 +206,7 @@ export default function ChatInput({
                             setModelOpen(false);
                             setModelsModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-(length:--zen-fs-label) text-[var(--primary-fixed)] hover:bg-[var(--primary)]/5"
+                          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-(length:--zen-fs-label) text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
                         >
                           <SlidersHorizontal className="w-3 h-3" />
                           Configurar modelos…
@@ -202,48 +218,14 @@ export default function ChatInput({
               )}
             </div>
 
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={onUpload}
-                className="p-1 rounded-md text-[var(--on-surface-variant)]/60 hover:bg-[var(--zen-hover)] hover:text-[var(--primary)] transition-colors flex items-center justify-center"
-                title="Adjuntar archivo"
-              >
-                <Paperclip className="w-3 h-3" />
-              </button>
-              <button
-                className="p-1 rounded-md text-[var(--on-surface-variant)]/60 hover:bg-[var(--zen-hover)] hover:text-[var(--primary)] transition-colors flex items-center justify-center"
-                title="Entrada de voz"
-              >
-                <Mic className="w-3 h-3" />
-              </button>
-              <button
-                className="p-1 rounded-md text-[var(--on-surface-variant)]/60 hover:bg-[var(--zen-hover)] hover:text-[var(--primary)] transition-colors flex items-center justify-center"
-                title="Comandos rápidos"
-              >
-                <Terminal className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 px-1.5 pb-0.5">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              disabled={isLoading}
-              rows={1}
-              className="flex-1 w-full bg-transparent zen-textarea py-1.5 zen-text-body zen-read-text placeholder:text-[var(--on-surface-variant)]/50 max-h-[200px] overflow-y-auto leading-snug [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            />
             <button
               onClick={isLoading && onStop ? onStop : handleSend}
               disabled={!isLoading && (!message.trim() || isLoading)}
               title={isLoading && onStop ? "Detener respuesta" : "Enviar"}
               className={
                 isLoading && onStop
-                  ? "shrink-0 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                  : "shrink-0 w-7 h-7 rounded-full bg-[var(--primary-fixed)] text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40"
+                  ? "shrink-0 w-8 h-8 mb-0.5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                  : "shrink-0 w-8 h-8 mb-0.5 rounded-full bg-[var(--primary-fixed)] text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40"
               }
             >
               {isLoading && onStop ? (
@@ -251,7 +233,7 @@ export default function ChatInput({
               ) : isLoading ? (
                 <Loader2 className="w-3.5 w-3.5 animate-spin" />
               ) : (
-                <ArrowUp className="w-3.5 h-3.5" />
+                <ArrowUp className="w-4 h-4" />
               )}
             </button>
           </div>

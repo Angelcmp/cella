@@ -10,6 +10,7 @@ import { useZenStore, hydrateZenStore } from "./store";
 export default function ZenLayout() {
   const { refreshModels } = useZenStore();
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
 
   useEffect(() => {
     hydrateZenStore();
@@ -19,14 +20,21 @@ export default function ZenLayout() {
   return (
     <div className="cyber h-screen flex flex-col bg-[var(--zen-canvas)] relative overflow-hidden">
       {/* Left aside: Sources */}
-      <aside className="fixed left-0 top-0 h-full w-72 bg-[var(--zen-panel)] z-50 flex flex-col border-r border-[var(--zen-line)]">
-        <LeftSidebar />
+      <aside
+        className={`fixed left-0 top-0 h-full bg-[var(--zen-panel)] z-50 flex flex-col border-r border-[var(--zen-line)] transition-[width] duration-300 ${
+          leftCollapsed ? "w-16" : "w-72"
+        }`}
+      >
+        <LeftSidebar
+          collapsed={leftCollapsed}
+          onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
+        />
       </aside>
 
       {/* Right aside: Studio */}
       <aside
         className={`fixed right-0 top-0 h-full bg-[var(--zen-panel)] z-50 flex flex-col border-l border-[var(--zen-line)] transition-[width] duration-300 ${
-          rightCollapsed ? "w-[72px]" : "w-[620px]"
+          rightCollapsed ? "w-[72px]" : "w-[440px] lg:w-[480px] 2xl:w-[620px]"
         }`}
       >
         <RightSidebar
@@ -38,7 +46,11 @@ export default function ZenLayout() {
       {/* Center */}
       <div
         className={`relative z-10 flex flex-col h-full bg-[var(--zen-read-bg)] transition-[padding] duration-300 ${
-          rightCollapsed ? "pl-72 pr-[72px]" : "pl-72 pr-[620px]"
+          leftCollapsed ? "pl-16" : "pl-72"
+        } ${
+          rightCollapsed
+            ? "pr-[72px]"
+            : "pr-[440px] lg:pr-[480px] 2xl:pr-[620px]"
         }`}
       >
         <main className="relative pt-0 min-h-0 flex-1 flex flex-col">

@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import {
   ChevronRight,
   ChevronDown,
@@ -76,8 +75,34 @@ const docSections: DocSection[] = [
 
 export default function DocsSidebar() {
   const [isOpen, setIsOpen] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<string[]>(['getting-started'])
-  const pathname = usePathname()
+  const [expandedSections, setExpandedSections] = useState<string[]>([
+    'getting-started',
+    'user-guide',
+    'models-ai',
+    'troubleshooting',
+  ])
+  const [activeId, setActiveId] = useState('')
+
+  useEffect(() => {
+    const updateFromHash = () => setActiveId(window.location.hash.replace('#', ''))
+    updateFromHash()
+    window.addEventListener('hashchange', updateFromHash)
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveId(entry.target.id)
+        })
+      },
+      { rootMargin: '-100px 0% -70% 0%' }
+    )
+    document.querySelectorAll('section[id], div[id]').forEach((el) => observer.observe(el))
+
+    return () => {
+      window.removeEventListener('hashchange', updateFromHash)
+      observer.disconnect()
+    }
+  }, [])
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) =>
@@ -85,37 +110,39 @@ export default function DocsSidebar() {
     )
   }
 
-  const isActiveItem = (href: string) => {
-    const hash = href.split('#')[1]
-    return hash && pathname.includes(`#${hash}`)
-  }
-
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 rounded-xl bg-[var(--bg-surface)]/90 border border-[var(--border-subtle)] shadow-soft"
+        className="lg:hidden fixed top-4 left-4 z-40 p-2 rounded-lg bg-[var(--zen-panel)] border border-[var(--zen-line)]"
+        aria-label="Abrir índice"
       >
         <Menu className="w-5 h-5 text-[var(--text-primary)]" />
       </button>
 
-      {isOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setIsOpen(false)} />}
+      {isOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setIsOpen(false)} />
+      )}
 
-      <div
+      <aside
         className={`
-          fixed lg:fixed inset-y-0 left-0 z-40 w-80 bg-[var(--bg-surface)]/95 shadow-soft backdrop-blur
+          fixed lg:fixed inset-y-0 left-0 z-40 w-80 bg-[var(--zen-panel)] border-r border-[var(--zen-line)]
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
-          <Link href="/" className="flex items-center space-x-3">
-            <div className="w-9 h-9 bg-[var(--gradient-zen-glow)] rounded-2xl text-[#003739] flex items-center justify-center font-semibold">
-              C
-            </div>
+        <div className="flex items-center justify-between p-6 border-b border-[var(--zen-line)]">
+          <Link href="/" className="flex items-center gap-2.5">
+            <svg className="h-4 w-4 text-[var(--primary-fixed)]" viewBox="0 0 32 32" fill="none" aria-hidden>
+              <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="currentColor" />
+            </svg>
             <span className="font-semibold text-[var(--text-primary)]">Cella Docs</span>
           </Link>
-          <button onClick={() => setIsOpen(false)} className="lg:hidden p-1 hover:bg-[var(--bg-muted)] rounded">
+          <button
+            onClick={() => setIsOpen(false)}
+            className="lg:hidden p-1 rounded hover:bg-[var(--zen-hover)]"
+            aria-label="Cerrar índice"
+          >
             <X className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
@@ -123,12 +150,12 @@ export default function DocsSidebar() {
         <nav className="p-4 h-full overflow-y-auto">
           <div className="space-y-3">
             {docSections.map((section) => (
-              <div key={section.id} className="rounded-xl border border-transparent hover:border-[var(--border-subtle)]">
+              <div key={section.id}>
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between p-3 text-left text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]/70 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-between p-3 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--zen-hover)] rounded-lg transition-colors"
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
                     {section.icon}
                     <span>{section.title}</span>
                   </div>
@@ -139,16 +166,17 @@ export default function DocsSidebar() {
                   )}
                 </button>
                 {expandedSections.includes(section.id) && (
-                  <div className="mt-1 ml-4 space-y-1">
+                  <div className="mt-1 ml-4 space-y-0.5">
                     {section.items?.map((item) => (
                       <Link
                         key={item.id}
                         href={item.href}
+                        onClick={() => setIsOpen(false)}
                         className={`
-                          flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all
-                          ${isActiveItem(item.href)
-                            ? 'bg-[var(--bg-muted)] text-[var(--accent-primary)] font-semibold'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]/70'}
+                          flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors
+                          ${activeId === item.id
+                            ? 'bg-[var(--zen-hover)] text-[var(--primary-fixed)] font-medium'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--zen-hover)]'}
                         `}
                       >
                         <span>{item.title}</span>
@@ -160,7 +188,7 @@ export default function DocsSidebar() {
             ))}
           </div>
         </nav>
-      </div>
+      </aside>
     </>
   )
 }

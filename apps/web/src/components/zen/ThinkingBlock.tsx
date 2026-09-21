@@ -38,18 +38,18 @@ export default function ThinkingBlock({
   }, [startedAt, streaming]);
 
   return (
-    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]/60 overflow-hidden mb-3">
+    <div className="rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel-alt)] overflow-hidden mb-3">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] transition-colors"
       >
-        <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)] shrink-0" />
+        <Sparkles className="w-3.5 h-3.5 text-[var(--primary-fixed)] shrink-0" />
         <span className="text-[13px] font-medium">
           {streaming ? "Pensando…" : "Pensó durante"}{" "}
           <span
             className={cn(
               "tabular-nums",
-              streaming && "text-[var(--accent-primary)]"
+              streaming && "text-[var(--primary-fixed)]"
             )}
           >
             {formatElapsed(elapsed)}
@@ -63,7 +63,7 @@ export default function ThinkingBlock({
         />
       </button>
       {open && content.trim() && (
-        <div className="px-3 pb-3 text-[13px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap">
+        <div className="px-3 pb-3 text-[13px] leading-relaxed text-[var(--on-surface-variant)] whitespace-pre-wrap">
           {content}
         </div>
       )}

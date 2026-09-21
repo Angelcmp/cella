@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Source_Serif_4, Space_Grotesk, Inter, JetBrains_Mono, Work_Sans } from "next/font/google";
+import { Source_Serif_4, Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,15 +22,9 @@ const inter = Inter({
 });
 
 const jetBrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const workSans = Work_Sans({
-  variable: "--font-landing",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -86,22 +80,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" data-theme="light" suppressHydrationWarning>
+    <html lang="es">
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
           rel="stylesheet"
         />
-        {/* Aplica el tema guardado antes del primer paint (evita FOUC). */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "(function(){try{if(localStorage.getItem('cella-theme')==='dark'){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();",
-          }}
-        />
       </head>
       <body
-        className={`${sourceSerif.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} ${workSans.variable} antialiased`}
+        className={`${sourceSerif.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetBrainsMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <StructuredData />

@@ -2,14 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import {
-  Moon,
-  Sun,
-  BookOpen,
-  Sparkles,
-  ArrowLeft,
-  BarChart3,
-} from "lucide-react";
+import { BookOpen, Sparkles, ArrowLeft } from "lucide-react";
 import { useZenStore } from "./store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -27,18 +20,13 @@ interface UsageData {
   summaries_per_day: { used: number; limit: number | null; remaining: number | null };
 }
 
+const menuItem =
+  "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[13px] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors";
+
 export default function SettingsPopover({ open, onClose }: SettingsPopoverProps) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [usage, setUsage] = useState<UsageData | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const setModelsModalOpen = useZenStore((s) => s.setModelsModalOpen);
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
-    }
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -50,99 +38,60 @@ export default function SettingsPopover({ open, onClose }: SettingsPopoverProps)
 
   if (!open) return null;
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark", newTheme === "dark");
-      document.documentElement.setAttribute("data-theme", newTheme);
-      try {
-        localStorage.setItem("cella-theme", newTheme);
-      } catch {}
-    }
-  };
+  const rows = usage
+    ? [
+        { label: "Documentos", value: usage.documents },
+        { label: "Chats", value: usage.chats_per_day },
+        { label: "Resúmenes", value: usage.summaries_per_day },
+      ]
+    : [];
 
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={ref}
-        className="absolute bottom-14 left-3 w-52 rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] py-1 z-50"
+        className="absolute bottom-14 left-3 w-60 rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] p-1.5 z-50"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-2">
-          <p className="text-[10px] text-[var(--text-muted)] mb-2">
-            Ajustes
-          </p>
+        <button
+          onClick={() => {
+            onClose();
+            setModelsModalOpen(true);
+          }}
+          className={menuItem}
+        >
+          <Sparkles className="w-4 h-4 shrink-0" />
+          Modelos e IA
+        </button>
 
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
-          >
-            {theme === "dark" ? (
-              <Sun className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-            )}
-            <span>Modo {theme === "dark" ? "claro" : "oscuro"}</span>
-          </button>
+        <Link href="/docs" onClick={onClose} className={menuItem}>
+          <BookOpen className="w-4 h-4 shrink-0" />
+          Documentación
+        </Link>
 
-          <div className="my-1 border-t border-[var(--zen-line)]" />
+        <Link href="/" onClick={onClose} className={menuItem}>
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          Volver al inicio
+        </Link>
 
-          <button
-            onClick={() => {
-              onClose();
-              setModelsModalOpen(true);
-            }}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-            Modelos e IA
-          </button>
-
-          <Link
-            href="/docs"
-            onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-            Documentación
-          </Link>
-
-          <Link
-            href="/"
-            onClick={onClose}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--zen-hover)] transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-            Volver al inicio
-          </Link>
-
-          {usage && (
-            <>
-              <div className="my-1 border-t border-[var(--zen-line)]" />
-              <p className="text-[10px] text-[var(--text-muted)] mb-2">
-                Uso (24h)
-              </p>
-              <div className="flex items-center gap-1.5 mb-2">
-                <BarChart3 className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
-                <div className="flex-1 grid grid-cols-2 gap-x-1 gap-y-0.5 text-[10px]">
-                  <span className="text-[var(--text-muted)]">Docs</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
-                    {usage.documents.used}{usage.documents.limit ? `/${usage.documents.limit}` : ""}
-                  </span>
-                  <span className="text-[var(--text-muted)]">Chats</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
-                    {usage.chats_per_day.used}{usage.chats_per_day.limit ? `/${usage.chats_per_day.limit}` : ""}
-                  </span>
-                  <span className="text-[var(--text-muted)]">Sum.</span>
-                  <span className="text-right text-[var(--text-secondary)] tabular-nums">
-                    {usage.summaries_per_day.used}{usage.summaries_per_day.limit ? `/${usage.summaries_per_day.limit}` : ""}
+        {usage && (
+          <div className="mt-1.5 pt-2.5 border-t border-[var(--zen-line)] px-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-[var(--on-surface-variant)]/70 mb-2">
+              Uso (24h)
+            </p>
+            <div className="space-y-1">
+              {rows.map((row) => (
+                <div key={row.label} className="flex items-baseline justify-between text-[12px]">
+                  <span className="text-[var(--on-surface-variant)]">{row.label}</span>
+                  <span className="tabular-nums font-medium text-[var(--on-surface)]">
+                    {row.value.used}
+                    {row.value.limit ? `/${row.value.limit}` : ""}
                   </span>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

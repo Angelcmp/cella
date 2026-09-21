@@ -1,5 +1,64 @@
 # Cella — Estado del Proyecto (Agosto–Septiembre 2026)
 
+## `/zen`: composición final de 3 paneles (17/09/2026)
+
+Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (UI tipo Claude/Anthropic): 3 paneles contiguos con headers uniformes, sin tocar funciones.
+
+- **`ZenLayout.tsx`**: izquierda **288px**, derecha responsive **440px** base / **480px** (`lg`) / **620px** (`2xl`) — colapsada **72px** —, centro flexible. Se mantienen divisores de 1px y superficies planas (sin sombras).
+- **Headers uniformes `h-12`** (título + acción) en los 3 paneles:
+  - Izquierdo (`LeftSidebar`): "Fuentes" + `+` (subir); se elimina el label duplicado del cuerpo.
+  - Central (`ChatPanel`): título del documento (+ nombre del proyecto) y acción de selección multi-doc; header también en los estados welcome/procesando/fallido.
+  - Derecho (`RightSidebar`): "Studio" + acción colapsar/expandir.
+- **`ChatInput.tsx`**: barra única redondeada (`+` adjuntar · textarea · chip de modelo · **botón teal circular**), en lugar de la caja con dos filas.
+- **Tarjetas neutras con acento teal** (borde izquierdo): citas en `ChatInterface` y tool-cards del Studio en `RightSidebar`.
+- Tipografía de la respuesta IA: se mantiene **Inter** (decisión del cliente); paleta teal intacta.
+
+### Ajustes de visibilidad y compacidad (17/09/2026)
+- **Historial**: `HistoryModal` no tenía disparador; se añadió botón en el pie del aside izquierdo (`setShowHistory(true)`). Iconos del pie (Ajustes · Modelos · Historial) a `w-4` y con contraste.
+- **`SettingsPopover`** y **`ThinkingBlock`**: migrados de tokens legacy a tokens zen (contraste AA; texto 10→11/13px).
+- **Studio**: tool-cards adaptativas (2 columnas en paneles angostos, 3 en `2xl`) sin truncar labels; estado vacío a `max-w-[240px]` y texto `/80`.
+- **`ChatInput`**: selector de modelo `max-w-[160px]`.
+- **Header central**: botón de nueva conversación (`+`).
+- **Pulido visual**: header del aside izquierdo vuelve a "Cella" (+ label "Fuentes" en el cuerpo); items de Fuentes/Conversaciones con más aire y `rounded-lg`; burbuja de usuario `rounded-2xl` y más espacio entre mensajes/párrafos; `code`/`blockquote` migrados a tokens zen (borde de acento); foco del input con sombra sutil; botones de navegación del `PdfViewer` con hover.
+- **Asides plegables + scroll oculto**: scrollbars ocultas en `/zen` (scroll funcional por rueda/teclado); botón colapsar/expandir en el aside izquierdo con rail de iconos; secciones **Fuentes** y **Conversaciones** plegables.
+- **Studio ghost**: botones sin relleno ni borde (hover `--zen-hover`, activo con acento tenue); `ChatInput` con borde `--outline-variant` y foco sutil.
+- **Modales**: `HistoryModal` a **760px** con filas/tipografía mayores y tokens zen; `CellaDialog` al 100% hasta `maxWidth` y backdrop más sutil; `SettingsPopover` sin icono en "Uso (24h)", etiquetas completas alineadas y menú en un solo color.
+- **ChatInput y detalles**: el foco ya no pinta borde celeste; selector de modelo simplificado (sin punto/acento) y dropdown alineado a la derecha; bordes de separación de asides en **gris transparente** (`--zen-line` = `rgba(11,21,21,0.10)`); botón de **Historial** movido al header del aside izquierdo; iconos de acción en **negro suave**; "Nueva conversación" con fondo transparente y **hover teal**; la confirmación de borrado de conversación pasa de dropdown inline a **modal centrado**.
+- *No se migraron `ZenUploadZone` ni los modales de proveedores (fuera del alcance acordado).*
+
+### Verificación (17/09/2026)
+- `npm run typecheck` ✅ · `eslint` de tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 49.4 kB / 163 kB First Load) · `npm run test:e2e` ✅ 4/4 · capturas en 1280 y 1600 ✅.
+
+## Diseño unificado de la suite y retiro del modo oscuro (18/09/2026)
+
+Objetivo: llevar el lenguaje minimalista de `/zen` a la **landing** y **`/docs`**, conservando la paleta teal y **sin romper funcionalidades** (rutas, CTAs, anchors, búsqueda). Modo claro único.
+
+### Sistema de diseño (`apps/web/src/app/globals.css`)
+- **Modo oscuro retirado por completo**: eliminados los bloques `.dark` (tokens, selection, glass, `.cyber`, `text-chrome`); sin script de tema ni `data-theme` en `layout.tsx`; sin toggle en `SettingsPopover`; `sonner` fijado en claro. No hay variantes Tailwind `dark:`.
+- Una sola fuente mono: `--font-mono` mapeado a `--font-mono-stack` (JetBrains); variable de `next/font` renombrada a `--font-jetbrains`.
+- Eliminada la textura de papel global (`body::before` / `--paper-texture`).
+- Accesibilidad: `:focus-visible` consistente y `prefers-reduced-motion` global.
+- Limpieza: fuera utilidades muertas (`.technical-grid`, `.scanlines`, `.text-chrome`, `.y2k-*`, `.pixel-corners`, `.glass*`, `.hover-*`, `.reveal-*`, `.tilt-hover`, `.wipe-in`, `.h2-underline`, `.animate-*` sin uso, `.badge-*`, `.tablet-pill`, `.chat-input`) y variables `--gradient-*`.
+
+### Landing (`app/page.tsx`, `components/landing/*`)
+- Fuera overlays fijos (grid + scanlines + aurora) y cian hardcodeado; fondo plano.
+- Hero sin gradiente ni `drop-shadow` y **fix del H1** (se quitó el `fontSize` inline que anulaba el `clamp`); CTA sólido + outline; header plano con borde 1px.
+- Cards de pasos, footer y `MarqueeTicker` planos; `HeroDemo` con chrome claro, `STUDIO_TOOLS` monocromo y tokens zen.
+
+### `/docs` (`app/docs/*`)
+- Tokens zen en toda la sección; header/sidebar planos (sin blur); prosa/código/tablas planas; `styles.css` sin ámbar/marrón; progreso de lectura sólido.
+- **Fix TOC**: el índice ahora se genera (deriva de las secciones/divs con `id`) y observa esas secciones.
+- **Fix estado activo del sidebar**: por `hashchange` + `IntersectionObserver` (antes usaba `usePathname`, que nunca incluye el hash).
+
+### Eliminación de código muerto
+- `components/landing/FeaturePanels.tsx` (no importado) y la fuente Work Sans.
+- Variantes `glow` (badge) y `gradient` (button) sin uso; `DocumentViewer` usa `variant="default"` para el modo lectura.
+
+### Verificación (18/09/2026)
+- `npm run typecheck` ✅ · `eslint` de archivos tocados sin errores nuevos ✅ · `npm run build` ✅ (`/` 109 kB, `/docs` 117 kB, `/zen` 163 kB First Load) · `npm run test:e2e` ✅ 4/4.
+
+*Nota: la sección siguiente ("Rediseño minimalista de /zen") documenta su dark mode persistente, que quedó **retirado** en este cambio.*
+
 ## Cierre de pendientes (14/09/2026)
 
 ### Salto a la página citada en el visor PDF (cierre del pendiente)

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Pin, PinOff, Pencil, Trash2, Check, X, MoreHorizontal } from "lucide-react";
 import { useZenStore } from "./store";
 import type { Conversation } from "./store";
+import CellaDialog from "./CellaDialog";
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -74,7 +75,7 @@ export default function ConversationItem({ conversation }: ConversationItemProps
     <div className="relative">
       <div
         onClick={handleSelect}
-        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] transition-colors cursor-pointer ${
+        className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer ${
           isActive
             ? "text-[var(--on-surface)] bg-[var(--zen-hover)]"
             : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)]"
@@ -136,56 +137,65 @@ export default function ConversationItem({ conversation }: ConversationItemProps
           className="absolute right-0 top-8 z-30 w-48 bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded-lg shadow-[var(--zen-elev-2)] py-1"
           onClick={(e) => e.stopPropagation()}
         >
-          {!showDeleteConfirm ? (
-            <>
-              <button
-                onClick={() => { setEditing(true); setMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
-                Renombrar
-              </button>
-              <button
-                onClick={() => { togglePinConversation(conversation.id); setMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
-              >
-                {conversation.pinned ? (
-                  <PinOff className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
-                ) : (
-                  <Pin className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
-                )}
-                {conversation.pinned ? "Quitar fijado" : "Fijar"}
-              </button>
-              <div className="border-t border-[var(--zen-line)] my-1" />
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-500 hover:bg-red-500/10 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Eliminar
-              </button>
-            </>
-          ) : (
-            <div className="p-3 space-y-2">
-              <p className="text-[12px] text-[var(--on-surface)]">¿Eliminar conversación?</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 py-1.5 text-[12px] rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                >
-                  Eliminar
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-1.5 text-[12px] rounded-lg bg-[var(--zen-hover)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            onClick={() => { setEditing(true); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
+            Renombrar
+          </button>
+          <button
+            onClick={() => { togglePinConversation(conversation.id); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+          >
+            {conversation.pinned ? (
+              <PinOff className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
+            ) : (
+              <Pin className="w-3.5 h-3.5 text-[var(--on-surface-variant)]" />
+            )}
+            {conversation.pinned ? "Quitar fijado" : "Fijar"}
+          </button>
+          <div className="border-t border-[var(--zen-line)] my-1" />
+          <button
+            onClick={() => { setMenuOpen(false); setShowDeleteConfirm(true); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-500 hover:bg-red-500/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Eliminar
+          </button>
         </div>
       )}
+
+      <CellaDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Eliminar conversación"
+        maxWidth="420px"
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] leading-relaxed text-[var(--on-surface-variant)]">
+            ¿Eliminar{" "}
+            <span className="font-medium text-[var(--on-surface)]">
+              &quot;{conversation.title}&quot;
+            </span>
+            ? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-3.5 py-2 text-[13px] rounded-lg bg-[var(--zen-hover)] text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDelete}
+              className="px-3.5 py-2 text-[13px] rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </CellaDialog>
     </div>
   );
 }

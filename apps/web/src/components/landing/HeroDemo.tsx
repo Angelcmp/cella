@@ -70,14 +70,14 @@ const DEMO_CONVERSATIONS = [
 ];
 
 const STUDIO_TOOLS = [
-  { label: "Visor PDF", Icon: FileText, color: "text-red-700", bg: "bg-red-100" },
-  { label: "Resumen", Icon: Sparkles, color: "text-green-700", bg: "bg-green-100" },
-  { label: "Mapa Mental", Icon: Share2, color: "text-blue-700", bg: "bg-blue-100" },
-  { label: "Quiz", Icon: ListChecks, color: "text-yellow-700", bg: "bg-yellow-100" },
-  { label: "Guía", Icon: BookOpen, color: "text-purple-700", bg: "bg-purple-100" },
-  { label: "FAQ", Icon: HelpCircle, color: "text-pink-700", bg: "bg-pink-100" },
-  { label: "Notas", Icon: StickyNote, color: "text-gray-700", bg: "bg-gray-100" },
-  { label: "Diagrama", Icon: GitFork, color: "text-teal-700", bg: "bg-teal-100" },
+  { label: "Visor PDF", Icon: FileText },
+  { label: "Resumen", Icon: Sparkles },
+  { label: "Mapa Mental", Icon: Share2 },
+  { label: "Quiz", Icon: ListChecks },
+  { label: "Guía", Icon: BookOpen },
+  { label: "FAQ", Icon: HelpCircle },
+  { label: "Notas", Icon: StickyNote },
+  { label: "Diagrama", Icon: GitFork },
 ];
 
 function StatusDot({ status }: { status: "indexed" | "processing" }) {
@@ -214,36 +214,36 @@ export default function HeroDemo() {
 
   return (
     <div className="w-full max-w-6xl animate-window-pop">
-      <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]/60 shadow-2xl backdrop-blur-[16px]">
+      <div className="overflow-hidden rounded-2xl border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-1)]">
         {/* Window chrome */}
-        <div className="flex h-12 items-center justify-between border-b border-[var(--border-subtle)] bg-[rgba(23,33,33,0.8)] px-4">
+        <div className="flex h-12 items-center justify-between border-b border-[var(--zen-line)] bg-[var(--zen-panel-alt)] px-4">
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ffb4ab]/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)]/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-strong)]/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--outline-variant)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--outline-variant)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--outline-variant)]" />
           </div>
-          <div className="flex items-center gap-2 rounded-md bg-black/30 px-3 py-1 font-mono text-[12px] text-white/70">
+          <div className="flex items-center gap-2 rounded-md border border-[var(--zen-line)] bg-[var(--zen-panel)] px-3 py-1 font-mono text-[12px] text-[var(--text-secondary)]">
             <Lock className="h-3 w-3" />
             <span>localhost:3000 / cella</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="h-1 w-4 rounded bg-white/30" />
-            <span className="h-1 w-4 rounded bg-white/30" />
-            <span className="h-1 w-4 rounded bg-white/30" />
+            <span className="h-1 w-4 rounded bg-[var(--zen-line)]" />
+            <span className="h-1 w-4 rounded bg-[var(--zen-line)]" />
+            <span className="h-1 w-4 rounded bg-[var(--zen-line)]" />
           </div>
         </div>
 
         {/* 3-column body */}
         <div className="flex h-[600px]">
           {/* Left aside — Fuentes + Conversaciones */}
-          <aside className="hidden w-52 flex-shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/30 p-4 md:flex lg:w-60">
+          <aside className="hidden w-52 flex-shrink-0 flex-col border-r border-[var(--zen-line)] bg-[var(--zen-panel-alt)] p-4 md:flex lg:w-60">
             <div className="mb-3 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
                 Fuentes
               </span>
               <button
                 type="button"
-                className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--bg-muted)]"
+                className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--zen-hover)]"
                 aria-label="Añadir fuente"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -253,7 +253,7 @@ export default function HeroDemo() {
               {DEMO_SOURCES.map((src) => (
                 <div
                   key={src.title}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--bg-muted)]/60"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--zen-hover)]"
                 >
                   <StatusDot status={src.status} />
                   <span className="flex-1 truncate font-label-mono text-[length:var(--zen-fs-label)] text-[var(--text-primary)]">
@@ -267,7 +267,7 @@ export default function HeroDemo() {
             </div>
 
             <div className="mb-3 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
                 Conversaciones
               </span>
               <button
@@ -285,7 +285,7 @@ export default function HeroDemo() {
                   className={`flex items-center justify-between rounded-md px-2 py-1.5 ${
                     conv.active
                       ? "border border-[var(--primary-fixed)]/30 bg-[var(--primary-fixed)]/8"
-                      : "hover:bg-[var(--bg-muted)]/60"
+                      : "hover:bg-[var(--zen-hover)]"
                   }`}
                 >
                   <span className="flex-1 truncate font-label-mono text-[length:var(--zen-fs-label)] text-[var(--text-primary)]">
@@ -303,14 +303,14 @@ export default function HeroDemo() {
           </aside>
 
           {/* Center — chat */}
-          <section className="flex flex-1 flex-col bg-[var(--zen-read-bg)]">
-            <header className="flex items-center justify-between border-b border-[var(--outline-variant)]/20 px-5 py-3">
+          <section className="flex flex-1 flex-col bg-[var(--zen-panel)]">
+            <header className="flex items-center justify-between border-b border-[var(--zen-line)] px-5 py-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-[var(--primary-fixed)]" />
                 <span className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
                   reporte_financiero_q4_2025.pdf
                 </span>
-                <span className="rounded bg-[var(--surface-container-high)] px-1.5 py-0.5 font-label-mono text-[length:var(--zen-fs-tertiary)] text-[var(--on-surface-variant)]">
+                <span className="rounded bg-[var(--zen-panel-alt)] px-1.5 py-0.5 font-label-mono text-[length:var(--zen-fs-tertiary)] text-[var(--on-surface-variant)]">
                   24 pág
                 </span>
               </div>
@@ -324,7 +324,7 @@ export default function HeroDemo() {
 
             <div className="flex-1 space-y-4 overflow-hidden px-5 py-5">
               <div className="flex justify-end">
-                <div className="max-w-[80%] animate-fade-in-up rounded-xl rounded-tr-sm bg-[var(--surface-container-high)]/60 px-4 py-3 text-[length:var(--zen-fs-read)] leading-relaxed text-[var(--zen-read-text,#111827)] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                <div className="max-w-[80%] animate-fade-in-up rounded-xl rounded-tr-sm bg-[var(--zen-hover)] px-4 py-3 text-[length:var(--zen-fs-read)] leading-relaxed text-[var(--zen-read-text,#111827)]">
                   {typedQuery || "\u00A0"}
                   {step <= 1 && (
                     <span className="ml-0.5 inline-block h-3 w-px animate-cursor bg-[var(--primary-fixed)] align-middle" />
@@ -334,7 +334,7 @@ export default function HeroDemo() {
 
               {step >= 3 && step < 5 && (
                 <div className="flex justify-start">
-                  <div className="max-w-[85%] animate-fade-in-up rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]/60 px-3 py-2.5">
+                  <div className="max-w-[85%] animate-fade-in-up rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel-alt)] px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 text-[var(--accent-primary)]" />
                       <span className="font-label-mono text-[length:var(--zen-fs-secondary)] text-[var(--text-secondary)]">
@@ -386,7 +386,7 @@ export default function HeroDemo() {
 
               {step >= 5 && (
                 <div className="flex justify-start">
-                  <div className="max-w-[85%] animate-fade-in-up rounded-lg border border-[var(--outline-variant)]/30 bg-[var(--bg-muted)]/30 px-3 py-2.5">
+                  <div className="max-w-[85%] animate-fade-in-up rounded-lg border border-[var(--zen-line)] bg-[var(--zen-panel-alt)] px-3 py-2.5">
                     <button
                       type="button"
                       onClick={() => setShowCitations((v) => !v)}
@@ -407,7 +407,7 @@ export default function HeroDemo() {
                         {DEMO_CITATIONS.map((cit) => (
                           <div
                             key={cit.page}
-                            className="flex items-start gap-2 border-l-2 border-[var(--outline-variant)]/30 pl-2"
+                            className="flex items-start gap-2 border-l-2 border-[var(--zen-line)] pl-2"
                           >
                             <button
                               type="button"
@@ -428,8 +428,8 @@ export default function HeroDemo() {
             </div>
 
             <div className="flex-shrink-0 px-4 pb-3 pt-2">
-              <div className="mx-auto flex max-w-[640px] items-center gap-2 rounded-xl bg-[var(--zen-read-bg)] p-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-1.5 rounded-md border border-[var(--outline-variant)]/40 px-2 py-1">
+              <div className="mx-auto flex max-w-[640px] items-center gap-2 rounded-xl bg-[var(--zen-panel)] border border-[var(--zen-line)] p-1.5">
+                <div className="flex items-center gap-1.5 rounded-md border border-[var(--zen-line)] px-2 py-1">
                   <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-[var(--primary-fixed)]" />
                   <span className="font-label-mono text-[length:var(--zen-fs-label)] text-[var(--on-surface-variant)]">
                     Model::Llama 3
@@ -445,28 +445,28 @@ export default function HeroDemo() {
                   <button
                     type="button"
                     aria-label="Adjuntar"
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--bg-muted)]"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)]"
                   >
                     <Paperclip className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     aria-label="Micrófono"
-                    className="hidden h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--bg-muted)] sm:flex"
+                    className="hidden h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] sm:flex"
                   >
                     <Mic className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     aria-label="Terminal"
-                    className="hidden h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--bg-muted)] sm:flex"
+                    className="hidden h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] sm:flex"
                   >
                     <Terminal className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     aria-label="Enviar"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)] text-[var(--on-primary)] shadow-[0_0_8px_rgba(0,109,114,0.25)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(0,109,114,0.45)]"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary-fixed)] text-white transition-opacity hover:opacity-90"
                   >
                     <ArrowUp className="h-3.5 w-3.5" />
                   </button>
@@ -476,30 +476,30 @@ export default function HeroDemo() {
           </section>
 
           {/* Right aside — Studio */}
-          <aside className="hidden w-64 flex-shrink-0 flex-col border-l border-[var(--border-subtle)] bg-[var(--surface-container-lowest)]/60 p-4 lg:flex">
+          <aside className="hidden w-64 flex-shrink-0 flex-col border-l border-[var(--zen-line)] bg-[var(--zen-panel-alt)] p-4 lg:flex">
             <div className="mb-3 flex items-center justify-between">
-              <span className="font-label-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tertiary-fixed)]">
+              <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
                 Studio
               </span>
               <ChevronDown className="h-3 w-3 text-[var(--text-muted)]" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {STUDIO_TOOLS.map(({ label, Icon, color, bg }) => (
+              {STUDIO_TOOLS.map(({ label, Icon }) => (
                 <button
                   key={label}
                   type="button"
-                  className="flex flex-col items-start gap-2 rounded-xl bg-white/40 p-2.5 text-left shadow-[0_4px_16px_rgba(22,82,65,0.10)] backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:bg-white/60"
+                  className="flex flex-col items-start gap-2 rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel)] p-2.5 text-left transition-colors hover:bg-[var(--zen-hover)]"
                 >
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-md ${bg}`}>
-                    <Icon className={`h-3.5 w-3.5 ${color}`} />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--zen-panel-alt)] text-[var(--on-surface-variant)]">
+                    <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="font-label-mono text-[length:var(--zen-fs-tertiary)] text-[var(--on-surface)]">
+                  <span className="text-[length:var(--zen-fs-secondary)] text-[var(--on-surface)]">
                     {label}
                   </span>
                 </button>
               ))}
             </div>
-            <div className="mt-auto rounded-lg border border-[var(--outline-variant)]/30 bg-[var(--surface-container)]/40 p-3">
+            <div className="mt-auto rounded-lg border border-[var(--zen-line)] bg-[var(--zen-panel)] p-3">
               <div className="flex items-center gap-2">
                 <Brain className="h-3.5 w-3.5 text-[var(--primary-fixed)]" />
                 <span className="font-label-mono text-[length:var(--zen-fs-secondary)] font-medium text-[var(--on-surface)]">

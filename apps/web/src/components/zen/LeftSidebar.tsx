@@ -7,12 +7,14 @@ import {
   FolderOpen,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Loader2,
   Settings,
   SlidersHorizontal,
   MessageSquarePlus,
   Trash2,
   X,
+  History,
 } from "lucide-react";
 import { useZenStore, type ZenDocument, type Conversation } from "./store";
 import SourceCard from "./SourceCard";
@@ -25,7 +27,12 @@ import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export default function LeftSidebar() {
+interface LeftSidebarProps {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export default function LeftSidebar({ collapsed = false, onToggleCollapse }: LeftSidebarProps) {
   const {
     projects,
     documents,
@@ -52,6 +59,8 @@ export default function LeftSidebar() {
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [conversationsOpen, setConversationsOpen] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -228,24 +237,107 @@ export default function LeftSidebar() {
     .filter((c) => !c.pinned)
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
+  if (collapsed) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="h-12 flex items-center justify-center border-b border-[var(--zen-line)] shrink-0">
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            title="Expandir aside"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-1 p-2">
+          <button
+            onClick={handleNewChat}
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            title="Nueva conversación"
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            title="Añadir fuente"
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            title="Historial"
+          >
+            <History className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-2 border-t border-[var(--zen-line)] flex flex-col items-center gap-1">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            title="Ajustes"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setModelsModalOpen(true)}
+            className="w-9 h-9 rounded-lg text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+            title="Ajustes de modelos"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+        {showUpload && <UploadModal onClose={() => setShowUpload(false)} onComplete={handleUploadComplete} />}
+        <HistoryModal open={showHistory} onClose={() => setShowHistory(false)} />
+        <SettingsPopover open={showSettings} onClose={() => setShowSettings(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Notebook header */}
-      <div className="px-4 py-3.5 mb-1 flex items-center gap-2">
-        <svg className="w-4 h-4" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="var(--primary-fixed)" />
-        </svg>
-        <span className="text-[14px] font-semibold text-[var(--on-surface)]">
-          Cella
-        </span>
+      {/* Header */}
+      <div className="h-12 px-4 flex items-center justify-between border-b border-[var(--zen-line)] shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <svg className="w-3.5 h-3.5 shrink-0 text-[var(--primary-fixed)]" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="currentColor" />
+          </svg>
+          <span className="text-[13px] font-semibold text-[var(--on-surface)] truncate">
+            Cella
+          </span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            title="Historial"
+          >
+            <History className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            title="Añadir fuente"
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 rounded-md text-[var(--on-surface)]/80 hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors"
+            title="Reducir aside"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2">
+      <div className="flex-1 overflow-y-auto px-2 pt-2">
         {/* Nueva Conversación */}
         <div className="px-2 py-1.5">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-fixed)] text-white text-(length:--zen-fs-body) font-medium hover:opacity-90 transition-opacity"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-transparent border border-[var(--zen-line)] text-[var(--on-surface)] text-(length:--zen-fs-body) font-medium hover:bg-[var(--primary-fixed)] hover:text-white hover:border-transparent transition-colors"
             title="Nueva conversación"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
@@ -253,19 +345,17 @@ export default function LeftSidebar() {
           </button>
         </div>
 
-        {/* Fuentes */}
-        <div className="px-2 py-1 flex items-center justify-between">
-          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80">
-            Fuentes
-          </span>
+        <div className="px-2 pt-2 pb-1 flex items-center justify-between">
           <button
-            onClick={() => setShowUpload(true)}
-            className="text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
-            title="Añadir fuente"
+            onClick={() => setSourcesOpen((v) => !v)}
+            className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--on-surface-variant)]/70 hover:text-[var(--on-surface)] transition-colors"
+            title={sourcesOpen ? "Ocultar fuentes" : "Mostrar fuentes"}
           >
-            <PlusCircle className="w-3 h-3" />
+            {sourcesOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            Fuentes
           </button>
         </div>
+        {sourcesOpen && (
         <nav className="space-y-0.5">
           {filteredDocuments.length === 0 ? (
             <p className="text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/60 px-3 py-2 leading-relaxed">
@@ -289,12 +379,18 @@ export default function LeftSidebar() {
             ))
           )}
         </nav>
+        )}
 
         {/* Conversaciones */}
         <div className="px-2 pt-3 pb-1 flex items-center justify-between">
-          <span className="text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80">
+          <button
+            onClick={() => setConversationsOpen((v) => !v)}
+            className="flex items-center gap-1 text-(length:--zen-fs-heading) font-semibold text-[var(--on-surface-variant)]/80 hover:text-[var(--on-surface)] transition-colors"
+            title={conversationsOpen ? "Ocultar conversaciones" : "Mostrar conversaciones"}
+          >
+            {conversationsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             Conversaciones
-          </span>
+          </button>
           <button
             onClick={handleNewChat}
             className="flex items-center gap-0.5 text-(length:--zen-fs-body) text-[var(--on-surface-variant)]/70 hover:text-[var(--primary-fixed)] transition-colors"
@@ -304,6 +400,7 @@ export default function LeftSidebar() {
             Nuevo
           </button>
         </div>
+        {conversationsOpen && (
         <div className="space-y-0.5">
           {pinnedConversations.map((conv) => (
             <ConversationItem key={conv.id} conversation={conv} />
@@ -325,6 +422,7 @@ export default function LeftSidebar() {
             </p>
           ) : null}
         </div>
+        )}
 
         {/* Proyectos */}
         <div className="px-2 pt-3 pb-1 flex items-center justify-between">
@@ -503,20 +601,20 @@ export default function LeftSidebar() {
 
       {/* Bottom actions */}
       <div className="p-3 border-t border-[var(--zen-line)] flex items-center justify-between">
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setShowSettings(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface)]/80 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes"
           >
-            <Settings className="w-3 h-3" />
+            <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={() => setModelsModalOpen(true)}
-            className="p-1.5 rounded-lg text-[var(--on-surface-variant)]/60 hover:text-[var(--primary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--on-surface)]/80 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
             title="Ajustes de modelos"
           >
-            <SlidersHorizontal className="w-3 h-3" />
+            <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
       </div>

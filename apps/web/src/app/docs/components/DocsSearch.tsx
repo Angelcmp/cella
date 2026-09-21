@@ -135,13 +135,13 @@ export default function DocsSearch() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center space-x-2 px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm text-muted-foreground transition-colors w-full max-w-md"
+        className="flex items-center space-x-2 px-3 py-2 bg-[var(--zen-panel-alt)] hover:bg-[var(--zen-hover)] rounded-md text-sm text-[var(--text-secondary)] transition-colors w-full max-w-md"
       >
         <Search className="w-4 h-4" />
         <span>Buscar documentación...</span>
         <div className="ml-auto flex space-x-1">
-          <kbd className="px-1.5 py-0.5 text-xs bg-card border border-border rounded">⌘</kbd>
-          <kbd className="px-1.5 py-0.5 text-xs bg-card border border-border rounded">K</kbd>
+          <kbd className="px-1.5 py-0.5 text-xs bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded">⌘</kbd>
+          <kbd className="px-1.5 py-0.5 text-xs bg-[var(--zen-panel)] border border-[var(--zen-line)] rounded">K</kbd>
         </div>
       </button>
     )
@@ -157,10 +157,10 @@ export default function DocsSearch() {
 
       {/* Search Modal */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
-        <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl mx-4 border border-border">
+        <div className="bg-[var(--zen-panel)] rounded-lg shadow-[var(--zen-elev-2)] w-full max-w-2xl mx-4 border border-[var(--zen-line)]">
           {/* Search Input */}
-          <div className="flex items-center p-4 border-b border-border">
-            <Search className="w-5 h-5 text-muted-foreground mr-3" />
+          <div className="flex items-center p-4 border-b border-[var(--zen-line)]">
+            <Search className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
             <input
               ref={inputRef}
               type="text"
@@ -168,10 +168,10 @@ export default function DocsSearch() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Buscar en la documentación..."
-              className="flex-1 outline-none text-foreground placeholder:text-muted-foreground bg-transparent"
+              className="flex-1 outline-none text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] bg-transparent"
             />
-            <button onClick={close} className="p-1 hover:bg-muted rounded">
-              <X className="w-4 h-4 text-muted-foreground" />
+            <button onClick={close} className="p-1 hover:bg-[var(--zen-panel-alt)] rounded">
+              <X className="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
           </div>
 
@@ -184,16 +184,16 @@ export default function DocsSearch() {
                     key={result.id}
                     onClick={() => handleResultClick(result.href)}
                     className={`w-full text-left p-3 rounded-md transition-colors border ${
-                      index === selectedIndex ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'
+                      index === selectedIndex ? 'bg-[var(--zen-panel-alt)] border-[var(--primary-fixed)]' : 'border-transparent hover:bg-[var(--zen-panel-alt)]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-medium text-foreground">{result.title}</h4>
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      <h4 className="font-medium text-[var(--text-primary)]">{result.title}</h4>
+                      <span className="text-xs text-[var(--text-secondary)] bg-[var(--zen-panel-alt)] px-2 py-1 rounded">
                         {result.section}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
                       {result.content}
                     </p>
                   </button>
@@ -201,17 +201,17 @@ export default function DocsSearch() {
               </div>
             ) : query ? (
               <div className="p-8 text-center">
-                <p className="text-muted-foreground">No se encontraron resultados para &quot;{query}&quot;</p>
+                <p className="text-[var(--text-secondary)]">No se encontraron resultados para &quot;{query}&quot;</p>
               </div>
             ) : (
               <div className="p-8 text-center">
-                <p className="text-muted-foreground">Escribe para buscar en la documentación</p>
+                <p className="text-[var(--text-secondary)]">Escribe para buscar en la documentación</p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="p-3 border-t border-border text-xs text-muted-foreground flex justify-between">
+          <div className="p-3 border-t border-[var(--zen-line)] text-xs text-[var(--text-secondary)] flex justify-between">
             <div className="flex space-x-4">
               <span>↑↓ Navegar</span>
               <span>↵ Seleccionar</span>

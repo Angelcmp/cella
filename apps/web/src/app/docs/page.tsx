@@ -8,19 +8,19 @@ export default function DocsPage() {
   return (
     <>
       <ReadingProgress />
-      <div className="cyber flex min-h-screen bg-[var(--bg-primary)]">
+      <div className="cyber flex min-h-screen bg-[var(--zen-canvas)]">
         <DocsSidebar />
         <div className="flex-1 lg:ml-80">
-          <header className="sticky top-0 z-20 bg-[var(--bg-surface)]/80 backdrop-blur-lg border-b border-[var(--border-subtle)]">
-            <div className="px-6 py-6 flex items-center justify-between">
+          <header className="sticky top-0 z-20 bg-[var(--zen-panel)] border-b border-[var(--zen-line)]">
+            <div className="px-6 py-6 flex items-center justify-between gap-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">
                   Cella Docs
                 </p>
-                <h1 className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
+                <h1 className="text-2xl font-semibold text-[var(--text-primary)] mt-1.5">
                   Guía de Cella
                 </h1>
-                <p className="text-[var(--text-secondary)] mt-1">
+                <p className="text-[var(--text-secondary)] mt-1 text-sm">
                   Aprende a instalar y usar Cella: tu asistente de estudio local con IA.
                 </p>
               </div>
