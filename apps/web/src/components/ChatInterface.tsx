@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, type ReactElement, useCallback } from "react";
 import { toast } from "sonner";
-import { Copy, FileText, Braces, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, FileText, Braces, ChevronDown } from "lucide-react";
 import ChatInput from "./zen/ChatInput";
 import ThinkingBlock from "./zen/ThinkingBlock";
 import { withCsrfHeaders } from "@/lib/csrf";
@@ -28,6 +28,23 @@ interface Citation {
   snippet: string;
   similarity?: number;
   document?: string;
+}
+
+/**
+ * The model may append a trailing "Citas" section to its answer, e.g.
+ *   **Citas**
+ *   [Página 10]: "..."
+ *   [Documento, Página 4]: "..."
+ * or the inline variant `Citas: [Página 10]: "..."`.
+ * Citations are already rendered as a separate structured list, so drop this
+ * block from the visible answer to avoid duplicating it.
+ */
+function stripCitationsSection(text: string): string {
+  const heading =
+    /(?:^|\n)[ \t]*(?:\*\*|__)[ \t]*Citas?[ \t]*(?:\*\*|__)?[ \t]*:?[ \t]*|(?:^|\n)[ \t]*Citas?[ \t]*:?[ \t]*(?=\n|\[[^\]]*P[áa]gina|$)|Citas?[ \t]*:[ \t]*(?=\[[^\]]*P[áa]gina)/i;
+  const match = heading.exec(text);
+  if (match) return text.slice(0, match.index).trim();
+  return text.trim();
 }
 
 interface ChatInterfaceProps {
@@ -139,9 +156,7 @@ export default function ChatInterface({
     if (!content) return null;
 
     // Clean up the content first
-    const cleanContent = content
-      .replace(/\n*Citas?:\s*\[Página\s+\d+\](?:\s*:?\s*"[^"]*")?(\s*\[Página\s+\d+\](?:\s*:?\s*"[^"]*")?)*\s*$/gi, '')
-      .trim();
+    const cleanContent = stripCitationsSection(content);
 
     // Helper: render inline rich text (bold **...**, italic *...*, code `...`, page refs)
     const renderInlineRich = (text: string) => {
@@ -646,7 +661,7 @@ export default function ChatInterface({
       if (m.role === "user") {
         lines.push(`## Usuario\n\n${m.content}\n`);
       } else {
-        lines.push(`## Cella (IA)\n\n${m.content}\n`);
+        lines.push(`## Cella (IA)\n\n${stripCitationsSection(m.content)}\n`);
         if (m.citations && m.citations.length > 0) {
           lines.push("### Citas\n");
           m.citations.forEach((c, i) => {
@@ -670,7 +685,7 @@ export default function ChatInterface({
           .filter((m) => m.id !== "welcome")
           .map((m) => ({
             role: m.role,
-            content: m.content,
+            content: m.role === "assistant" ? stripCitationsSection(m.content) : m.content,
             citations: m.citations ?? [],
             timestamp: m.timestamp.toISOString(),
           })),
@@ -707,8 +722,8 @@ export default function ChatInterface({
   };
 
   return (
-    <div       className={cn("flex flex-col h-full bg-transparent", className)}>
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+    <div       className={cn("flex flex-col h-full min-h-0 bg-transparent", className)}>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6">
         <div className="max-w-[792px] mx-auto space-y-5">
         {messages.map((message) => (
           <div
@@ -751,44 +766,54 @@ export default function ChatInterface({
                       onClick={() => toggleCitations(message.id)}
                       className="flex items-center gap-1.5 w-full text-left zen-text-body zen-read-text hover:opacity-70 transition-opacity"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--primary-fixed)" }} />
-                      <span className="font-medium">
-                        Citas ({message.citations.length})
+                      <span className="font-medium">Citas</span>
+                      <span className="shrink-0 px-1.5 py-px rounded bg-zinc-400/15 text-zinc-600 font-medium text-(length:--zen-fs-label)">
+                        {message.citations.length}
                       </span>
-                      {expandedCitations.has(message.id) ? (
-                        <ChevronUp className="w-3.5 h-3.5 ml-auto" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5 ml-auto" />
-                      )}
+                      <ChevronDown
+                        className={cn(
+                          "w-3.5 h-3.5 ml-auto transition-transform duration-300",
+                          expandedCitations.has(message.id) && "rotate-180"
+                        )}
+                      />
                     </button>
 
-                    {expandedCitations.has(message.id) && (
-                      <div className="mt-2 space-y-2">
-                        {message.citations.map((citation, index) => (
-                          <div
-                            key={index}
-                            className="flex items-start gap-2 rounded-md bg-[var(--zen-panel-alt)] border-l-2 border-[var(--primary-fixed)] px-2.5 py-1.5"
-                          >
-                            <button
-                              onClick={() => onCitationClick?.(citation.page)}
-                              className="shrink-0 px-1.5 py-px rounded bg-[var(--primary-fixed)]/10 text-[var(--primary-fixed)] font-medium text-(length:--zen-fs-label) hover:bg-[var(--primary-fixed)]/20 transition-colors cursor-pointer"
+                    <div
+                      className={cn(
+                        "grid transition-all duration-300 ease-out",
+                        expandedCitations.has(message.id)
+                          ? "grid-rows-[1fr] opacity-100 mt-2"
+                          : "grid-rows-[0fr] opacity-0 mt-0"
+                      )}
+                    >
+                      <div className="overflow-hidden min-h-0">
+                        <div className="space-y-2">
+                          {message.citations.map((citation, index) => (
+                            <div
+                              key={index}
+                              className="flex items-start gap-2 rounded-md bg-zinc-400/10 px-2.5 py-1.5"
                             >
-                              P.{citation.page}
-                            </button>
-                            <span className="zen-text-body zen-read-text leading-relaxed">
-                              {citation.snippet}
-                            </span>
-                          </div>
-                        ))}
+                              <button
+                                onClick={() => onCitationClick?.(citation.page)}
+                                className="shrink-0 px-1.5 py-px rounded bg-zinc-400/15 text-zinc-600 font-medium text-(length:--zen-fs-label) hover:bg-zinc-400/25 hover:text-zinc-800 transition-colors cursor-pointer"
+                              >
+                                P.{citation.page}
+                              </button>
+                              <span className="zen-text-body zen-read-text leading-relaxed text-zinc-700">
+                                {citation.snippet}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
 
               <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                 <button
-                  onClick={() => copyToClipboard(message.content)}
+                  onClick={() => copyToClipboard(stripCitationsSection(message.content))}
                   className="p-1 rounded text-[var(--on-surface-variant)]/60 hover:text-[var(--primary-fixed)] hover:bg-[var(--zen-hover)] transition-colors"
                   title="Copiar respuesta"
                 >

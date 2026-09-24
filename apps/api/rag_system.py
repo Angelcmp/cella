@@ -184,7 +184,7 @@ INSTRUCCIONES IMPORTANTES:
 3. Incluye citas indicando la página exacta en cada idea importante.
 4. Tono profesional y conciso.
 5. No inventes ni extrapoles más allá de los fragmentos.
-6. FORMATO: párrafos separados por \n\n. Al final, incluye una sección "Citas" con el formato: [Página X]: breve extracto.
+6. FORMATO: párrafos separados por \n\n. No incluyas una sección final de "Citas"; las citas se muestran por separado en la interfaz.
 
 FRAGMENTOS DEL DOCUMENTO:
 {context}
@@ -784,7 +784,7 @@ INSTRUCCIONES IMPORTANTES:
 4. Incluye citas indicando la página exacta en cada idea importante.
 5. Tono profesional y conciso.
 6. No inventes ni extrapoles más allá de los fragmentos.
-7. FORMATO: párrafos separados por \n\n. Al final, incluye una sección "Citas" con el formato: [Documento, Página X]: breve extracto.
+7. FORMATO: párrafos separados por \n\n. No incluyas una sección final de "Citas"; las citas se muestran por separado en la interfaz.
 
 FRAGMENTOS DE LOS DOCUMENTOS:
 {context}

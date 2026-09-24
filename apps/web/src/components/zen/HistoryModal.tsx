@@ -15,11 +15,10 @@ export default function HistoryModal({ open, onClose }: HistoryModalProps) {
     conversations,
     projects,
     activeConversationId,
-    setActiveConversation,
+    selectConversation,
     removeConversation,
     togglePinConversation,
     setActiveProject,
-    setActiveDocument,
   } = useZenStore();
 
   const [search, setSearch] = useState("");
@@ -40,11 +39,8 @@ export default function HistoryModal({ open, onClose }: HistoryModalProps) {
     });
 
   const handleSelect = (conv: Conversation) => {
-    if (conv.projectId) {
-      setActiveProject(conv.projectId);
-      if (conv.documentId) setActiveDocument(conv.documentId);
-    }
-    setActiveConversation(conv.id);
+    if (conv.projectId) setActiveProject(conv.projectId);
+    selectConversation(conv.id);
     onClose();
   };
 

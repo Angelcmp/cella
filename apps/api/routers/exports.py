@@ -8,6 +8,7 @@ list a user's conversations and export them as readable transcripts.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import List, Optional
 
@@ -20,6 +21,25 @@ from database_simple import Conversation, Document, Message, User, get_db
 from routers.auth import get_current_user
 
 router = APIRouter(tags=["conversations"])
+
+
+# The LLM may append a trailing "Citas" section to its answer (e.g. `**Citas**`
+# followed by `[Página X]: "..."` entries). Citations are exported separately as
+# a structured list, so drop that block from the message body to avoid duplicates.
+_CITAS_HEADING = re.compile(
+    r"(?:^|\n)[ \t]*(?:\*\*|__)[ \t]*Citas?[ \t]*(?:\*\*|__)?[ \t]*:?[ \t]*"
+    r"|(?:^|\n)[ \t]*Citas?[ \t]*:?[ \t]*(?=\n|\[[^\]]*P[áa]gina|$)"
+    r"|Citas?[ \t]*:[ \t]*(?=\[[^\]]*P[áa]gina)",
+    re.IGNORECASE,
+)
+
+
+def _strip_citations_section(text: Optional[str]) -> str:
+    text = text or ""
+    match = _CITAS_HEADING.search(text)
+    if match:
+        return text[: match.start()].strip()
+    return text.strip()
 
 
 class ConversationOut(BaseModel):
@@ -183,7 +203,7 @@ def _build_markdown(conv: ConversationDetailOut) -> str:
             lines.append(f"{msg.content}\n")
         else:
             lines.append("## Cella (IA)\n")
-            lines.append(f"{msg.content}\n")
+            lines.append(f"{_strip_citations_section(msg.content)}\n")
             if msg.citations:
                 lines.append("### Citas\n")
                 for i, c in enumerate(msg.citations, start=1):
@@ -207,7 +227,9 @@ def _build_json(conv: ConversationDetailOut) -> str:
         "messages": [
             {
                 "role": m.role,
-                "content": m.content,
+                "content": _strip_citations_section(m.content)
+                if m.role == "assistant"
+                else m.content,
                 "citations": m.citations,
                 "created_at": m.created_at.isoformat() if m.created_at else None,
             }

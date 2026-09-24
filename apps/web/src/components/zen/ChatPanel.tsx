@@ -118,6 +118,7 @@ export default function ChatPanel() {
     };
     addConversation(conv);
     setActiveConversation(conv.id);
+    setChatDocumentIds([]);
   };
 
   const handleUploadComplete = (doc: ZenDocument) => {

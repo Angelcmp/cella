@@ -13,9 +13,7 @@ interface ConversationItemProps {
 export default function ConversationItem({ conversation }: ConversationItemProps) {
   const {
     activeConversationId,
-    setActiveConversation,
-    setActiveDocument,
-    setChatDocumentIds,
+    selectConversation,
     updateConversation,
     removeConversation,
     togglePinConversation,
@@ -43,13 +41,7 @@ export default function ConversationItem({ conversation }: ConversationItemProps
   }, [menuOpen]);
 
   const handleSelect = () => {
-    setActiveConversation(conversation.id);
-    if (conversation.documentId) {
-      setActiveDocument(conversation.documentId);
-    }
-    if (conversation.documentIds && conversation.documentIds.length > 0) {
-      setChatDocumentIds(conversation.documentIds);
-    }
+    selectConversation(conversation.id);
   };
 
   const handleSaveEdit = () => {
