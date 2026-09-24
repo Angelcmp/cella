@@ -1,5 +1,32 @@
 # Cella — Estado del Proyecto (Agosto–Septiembre 2026)
 
+## Citas + ChatInput + selección de conversación (23/09/2026)
+
+### Citas en la respuesta de la IA
+- **Se oculta el bloque final "Citas"** que el modelo añadía al texto: `stripCitationsSection()` en `ChatInterface.tsx` (soporta `**Citas**`, `Citas:`, variante en línea, single/multi-doc). Se aplica al render, al botón Copiar y a los exports locales (MD/JSON).
+- **Backend**: los prompts (`rag_system.py`) ya no piden la sección "Citas" (las citas se extraen de los chunks); `exports.py` sanea el cuerpo al exportar (`_strip_citations_section`) para no duplicar la lista estructurada.
+- **Rediseño visual** de la lista de citas: tarjetas gris casi blanco (`bg-zinc-400/10`), badge `P.X` sin borde (`bg-zinc-400/15`), contador `(N)` con el mismo estilo de badge, círculo celeste del título eliminado y **animación** de expandir/minimizar (`grid-rows 0fr→1fr` + opacidad, con chevron rotando).
+
+### ChatInput estilo ChatGPT
+- **Sin borde activo** al hacer click (borde constante); `+` y selector de modelo dentro del mismo contenedor, con espaciado reducido.
+- **Selector de modelo** como pill compacta (`rounded-full h-7`); **botón Enviar eliminado** → se envía con `Enter` (Shift+Enter = salto de línea); botón **Detener** visible solo durante el streaming.
+- **CSS** (`globals.css`): `.zen-textarea` ahora fuerza `background-color: transparent` y `box-shadow: none` — la regla global de `textarea` pintaba un rectángulo blanco que tapaba las esquinas redondeadas y un halo celeste (`--ring`) al enfocar.
+
+### Selección de conversación (Fuentes)
+- Nueva acción **`selectConversation(id)`** en `store.ts`: fija conversación, documento activo y `chatDocumentIds` (single-doc → `[documentId]`; multi-doc → `documentIds`). Corrige que al cambiar de conversación no se actualizaba el estado de las fuentes marcadas. `ConversationItem` y `HistoryModal` la usan; "Nueva conversación" resetea las fuentes a vacío.
+- **Layout**: `min-h-0` en el contenedor de mensajes de `ChatInterface` para que expandir las citas no empuje ni corte el chat input.
+
+Verificación: `typecheck` ✅ · `build` ✅ · E2E 4/4 ✅ · backend 64 tests ✅.
+
+## Correcciones de documentación (23/09/2026)
+
+Revisión de las notas históricas contra el código vigente (post PR #11, rediseño minimalista). Se corrigen in situ cuatro desfases:
+
+- **Modales de proveedores ya migrados a tokens zen** (`ProviderSettingsModal.tsx`, `AddProviderWizard.tsx`, `ProviderCard.tsx`, `EditProviderModal.tsx` usan `--zen-line`, `--on-surface`, `--primary-fixed`, `--zen-fs-*`). Solo `ZenUploadZone.tsx` conserva alias genéricos (`--border-subtle`, `--accent-primary`, …), que aún resuelven vía `:root`.
+- **Blacklist de tokens espejada en Redis** (`auth_simple.py:_is_token_revoked` / `_mirror_revocation_to_redis`), con fallback a SQLite. Ya no está "pendiente".
+- **`store.ts`**: `removeProject` y `setConversations` fueron restaurados (se usan en la UI); solo `removeDocument` y `syncStorage` siguen eliminados.
+- **Dark mode retirado el 18/09/2026**: las secciones históricas que describen `.dark .cyber` y el script `cella-theme` quedan anotadas como no vigentes.
+
 ## `/zen`: composición final de 3 paneles (17/09/2026)
 
 Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (UI tipo Claude/Anthropic): 3 paneles contiguos con headers uniformes, sin tocar funciones.
@@ -24,7 +51,7 @@ Objetivo: acercar la composición de `/zen` a la referencia visual del cliente (
 - **Studio ghost**: botones sin relleno ni borde (hover `--zen-hover`, activo con acento tenue); `ChatInput` con borde `--outline-variant` y foco sutil.
 - **Modales**: `HistoryModal` a **760px** con filas/tipografía mayores y tokens zen; `CellaDialog` al 100% hasta `maxWidth` y backdrop más sutil; `SettingsPopover` sin icono en "Uso (24h)", etiquetas completas alineadas y menú en un solo color.
 - **ChatInput y detalles**: el foco ya no pinta borde celeste; selector de modelo simplificado (sin punto/acento) y dropdown alineado a la derecha; bordes de separación de asides en **gris transparente** (`--zen-line` = `rgba(11,21,21,0.10)`); botón de **Historial** movido al header del aside izquierdo; iconos de acción en **negro suave**; "Nueva conversación" con fondo transparente y **hover teal**; la confirmación de borrado de conversación pasa de dropdown inline a **modal centrado**.
-- *No se migraron `ZenUploadZone` ni los modales de proveedores (fuera del alcance acordado).*
+- *Migración a tokens zen: los modales de proveedores (`ProviderSettingsModal`, `AddProviderWizard`, `ProviderCard`, `EditProviderModal`) ya usan `--zen-*`/`--on-surface`/`--primary-fixed`. Solo `ZenUploadZone.tsx` conserva alias genéricos (`--border-subtle`, `--accent-primary`…), que siguen resolviendo vía `:root`; queda como migración opcional a `--zen-*`.*
 
 ### Verificación (17/09/2026)
 - `npm run typecheck` ✅ · `eslint` de tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 49.4 kB / 163 kB First Load) · `npm run test:e2e` ✅ 4/4 · capturas en 1280 y 1600 ✅.
@@ -87,7 +114,7 @@ Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la pal
 
 ### Tokens (`apps/web/src/app/globals.css`)
 - Nuevos: `--zen-canvas`, `--zen-panel`, `--zen-panel-alt`, `--zen-line`, `--zen-hover`, `--zen-elev-1/2`.
-- Nuevo bloque `.dark .cyber` que remapea los tokens zen/Material3 (antes, en oscuro, el shell de `/zen` seguía usando superficies claras).
+- Nuevo bloque `.dark .cyber` que remapea los tokens zen/Material3 (antes, en oscuro, el shell de `/zen` seguía usando superficies claras). *(Retirado el 18/09/2026, ver sección de diseño unificado.)*
 - `.cyber [data-slot="card"]`: superficies shadcn planas (anula `shadow-card`).
 - Se dejan de usar en `/zen`: `.technical-grid`, `.scanlines`, `.text-chrome`, `.glass*`, `--gradient-zen-glow`, `--paper-texture` (siguen disponibles para la landing/docs).
 
@@ -103,7 +130,7 @@ Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la pal
 - **Tabs y modales** (`DiagramTab`, `StudyGuideTab`, `FaqTab`, `NotesTab`, `TimelineRenderer`, `UploadModal`, `CellaDialog`, `SettingsPopover`): alineados a los tokens zen.
 
 ### Dark mode
-- `app/layout.tsx`: script bloqueante que aplica `cella-theme` desde `localStorage` antes del primer paint (evita FOUC); `suppressHydrationWarning` en `<html>`.
+- `app/layout.tsx`: script bloqueante que aplica `cella-theme` desde `localStorage` antes del primer paint (evita FOUC); `suppressHydrationWarning` en `<html>`. *(Retirado el 18/09/2026, ver sección de diseño unificado.)*
 
 ### Verificación
 - `npm run typecheck` ✅ · `eslint` de archivos tocados sin errores nuevos ✅ · `npm run build` ✅ (`/zen` 50 kB, 164 kB First Load).
@@ -317,7 +344,7 @@ Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la pal
 - El flujo guest/demo (rutas `/auth/guest`, `/new`, cuotas invitado, magic link, `demo.py`, flags `DEMO_PUBLIC`/`DEMO_GUEST_ENABLED`) **no existía** en el código — la app corre 100% en `LOCAL_MODE` (usuario local). Se eliminó de `ROADMAP_PENDIENTE.md`, `README.md` y `.env.example`.
 - El rate limit ya es **Redis-backed con fallback en memoria** (`rate_limit.py`) y emite headers `X-RateLimit-*`; se corrigió el roadmap que lo describía como "en memoria".
 - El scan antivirus (`_av_scan_ok` + `ENABLE_FILE_AV_SCAN`) **ya está integrado** en `documents.py`; se corrigió el roadmap.
-- La blacklist de tokens ya está en SQLite (`RevokedToken`); pendiente solo migrarla a Redis.
+- La blacklist de tokens está en SQLite (`RevokedToken`) **y espejada en Redis** con TTL (`auth_simple.py:_is_token_revoked` / `_mirror_revocation_to_redis`, con fallback a SQLite). Ya no está pendiente.
 
 ## Limpieza de código muerto y features sin uso
 
@@ -371,7 +398,7 @@ Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la pal
 
 | Archivo | Cambio |
 |---|---|
-| `store.ts` | Restaurados 4 métodos usados (add/update/remove/togglePinConversation). Eliminados 4 muertos (removeProject, removeDocument, setConversations, syncStorage) |
+| `store.ts` | Restaurados 4 métodos usados (add/update/remove/togglePinConversation). Eliminados `removeDocument` y `syncStorage`. *(Corrección 23/09: `removeProject` y `setConversations` volvieron a usarse desde el 09/08; hoy existen en `store.ts:159,173,228,277`.)* |
 | `ChatInterface.tsx` | Quitados imports rotos (Copy, ExportDialog) |
 | `DocumentViewer.tsx` | Quitados 6 iconos sin uso (Download, Clock, Hash, FileIcon, Search, Maximize2) |
 | `SettingsPopover.tsx` | Quitados 2 iconos sin uso (Settings, X). localStorage key `docai-theme` → `cella-theme` |

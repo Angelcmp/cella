@@ -165,6 +165,7 @@ interface ZenState {
   setActiveProject: (id: string | null) => void;
   setActiveDocument: (id: string | null) => void;
   setActiveConversation: (id: string | null) => void;
+  selectConversation: (id: string) => void;
   setRightTab: (tab: RightTab) => void;
   setChatDocumentIds: (ids: string[]) => void;
   setHighlightPage: (page: number) => void;
@@ -266,6 +267,20 @@ export const useZenStore = create<ZenState>((set, get) => ({
   setActiveProject: (id) => set({ activeProjectId: id }),
   setActiveDocument: (id) => set({ activeDocumentId: id }),
   setActiveConversation: (id) => set({ activeConversationId: id }),
+  selectConversation: (id) => {
+    const conv = get().conversations.find((c) => c.id === id);
+    if (!conv) return;
+    const chatIds = conv.documentIds?.length
+      ? conv.documentIds
+      : conv.documentId
+        ? [conv.documentId]
+        : [];
+    set((state) => ({
+      activeConversationId: id,
+      activeDocumentId: conv.documentId ?? state.activeDocumentId,
+      chatDocumentIds: chatIds,
+    }));
+  },
   setRightTab: (tab) => set({ rightTab: tab }),
   setChatDocumentIds: (ids) => set({ chatDocumentIds: ids }),
   setHighlightPage: (page) =>

@@ -215,6 +215,7 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
     };
     addConversation(conv);
     setActiveConversation(conv.id);
+    setChatDocumentIds([]);
   };
 
   // Filter by active project
