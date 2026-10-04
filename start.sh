@@ -5,6 +5,7 @@ set -e
 # App 100% local: sin nube, sin auth, sin pagos.
 # Uso: ./start.sh
 #      SKIP_REDIS=1 ./start.sh   → sin Redis (cache en memoria)
+#      INFRA=full ./start.sh     → PostgreSQL + pgvector vía Docker (búsqueda vectorial)
 INFRA="${INFRA:-light}"
 
 echo "🚀 Iniciando Cella (local)"
@@ -50,6 +51,18 @@ elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     docker compose up -d redis
 else
     echo "⚠️  Redis no disponible — usando cache en memoria"
+fi
+
+# ── 1b. PostgreSQL + pgvector (solo INFRA=full) ──
+if [ "$INFRA" = "full" ]; then
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        echo "📦 Levantando PostgreSQL + pgvector vía Docker (INFRA=full)..."
+        docker compose up -d postgres
+        export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://docai:password@localhost:5432/docai}"
+        echo "   ✅ DATABASE_URL=$DATABASE_URL"
+    else
+        echo "⚠️  INFRA=full requiere Docker — sigo con SQLite (modo light)"
+    fi
 fi
 
 # ── 2. Backend ──

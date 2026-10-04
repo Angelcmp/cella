@@ -40,7 +40,7 @@ def get_file_type_from_path(file_path: str) -> str:
 def store_chunks_in_database(document_id: str, processing_result: dict):
     """Store processed chunks and embeddings in database"""
     try:
-        from database_simple import SessionLocal, DocumentChunk, DocumentEmbedding
+        from database_simple import SessionLocal, DocumentChunk, DocumentEmbedding, embedding_to_db
         
         if processing_result["processing_status"] != "success":
             raise ValueError(f"Processing failed: {processing_result.get('error', 'Unknown error')}")
@@ -73,10 +73,9 @@ def store_chunks_in_database(document_id: str, processing_result: dict):
                 
                 # Create embedding record
                 if "embedding" in chunk_data:
-                    import json
                     embedding = DocumentEmbedding(
                         chunk_id=chunk.id,
-                        embedding=json.dumps(chunk_data["embedding"]),
+                        embedding=embedding_to_db(chunk_data["embedding"]),
                         dim=len(chunk_data["embedding"])
                     )
                     db.add(embedding)

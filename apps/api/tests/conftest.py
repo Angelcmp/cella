@@ -18,9 +18,13 @@ _API_DIR = os.path.abspath(os.path.join(_THIS_DIR, ".."))
 if _API_DIR not in sys.path:
     sys.path.insert(0, _API_DIR)
 
-# Isolated DB for tests
+# Isolated DB for tests. When RUN_PGVECTOR_TESTS=1 and a PostgreSQL URL is
+# provided, keep it so the opt-in vector test can exercise pgvector.
 _TMP_DB = os.path.join(tempfile.gettempdir(), "cella_test.db")
-os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
+_RUN_PGVECTOR = os.getenv("RUN_PGVECTOR_TESTS") == "1"
+_PG_URL = os.getenv("DATABASE_URL", "")
+if not (_RUN_PGVECTOR and _PG_URL.startswith(("postgresql", "postgres"))):
+    os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
 os.environ["LOCAL_MODE"] = "true"
 os.environ["ENABLE_FILE_AV_SCAN"] = "false"
 os.environ["RATE_LIMIT_ENABLED"] = "false"

@@ -2,20 +2,37 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, B
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import uuid
+import json
 from datetime import datetime
 import os
-from typing import Generator
+from typing import Generator, List, Optional
 
 from dotenv import load_dotenv
 load_dotenv()
 
-# For now, use SQLite for development (will change to PostgreSQL later)
+# SQLite by default; PostgreSQL + pgvector when DATABASE_URL points there
+# (see start.sh INFRA=full and ROADMAP §2).
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./docai.db")
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# pgvector is optional: only relevant when running against PostgreSQL.
+# On SQLite the embedding column stays JSON-serialized Text (brute-force search).
+try:
+    from pgvector.sqlalchemy import Vector as _PGVector  # type: ignore
+    _PGVECTOR_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    _PGVector = None
+    _PGVECTOR_AVAILABLE = False
+
+# Dimension of the `doc_embeddings.embedding` column when using pgvector.
+# Must match the active embeddings provider (local bge = 384 by default).
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "384"))
+
+IS_POSTGRES = engine.dialect.name == "postgresql"
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency to get database session"""
@@ -80,8 +97,36 @@ class DocumentEmbedding(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     chunk_id = Column(String, nullable=False)
-    embedding = Column(Text)  # JSON string for now, will be Vector later
-    dim = Column(Integer, default=384)
+    # Dialect-aware storage: pgvector Vector on PostgreSQL, JSON text on SQLite.
+    if IS_POSTGRES and _PGVECTOR_AVAILABLE:
+        embedding = Column(_PGVector(EMBEDDING_DIM))
+    else:
+        embedding = Column(Text)  # JSON string
+    dim = Column(Integer, default=EMBEDDING_DIM)
+
+
+def embedding_to_db(vec: Optional[List[float]]):
+    """Serialize an embedding for the active dialect.
+
+    PostgreSQL/pgvector accepts a list of floats; SQLite stores JSON text.
+    """
+    if vec is None:
+        return None
+    values = [float(x) for x in vec]
+    if IS_POSTGRES and _PGVECTOR_AVAILABLE:
+        return values
+    return json.dumps(values)
+
+
+def embedding_from_db(value) -> Optional[List[float]]:
+    """Deserialize an embedding read from the database into a list of floats."""
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        return [float(x) for x in value]
+    if hasattr(value, "tolist"):  # numpy array returned by pgvector
+        return [float(x) for x in value.tolist()]
+    return [float(x) for x in json.loads(value)]
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -323,6 +368,10 @@ def _migrate():
         # ── Indexes (added 2026-08-16) ──
         # CREATE INDEX IF NOT EXISTS is idempotent in SQLite.
         _create_indexes_if_missing()
+
+        # ── pgvector HNSW index (PostgreSQL only) ──
+        if IS_POSTGRES and _PGVECTOR_AVAILABLE:
+            _create_vector_index_if_postgres()
     except Exception as e:
         print(f"   Migration notice (non-fatal): {e}")
 
@@ -404,3 +453,25 @@ def _create_indexes_if_missing():
                 )
             except Exception as e:
                 print(f"   Index {name}: {e}")
+
+
+def _create_vector_index_if_postgres():
+    """Enable pgvector and create the HNSW cosine index (idempotent)."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        except Exception as e:
+            print(f"   pgvector extension: {e}")
+            return
+        try:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_doc_embeddings_vec_hnsw "
+                    "ON doc_embeddings USING hnsw (embedding vector_cosine_ops)"
+                )
+            )
+            print("   pgvector HNSW index ready (doc_embeddings)")
+        except Exception as e:
+            print(f"   pgvector HNSW index: {e}")
