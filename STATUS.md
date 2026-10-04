@@ -1,5 +1,45 @@
 # Cella — Estado del Proyecto (Agosto–Septiembre 2026)
 
+## Chat: botón `+` (archivo/contexto/skill) y follow-ups (24/09/2026)
+
+- **Botón `+`** (`apps/web/src/components/zen/ChatInput.tsx`): ahora abre un menú con **Agregar archivo** (subida existente), **Agregar contexto** (editor inline que antepone un bloque `[Contexto adicional]` al siguiente mensaje, con chip removible) y **Agregar skill de IA** (lista de skills — Resumir, Mapa mental, Quiz, Guía de estudio, FAQ, Notas — que inserta su prompt en el textarea).
+- **Follow-ups** (`apps/api/routers/chat.py` + `apps/web/src/components/ChatInterface.tsx`): nuevo endpoint `POST /chat/follow-ups` (`{question, answer, model, document_ids}`) que pide 3 preguntas de seguimiento al proveedor (sin retrieval) y parsea JSON/listas con `_parse_suggestions`. El cliente las pide tras completar la respuesta (stream o no-stream) y las muestra como chips "Preguntas relacionadas"; clic envía la pregunta. Best-effort: si falla, se ocultan.
+- **Verificación**: `pytest` 79 passed + 1 skipped (nuevos `test_chat_followups.py`) ✅ · `typecheck` ✅ · `eslint` 0 errores ✅ · `build` ✅ (`/zen` 51.4 kB).
+
+## Límites de subida y proyectos (24/09/2026)
+
+- **Backend** (`apps/api/config.py` + `apps/api/routers/documents.py`): límites por tipo en `UPLOAD_LIMIT_BYTES` (PDF/DOCX/PPTX/TXT 200 MB, imágenes 25 MB), `UPLOAD_ALLOWED_TYPES` (PDF/DOCX/PPTX/TXT; imágenes deshabilitadas hasta tener ingesta/OCR) y `MAX_PDF_PAGES` (5000). La subida ahora devuelve `413` por tamaño o páginas y `400` por tipo/firma; se añadió el MIME OOXML de `.pptx` y el conteo de páginas vía `pypdf` (`_pdf_page_count`).
+- **Frontend**: constantes centralizadas en `apps/web/src/lib/limits.ts` (`ALLOWED_TYPES`, `maxBytesFor`, `formatLimit`, `MAX_FILES_PER_PROJECT`), usadas por `UploadModal.tsx` y `ZenUploadZone.tsx` (copy actualizada a "máx 200 MB").
+- **Máx 10 archivos por proyecto**: `store.addDocToProject` devuelve booleano y bloquea al llegar a `MAX_FILES_PER_PROJECT`; `ChatPanel` y `LeftSidebar` avisan con toast al subir/añadir si el proyecto está lleno, y la UI muestra "Límite alcanzado".
+- **Imágenes (PNG/JPG/JPEG/GIF/WebP, 25 MB)**: límite definido pero ingesta deshabilitada (el worker aún no hace OCR de imágenes) — pendiente en Integraciones.
+- **Verificación**: `pytest` 75 passed + 1 skipped (nuevos `test_upload_limits.py`) ✅ · `typecheck` ✅ · `eslint` 0 errores ✅ · `build` ✅ (`/zen` 50.5 kB).
+
+## Visor de documento: página, zoom, ajuste, rotación y descarga (24/09/2026)
+
+- `apps/web/src/components/PdfViewer.tsx`: barra con **ir a página** (input con clamp, Enter/blur), **zoom ±** (0.5–3, paso 0.1), **ajustar a página** (fit width/height calculado con `ResizeObserver` + aspecto del PDF vía `onLoadSuccess`), **rotar 90°** y **descargar**. El `width` del `<Page>` ahora es responsive (antes fijo 520px); `highlightNonce`/salto por cita intactos.
+- Descarga sin tocar backend: `apps/web/src/lib/download.ts` (`downloadFile`) hace `fetch` con `credentials: include` → blob → `URL.createObjectURL` → `<a download>`, con fallback a `window.open`.
+- `apps/web/src/components/DocumentViewer.tsx`: para documentos convertidos (DOCX/PPTX/TXT) el botón de descarga ahora baja el **archivo original** (antes `toast.info("en desarrollo")`) y se pasa `filename` al visor PDF para nombrar la descarga.
+- **Verificación**: `typecheck` ✅ · `eslint` (0 errores) ✅ · `build` ✅ (`/zen` 50.1 kB).
+
+## Búsqueda vectorial pgvector + migración ZenUploadZone (24/09/2026)
+
+### PostgreSQL + pgvector (ROADMAP §2 implementado)
+- **Modelo dialect-aware** (`apps/api/database_simple.py`): `doc_embeddings.embedding` es `pgvector.sqlalchemy.Vector(EMBEDDING_DIM)` cuando `DATABASE_URL` apunta a PostgreSQL, y `Text` (JSON) en SQLite. `EMBEDDING_DIM` (env, default 384) debe coincidir con el proveedor de embeddings.
+- **Helpers** `embedding_to_db()` / `embedding_from_db()`: serializan lista de floats en Postgres y JSON en SQLite; `from_db` normaliza JSON, listas y arrays de NumPy. El worker (`worker.py:store_chunks_in_database`) escribe vía `embedding_to_db`.
+- **Índice HNSW** (`_create_vector_index_if_postgres`): `CREATE EXTENSION IF NOT EXISTS vector` + `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`, idempotente, invocado desde `_migrate()`.
+- **Búsqueda** (`rag_system.search_relevant_chunks`): en Postgres restringe candidatos con `ORDER BY embedding <=> :q LIMIT RAG_PGVECTOR_CANDIDATES` (env, default 50) y mantiene el re-ranking MMR en Python; en SQLite conserva el brute-force NumPy. Mismo comportamiento de citas/MMR.
+- **Infra**: `start.sh` con `INFRA=full` levanta Postgres+pgvector por Docker y exporta `DATABASE_URL=postgresql+psycopg://docai:password@localhost:5432/docai`. `.env.example` (raíz y api) usa SQLite por defecto y documenta la opción Postgres + `EMBEDDING_DIM`.
+- **Deps**: `pgvector==0.2.4`, `psycopg[binary]==3.2.3`, `numpy==1.26.4` (pin explícito).
+- **Tests**: `apps/api/tests/test_pgvector.py` (helpers round-trip, columna `Text` en SQLite, probe live del operador coseno). El probe se ejecuta solo con `RUN_PGVECTOR_TESTS=1` y `DATABASE_URL` Postgres (los demás tests siguen en SQLite). `conftest.py` respeta ese modo.
+- **Verificación**: `pytest` 68 passed + 1 skipped (probe opt-in) ✅ · plumbing Postgres validado (`Vector`, `cosine_distance`, `embedding_to_db`) con `psycopg` instalado ✅.
+
+### Migración `ZenUploadZone.tsx` a tokens `--zen-*`
+- Sustituidos los alias genéricos: `--border-subtle`→`--zen-line`, `--bg-surface`→`--zen-panel`, `--bg-muted`→`--zen-panel-alt`, `--text-primary`→`--on-surface`, `--text-muted`→`--on-surface-variant`, `--accent-primary`→`--primary-fixed`; botón de subida con texto blanco.
+- **Verificación**: `typecheck` ✅ · `eslint` del archivo ✅ · `build` ✅ (`/zen` 50 kB / 164 kB).
+
+### Plan del mes
+- Nuevo `docs/FEATURES_PENDIENTES_MES.md` con la lista priorizada (integraciones, seguridad/cifrado, modelos LLM, chat y modos de respuesta, citas, Studio, documentación, visor, límites y mapa semántico).
+
 ## Citas + ChatInput + selección de conversación (23/09/2026)
 
 ### Citas en la respuesta de la IA
@@ -443,6 +483,8 @@ Objetivo: lenguaje visual plano y sencillo (estilo DeepSeek), conservando la pal
 
 ## Rediseño Landing — Estilo emdash.ai
 
+> ⚠️ **Sección histórica (superada el 18/09/2026).** La reemplazó el "Diseño unificado de la suite" (landing + `/docs` con el lenguaje minimalista de `/zen`, ver arriba). La paleta purple + slate + white, el modo oscuro, la fuente Work Sans y `FeaturePanels.tsx` descritos aquí **ya no están vigentes**; se conserva como registro.
+
 ### Paleta de colores (Purple + White + Slate)
 
 | Token | Antes (warm earth) | Ahora (cool clean) |
@@ -492,6 +534,8 @@ Dark mode: fondos slate-900/800, texto slate-100, accent violet-300/400.
 ---
 
 ## Rediseño modo lectura + input compacto + PDF inline (08/08/2026)
+
+> ⚠️ **Sección histórica.** Las "cards glass" del Studio y otros detalles visuales citados aquí fueron sustituidos por los tokens `--zen-*` y el diseño minimalista posterior (ver "Diseño unificado", 18/09/2026).
 
 ### Modo lectura `/zen` (`globals.css`, `ZenLayout.tsx`, `ChatInterface.tsx`)
 - Token `--zen-read-bg: #FFFFFF` aplicado a la columna central → página blanca tipo lector.

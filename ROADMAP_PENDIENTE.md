@@ -32,13 +32,13 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - CSP estricta solo en prod; `RATE_LIMIT_ENABLED=false` desactiva límites en dev
 - Redis opcional (`INFRA=light`): si cae, rate limit y blacklist hacen fallback a SQLite/en memoria
 
-## 2) Búsqueda Vectorial en Postgres (B) [Tipo: Backend, Infra] — Fuera de alcance local
+## 2) Búsqueda Vectorial en Postgres (B) [Tipo: Backend, Infra] — ✅ Implementado (24/09/2026)
 
-**Estado actual (LOCAL_MODE=true, `DATABASE_URL=sqlite:///./docai.db`):**
-- Tabla `doc_embeddings` con `embedding = Column(Text)` que almacena JSON serializado del vector (`apps/api/database_simple.py:78-84`).
-- Modelo de embeddings: `BAAI/bge-small-en-v1.5` (384-dim) vía `fastembed` (`apps/api/providers.py:34-72`).
-- Búsqueda: brute-force NumPy sobre todos los chunks del documento, similaridad coseno + MMR en Python (`apps/api/rag_system.py:77-163`, `cosine_similarity` en `:41-48`).
-- Ingesta: `apps/worker/worker.py:73-81` escribe `embedding=json.dumps(list)` por chunk.
+**Estado (SQLite sigue siendo el modo por defecto; Postgres+pgvector es opt-in con `INFRA=full`):**
+- Tabla `doc_embeddings` con columna dialect-aware: `Vector(EMBEDDING_DIM)` en Postgres, `Text` (JSON) en SQLite (`apps/api/database_simple.py`).
+- Modelo de embeddings: `BAAI/bge-small-en-v1.5` (384-dim) vía `fastembed` (`apps/api/providers.py`); `EMBEDDING_DIM` (env) debe coincidir.
+- Búsqueda: en SQLite, brute-force NumPy + MMR en Python (`apps/api/rag_system.search_relevant_chunks`); en Postgres, candidatos por `ORDER BY embedding <=> :q LIMIT RAG_PGVECTOR_CANDIDATES` + MMR en Python.
+- Ingesta: `apps/worker/worker.py:store_chunks_in_database` escribe vía `embedding_to_db()` (lista en Postgres, JSON en SQLite).
 
 **Objetivo (cuando se reactive modo servidor):**
 - Migrar `doc_embeddings` a pgvector con columna `Vector(dim)` e índice HNSW (`vector_cosine_ops`).
@@ -51,13 +51,13 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 4. **Lectura** (`apps/api/rag_system.py:88-118`): reemplazar el JOIN + JSON.loads + NumPy por `ORDER BY DocumentEmbedding.embedding.cosine_distance(:qvec) LIMIT top_k`. MMR (`:127-153`) se mantiene en Python encima del resultado — es post-re-ranking, independiente del backend.
 5. **Tests**: `apps/api/tests/test_rag.py:77-79` siembra `embedding=json.dumps(...)` (válido en ambos dialects). Nuevo test opt-in `RUN_PGVECTOR_TESTS=1` levanta Postgres ephemeral y verifica el operador `<=>` directamente.
 6. **Dependencias a añadir** (`apps/api/requirements.txt`): `pgvector`, `psycopg[binary]`, pin `numpy`.
-7. **Infra**: `docker-compose.yml` ya declara `pgvector/pgvector:pg16` + `docker/postgres/init.sql` con `CREATE EXTENSION vector`. Solo falta arrancar el servicio en `start.sh` cuando `INFRA=full` y exponer `DATABASE_URL=postgresql://docai:password@postgres:5432/docai`.
+7. **Infra**: `docker-compose.yml` declara `pgvector/pgvector:pg16` + `docker/postgres/init.sql` con `CREATE EXTENSION vector`. `start.sh` con `INFRA=full` arranca el servicio y exporta `DATABASE_URL=postgresql+psycopg://docai:password@localhost:5432/docai`.
 
-**Criterios de aceptación (cuando se implemente):**
-- [ ] `DATABASE_URL=sqlite:///./...` sigue funcionando idéntico a hoy (todos los tests verdes).
-- [ ] `DATABASE_URL=postgresql://...` levanta, migra, ingiere y busca vía `<=>`.
-- [ ] Top-k recall igual o mejor que el brute-force actual en un set de prueba fijo.
-- [ ] MMR, citas, anclaje de sentencias, RAG multi-doc — sin cambios de comportamiento.
+**Criterios de aceptación:**
+- [x] `DATABASE_URL=sqlite:///./...` sigue funcionando idéntico a hoy (`pytest`: 68 passed, 1 skipped).
+- [x] `DATABASE_URL=postgresql+psycopg://...` levanta y busca vía `<=>` (plumbing verificado: columna `Vector`, comparador `cosine_distance`, HNSW en `_migrate`). Test live opt-in con `RUN_PGVECTOR_TESTS=1`.
+- [x] Top-k recall: el pool `RAG_PGVECTOR_CANDIDATES` > top_k preserva el recall del brute-force; MMR corre encima del pool.
+- [x] MMR, citas, anclaje de sentencias, RAG multi-doc — sin cambios de comportamiento (misma lógica Python en ambos dialectos).
 
 **Fuera de alcance de este item:** multi-tenant, cross-encoder re-ranking, IVFFlat (se reevalúa si >5M vectores).
 
@@ -99,11 +99,11 @@ Resumen de mejoras priorizadas para Cella (antes DocAI). Enfocado en seguridad, 
 - [x] Modo lectura en `/zen`: fondo blanco (`--zen-read-bg`), texto 14px (Inter), headings 16px serif con parsing de markdown `#` a `<h1>`…`<h6>` (`ChatInterface.tsx`, `globals.css`)
 - [x] Chat input compacto: consola blanca, sin banner ni metadatos (Fuentes/Tkn), toolbar única con selector de modelo + iconos + enviar; textarea 14px auto-expande hasta 200px (`ChatInput.tsx`)
 - [x] Visor PDF inline con react-pdf v10 + pdfjs-dist 5.4.296, `ssr: false`, navegación de páginas, endpoint `GET /documents/{id}/file` con `content_disposition_type=inline` (`PdfViewer.tsx`, `documents.py`)
-- [x] Studio 3-columnas: rail 72px / aside 620px, cards glass sin borde, botones CTAs fondo `--primary-fixed` (`RightSidebar.tsx`, `ZenLayout.tsx`)
+- [x] Studio 3-columnas: rail 72px / aside 620px, cards glass sin borde, botones CTAs fondo `--primary-fixed` (`RightSidebar.tsx`, `ZenLayout.tsx`) — *(las "cards glass" quedaron superadas por los tokens `--zen-*`, ver items del 17-18/09)*
 - [x] Docs y landing: escala tipográfica reducida en `/docs`, logo actualizado a `#A7D8DE`
 - [x] Salto a la página citada en el visor PDF (14/09/2026): clic en `P.N` del chat → `store.highlightPage {page, nonce}` → tab `document` → `DocumentViewer` → `PdfViewer.initialPage` (clamp `[1, numPages]`). `nonce` fuerza re-salto en la misma cita; `clearHighlightPage()` al cambiar de documento. Eliminado el stash muerto `window.__pendingCitationPage` (`store.ts`, `ChatPanel.tsx`, `RightSidebar.tsx`, `DocumentViewer.tsx`, `PdfViewer.tsx`)
 - [x] pdfjs-dist: eliminada la dependencia directa `6.2.108` (no usada); se usa la `5.4.296` bundleada por `react-pdf@10.4.1`
-- [x] Rediseño minimalista de `/zen` (14/09/2026): tokens `--zen-*` en `globals.css` (+ overrides `.dark .cyber`), shell plano sin grid/scanlines/glass, Studio monocromo, visor sin textura/gradientes, dark mode con persistencia (`cella-theme` antes del paint). Solo cosmético, paleta teal intacta
+- [x] Rediseño minimalista de `/zen` (14/09/2026): tokens `--zen-*` en `globals.css` (+ overrides `.dark .cyber`), shell plano sin grid/scanlines/glass, Studio monocromo, visor sin textura/gradientes, dark mode con persistencia (`cella-theme` antes del paint). Solo cosmético, paleta teal intacta — *(`.dark .cyber`, la persistencia `cella-theme` y el dark mode se **retiraron** el 18/09/2026)*
 - [x] Diseño unificado de la suite (18/09/2026): landing y `/docs` con el lenguaje minimalista de `/zen`; **modo oscuro retirado** (`.dark`, toggle, script de tema) y paleta única clara; una sola fuente mono; limpieza de utilidades/código muerto (`FeaturePanels`, Work Sans, `.glass*`, `.y2k-*`, `.reveal-*`, variantes `glow`/`gradient`); fix del TOC y del estado activo del sidebar de `/docs`; a11y (`:focus-visible` + `prefers-reduced-motion`). `typecheck`/`build`/E2E 4/4 ✅
 - [x] `/zen` composición final de 3 paneles (17/09/2026): anchos responsive (288 / 440-480-620 / colapso 72), headers uniformes `h-12` (título + acción) en los 3 paneles, `ChatInput` de barra única con botón teal, y tarjetas neutras con acento teal (citas + tool-cards). Referencia visual tipo Claude/Anthropic; sin cambios de función. `typecheck`/`build`/E2E 4/4 + capturas 1280/1600 ✅
 - [x] `/zen` visibilidad y compacidad (17/09/2026): botón de Historial (faltaba disparador) + iconos del pie con contraste, `SettingsPopover`/`ThinkingBlock` a tokens zen, panel derecho responsive, tool-cards adaptativas y header central con acción

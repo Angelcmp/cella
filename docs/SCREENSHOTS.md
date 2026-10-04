@@ -1,10 +1,11 @@
 Cella – Guía rápida de capturas
 ================================
 
-Genera capturas consistentes (light/dark) de las vistas principales usando Playwright.
+Genera capturas de las vistas principales usando Playwright (solo tema claro).
 
-> Nota: el script `scripts/capture_screenshots.mjs` fue eliminado en la limpieza de código
-> muerto (Agosto 2026). Esta guía queda como referencia si se reimplementa el flujo.
+> ⚠️ **No vigente.** El script `scripts/capture_screenshots.mjs` fue eliminado en la limpieza de
+> código muerto (Agosto 2026) y el modo oscuro se retiró el 18/09/2026. Esta guía queda como
+> referencia si se reimplementa el flujo.
 
 Requisitos
 - Frontend corriendo en `http://localhost:3000` (y API en `:8000`).
@@ -18,6 +19,6 @@ npx playwright install chromium
 ```
 
 Salida
-- Se guardan en `docs/screenshots/{light|dark}/*.png`.
-- Rutas cubiertas: `/`, `/pricing`, `/docs`, `/zen` (app local sin login).
+- Se guardan en `docs/screenshots/light/*.png`.
+- Rutas cubiertas: `/`, `/docs`, `/zen` (app local sin login).
 
