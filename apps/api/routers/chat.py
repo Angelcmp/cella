@@ -47,6 +47,15 @@ class ChatResponse(BaseModel):
     confidence: Optional[float] = None
     coverage: Optional[float] = None
 
+class FollowUpsRequest(BaseModel):
+    question: str
+    answer: str
+    model: Optional[str] = None
+    document_ids: Optional[List[str]] = None
+
+class FollowUpsResponse(BaseModel):
+    suggestions: List[str]
+
 # Initialize RAG system
 rag_system = RAGSystem()
 logger.info(f"Chat router initialized with provider: {getattr(rag_system, 'provider', 'unknown')}")
@@ -75,6 +84,35 @@ def _synthetic_thinking() -> Iterator[str]:
 def _sanitize_message(text: str) -> str:
     sanitized = _CONTROL_CHARS.sub("", text or "")
     return sanitized.strip()
+
+
+def _parse_suggestions(text: str) -> List[str]:
+    """Extract up to 3 follow-up suggestions from an LLM answer.
+
+    Tolerates JSON arrays, code fences and bullet/numbered lists.
+    """
+    text = (text or "").strip()
+    # Strip a wrapping markdown code fence.
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    match = re.search(r"\[.*\]", text, re.DOTALL)
+    if match:
+        try:
+            arr = json.loads(match.group(0))
+            if isinstance(arr, list):
+                return [str(x).strip() for x in arr if str(x).strip()][:3]
+        except Exception:
+            pass
+    # Fallback: treat non-empty lines as suggestions, but only when the answer
+    # actually looks like a list (>= 2 lines) — a single prose line is not a
+    # set of follow-ups.
+    lines = []
+    for line in text.splitlines():
+        cleaned = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip()
+        cleaned = cleaned.strip('"').strip()
+        if cleaned:
+            lines.append(cleaned)
+    return lines[:3] if len(lines) >= 2 else []
 
 
 def _get_or_create_conversation(
@@ -125,6 +163,41 @@ def _validate_documents(db: Session, user_id: str, document_ids: List[str]) -> D
             )
         titles[doc_id] = document.title
     return titles
+
+
+@router.post("/follow-ups", response_model=FollowUpsResponse)
+async def generate_follow_ups(
+    req: FollowUpsRequest,
+    current_user: User = Depends(get_current_user),
+    _=Depends(csrf_protect),
+):
+    """Suggest short follow-up questions after a chat exchange.
+
+    Uses the configured chat provider directly (no retrieval). Never raises:
+    returns an empty list on any failure so the UI can hide the suggestions.
+    """
+    question = _sanitize_message(req.question)
+    answer = (req.answer or "").strip()
+    if not question or not answer:
+        return FollowUpsResponse(suggestions=[])
+
+    prompt = (
+        "Eres un asistente de análisis de documentos. Dada la pregunta del usuario "
+        "y tu respuesta, sugiere exactamente 3 preguntas de seguimiento breves y "
+        "relevantes para profundizar en el tema.\n\n"
+        f"Pregunta del usuario:\n{question}\n\n"
+        f"Tu respuesta:\n{answer[:2000]}\n\n"
+        'Responde SOLO con una lista JSON de 3 strings, sin texto adicional. '
+        'Formato: ["pregunta 1", "pregunta 2", "pregunta 3"]'
+    )
+    try:
+        text, _ = rag_system.generate_response(
+            prompt, model=req.model, max_tokens=200, temperature=0.4
+        )
+        return FollowUpsResponse(suggestions=_parse_suggestions(text))
+    except Exception as exc:
+        logger.warning(f"Follow-ups generation failed: {exc}")
+        return FollowUpsResponse(suggestions=[])
 
 
 @router.get("/stats/usage")

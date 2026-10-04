@@ -130,3 +130,32 @@ OCR_LOG_ENABLED = _env_bool("OCR_LOG_ENABLED", True)
 # SSE streaming — heartbeat keeps the connection alive through proxies while
 # the LLM is still generating (esp. for reasoning models like DeepSeek-R / GLM-4.6).
 STREAM_HEARTBEAT_SECONDS = int(os.getenv("STREAM_HEARTBEAT_SECONDS", "15"))
+
+# ── Upload limits ──
+# Tamaño máximo por tipo de archivo (bytes). PDF/DOCX/PPTX/TXT: 200 MB.
+_MB = 1024 * 1024
+UPLOAD_LIMIT_BYTES = {
+    "application/pdf": 200 * _MB,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 200 * _MB,  # .docx
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": 200 * _MB,  # .pptx
+    "application/vnd.ms-powerpoint": 200 * _MB,  # .ppt (legacy MIME)
+    "text/plain": 200 * _MB,
+    # Imágenes: límite definido (25 MB). La ingesta de imágenes (OCR) está pendiente.
+    "image/png": 25 * _MB,
+    "image/jpeg": 25 * _MB,
+    "image/gif": 25 * _MB,
+    "image/webp": 25 * _MB,
+}
+# Tipos habilitados para subida (las imágenes quedan deshabilitadas hasta tener
+# ingesta/OCR en el worker).
+UPLOAD_ALLOWED_TYPES = [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-powerpoint",
+    "text/plain",
+]
+# Límite de páginas por PDF.
+MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "5000"))
+# Máximo de archivos por proyecto (cliente).
+MAX_FILES_PER_PROJECT = int(os.getenv("MAX_FILES_PER_PROJECT", "10"))

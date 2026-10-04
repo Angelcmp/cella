@@ -20,6 +20,11 @@ pydantic-settings==2.1.0
 httpx==0.25.2
 certifi==2024.7.4
 prometheus-client==0.26.0
+numpy==1.26.4
+
+# PostgreSQL + pgvector (opcional: solo INFRA=full / modo servidor)
+pgvector==0.2.4
+psycopg[binary]==3.2.3
 
 # Tracing (opcional: OpenTelemetry)
 opentelemetry-api==1.29.0

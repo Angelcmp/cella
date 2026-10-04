@@ -4,18 +4,11 @@ import { useState, useRef, useCallback } from "react";
 import { Upload, FileText, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { withCsrfHeaders } from "@/lib/csrf";
+import { ALLOWED_TYPES, maxBytesFor, formatLimit } from "@/lib/limits";
 import CellaDialog from "./CellaDialog";
 import type { ZenDocument } from "./store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const MAX_SIZE = 30 * 1024 * 1024;
-const ALLOWED = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "application/msword",
-];
 
 export default function UploadModal({
   onClose,
@@ -33,12 +26,12 @@ export default function UploadModal({
 
   const handleFile = useCallback((f: File) => {
     setError("");
-    if (!ALLOWED.includes(f.type)) {
+    if (!ALLOWED_TYPES.includes(f.type)) {
       setError("Formato no soportado. Usa PDF, DOCX, PPTX o TXT.");
       return;
     }
-    if (f.size > MAX_SIZE) {
-      setError("El archivo excede 30 MB.");
+    if (f.size > maxBytesFor(f.type)) {
+      setError(`El archivo excede ${formatLimit(f.type)}.`);
       return;
     }
     setFile(f);
@@ -99,11 +92,12 @@ export default function UploadModal({
       setTimeout(() => {
         onComplete(doc);
       }, 500);
-    } catch (err: any) {
+    } catch (err) {
       clearInterval(interval);
       setUploading(false);
       setProgress(0);
-      toast.error(err.message || "Error al subir");
+      const message = err instanceof Error ? err.message : "Error al subir";
+      toast.error(message);
     }
   };
 
@@ -130,7 +124,7 @@ export default function UploadModal({
               Arrastra tu archivo aquí
             </p>
             <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]">
-              o haz clic para seleccionar · PDF, DOCX, PPTX, TXT · Máx 30MB
+              o haz clic para seleccionar · PDF, DOCX, PPTX, TXT · máx 200 MB
             </p>
             <input
               ref={inputRef}

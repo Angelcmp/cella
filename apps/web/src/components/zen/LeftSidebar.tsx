@@ -23,6 +23,8 @@ import UploadModal from "./UploadModal";
 import HistoryModal from "./HistoryModal";
 import SettingsPopover from "./SettingsPopover";
 import { withCsrfHeaders } from "@/lib/csrf";
+import { MAX_FILES_PER_PROJECT } from "@/lib/limits";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -72,17 +74,31 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
       const res = await fetch(`${API_URL}/documents/?limit=50`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        const docs: ZenDocument[] = (data.documents || data || []).map((d: any) => ({
-          id: d.id,
-          title: d.title || d.filename || "Sin título",
-          filename: d.filename || "",
-          status: d.status || "pending",
-          pages: d.pages || 0,
-          size: d.file_size || d.size || 0,
-          createdAt: d.created_at || d.createdAt || new Date().toISOString(),
-          lastError: d.last_error || undefined,
-          attempts: d.attempts || 0,
-        }));
+        const docs: ZenDocument[] = (data.documents || data || []).map(
+          (d: {
+            id?: string;
+            title?: string;
+            filename?: string;
+            status?: string;
+            pages?: number;
+            file_size?: number;
+            size?: number;
+            created_at?: string;
+            createdAt?: string;
+            last_error?: string;
+            attempts?: number;
+          }) => ({
+            id: d.id,
+            title: d.title || d.filename || "Sin título",
+            filename: d.filename || "",
+            status: d.status || "pending",
+            pages: d.pages || 0,
+            size: d.file_size || d.size || 0,
+            createdAt: d.created_at || d.createdAt || new Date().toISOString(),
+            lastError: d.last_error || undefined,
+            attempts: d.attempts || 0,
+          })
+        );
         setDocuments(docs);
         return docs;
       }
@@ -167,10 +183,17 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
     addDocument(doc);
     if (activeProjectId) {
       const state = useZenStore.getState();
-      const updated = state.projects.map((p) =>
-        p.id === activeProjectId ? { ...p, documents: [...p.documents, doc.id] } : p
-      );
-      state.setProjects(updated);
+      const project = state.projects.find((p) => p.id === activeProjectId);
+      if (project && project.documents.length >= MAX_FILES_PER_PROJECT) {
+        toast.warning(
+          `El proyecto ya tiene ${MAX_FILES_PER_PROJECT} archivos; el documento quedó fuera del proyecto.`
+        );
+      } else {
+        const updated = state.projects.map((p) =>
+          p.id === activeProjectId ? { ...p, documents: [...p.documents, doc.id] } : p
+        );
+        state.setProjects(updated);
+      }
     }
     setShowUpload(false);
     setActiveDocument(doc.id);
@@ -532,13 +555,19 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
                         </div>
                       );
                     })}
-                    <button
-                      onClick={() => setAddDocToProjectId(addDocToProjectId === project.id ? null : project.id)}
-                      className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--on-surface-variant)]/50 hover:text-[var(--on-surface)] transition-colors"
-                    >
-                      <Plus className="w-2.5 h-2.5" />
-                      Añadir documento
-                    </button>
+                    {project.documents.length >= MAX_FILES_PER_PROJECT ? (
+                      <p className="px-2 py-0.5 text-[10px] text-[var(--on-surface-variant)]/40">
+                        Límite de {MAX_FILES_PER_PROJECT} archivos alcanzado
+                      </p>
+                    ) : (
+                      <button
+                        onClick={() => setAddDocToProjectId(addDocToProjectId === project.id ? null : project.id)}
+                        className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--on-surface-variant)]/50 hover:text-[var(--on-surface)] transition-colors"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                        Añadir documento
+                      </button>
+                    )}
                     {addDocToProjectId === project.id && (
                       <div className="ml-1 space-y-0.5 max-h-32 overflow-y-auto">
                         {documents
@@ -547,7 +576,11 @@ export default function LeftSidebar({ collapsed = false, onToggleCollapse }: Lef
                             <button
                               key={doc.id}
                               onClick={() => {
-                                addDocToProject(project.id, doc.id);
+                                if (!addDocToProject(project.id, doc.id)) {
+                                  toast.warning(
+                                    `Límite de ${MAX_FILES_PER_PROJECT} archivos por proyecto.`
+                                  );
+                                }
                                 setAddDocToProjectId(null);
                               }}
                               className="w-full flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--on-surface-variant)]/70 hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors truncate"

@@ -14,7 +14,15 @@ from typing import List, Dict, Any, Optional, Tuple, Iterator
 import numpy as np
 from sqlalchemy.orm import Session
 
-from database_simple import DocumentChunk, DocumentEmbedding, DocumentSummary, Document, DocumentMindmap
+from database_simple import (
+    DocumentChunk,
+    DocumentEmbedding,
+    DocumentSummary,
+    Document,
+    DocumentMindmap,
+    IS_POSTGRES,
+    embedding_from_db,
+)
 from provider_registry import get_router
 from cache import RAGCache
 
@@ -86,10 +94,21 @@ class RAGSystem:
         - Applies Maximal Marginal Relevance to improve diversity and reduce redundancy
         """
         try:
-            # Get all chunks for the document with their embeddings
-            chunks_with_embeddings = db.query(DocumentChunk, DocumentEmbedding).join(
+            # Get chunks for the document with their embeddings.
+            query = db.query(DocumentChunk, DocumentEmbedding).join(
                 DocumentEmbedding, DocumentChunk.id == DocumentEmbedding.chunk_id
-            ).filter(DocumentChunk.document_id == document_id).all()
+            ).filter(DocumentChunk.document_id == document_id)
+
+            if IS_POSTGRES:
+                # Narrow the candidate set with pgvector's cosine operator
+                # (HNSW index), then keep MMR re-ranking in Python over that
+                # pool. Falls back to brute-force if pgvector is unavailable.
+                pool = max(int(os.getenv("RAG_PGVECTOR_CANDIDATES", "50")), top_k)
+                chunks_with_embeddings = query.order_by(
+                    DocumentEmbedding.embedding.cosine_distance(query_embedding)
+                ).limit(pool).all()
+            else:
+                chunks_with_embeddings = query.all()
             
             if not chunks_with_embeddings:
                 logger.warning(f"No chunks found for document {document_id}")
@@ -99,8 +118,8 @@ class RAGSystem:
             chunk_candidates = []
             for chunk, embedding in chunks_with_embeddings:
                 try:
-                    # Parse embedding JSON
-                    chunk_embedding = json.loads(embedding.embedding)
+                    # Parse embedding (JSON text on SQLite, vector on Postgres)
+                    chunk_embedding = embedding_from_db(embedding.embedding)
                     similarity = self.cosine_similarity(query_embedding, chunk_embedding)
 
                     chunk_candidates.append({

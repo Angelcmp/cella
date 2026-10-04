@@ -14,7 +14,7 @@ cella/
 ├── docs/RUNBOOKS.md # Guías de arranque/parada y troubleshooting
 ├── start.sh          # Arranque rápido (INFRA=light)
 ├── .env.example      # Template de variables de entorno
-└── docker-compose.yml # PostgreSQL + Redis + MinIO (opcional, prod)
+└── docker-compose.yml # PostgreSQL + Redis + MinIO + monitoring (opcional, prod)
 ```
 
 ## Stack
@@ -23,13 +23,13 @@ cella/
 |---|---|
 | **Frontend** | Next.js 15, React 19, Tailwind CSS 4, zustand, sonner, cytoscape, lucide |
 | **Backend** | FastAPI, SQLAlchemy |
-| **Base de datos** | SQLite (activa, `docai.db`) |
+| **Base de datos** | SQLite (por defecto, `docai.db`) · PostgreSQL + pgvector opcional (`INFRA=full`) |
 | **Cache** | Redis (opcional, modo light) |
 | **Storage** | Sistema de archivos local (uploads/) |
 | **IA / LLM** | DeepSeek V4 Flash (chat principal), GLM-4.5/4.7 (Zhipu) |
 | **Embeddings** | FastEmbed local (`BAAI/bge-small-en-v1.5`, 384-dim), sin API key |
 | **Worker** | Polling loop con retries exponenciales y reencolado de fallidos (no Celery) |
-| **Font** | Work Sans (landing), Inter (app) + JetBrains Mono (code) |
+| **Font** | Space Grotesk (display), Inter (cuerpo), Source Serif 4 (títulos) + JetBrains Mono (code) |
 
 ## Instalación
 
@@ -45,6 +45,7 @@ cp apps/api/.env.example .env
 
 # 3. Arrancar (modo light: solo Redis)
 INFRA=light bash start.sh
+#    o INFRA=full bash start.sh   # PostgreSQL + pgvector (búsqueda vectorial)
 # O manual:
 #   Terminal 1: cd apps/api && python main.py
 #   Terminal 2: cd apps/worker && python worker.py
@@ -63,7 +64,6 @@ INFRA=light bash start.sh
 | Ruta | Descripción |
 |---|---|
 | `/` | Landing page — hero con demo del chat, features, flujo de trabajo |
-| `/pricing` | Planes |
 | `/docs` | Documentación técnica |
 | `/zen` | App principal — upload, chat RAG, resúmenes, mapas mentales, quiz |
 
@@ -86,7 +86,7 @@ INFRA=light bash start.sh
 - **Observabilidad** — métricas Prometheus (`/metrics`), request-id, logs JSON, OpenTelemetry tracing (OTLP)
 - **Dashboards Grafana** — dashboard preconfigurado (DLQ, 5xx, latencia, stale docs) + alertas
 - **Nginx + TLS** — reverse proxy con Let's Encrypt, HSTS, SSE streaming
-- **Tema claro/oscuro** — Paleta purple + slate + white
+- **Tema claro único** — Paleta teal (modo oscuro retirado el 18/09/2026)
 
 ## API
 

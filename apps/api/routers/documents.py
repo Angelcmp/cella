@@ -30,6 +30,7 @@ def _valid_signature(content: bytes, mime: str) -> bool:
         return content.startswith(b"%PDF-")
     if mime in (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.ms-powerpoint",
     ):
         # .docx/.pptx are ZIP files
@@ -42,6 +43,20 @@ def _valid_signature(content: bytes, mime: str) -> bool:
             return False
     # Default: reject unknown types
     return False
+
+
+def _pdf_page_count(content: bytes) -> Optional[int]:
+    """Return the number of pages in a PDF (None if it can't be parsed)."""
+    try:
+        import io
+
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(content), strict=False)
+        return len(reader.pages)
+    except Exception as exc:
+        logger.warning(f"Could not count PDF pages: {exc}")
+        return None
 
 logger = logging.getLogger(__name__)
 
@@ -62,20 +77,20 @@ async def upload_document(
 ):
     """Upload a document and set status to pending"""
     
-    # Validate file type (allowing text for development testing)
-    allowed_types = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-powerpoint", "text/plain"]
-    if file.content_type not in allowed_types:
+    # Validate file type
+    if file.content_type not in cfg.UPLOAD_ALLOWED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF, DOCX, PPTX, and TXT files are allowed"
         )
     
-    # Validate file size (max 30MB)
+    # Validate file size (per-type limit)
     file_content = await file.read()
-    if len(file_content) > 30 * 1024 * 1024:  # 30MB
+    max_bytes = cfg.UPLOAD_LIMIT_BYTES.get(file.content_type, 200 * 1024 * 1024)
+    if len(file_content) > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File size exceeds 30MB limit"
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds the {max_bytes // (1024 * 1024)}MB limit"
         )
     # Validate signature/magic bytes
     if not _valid_signature(file_content, file.content_type):
@@ -83,6 +98,14 @@ async def upload_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File signature does not match declared type"
         )
+    # Validate PDF page count
+    if file.content_type == "application/pdf":
+        page_count = _pdf_page_count(file_content)
+        if page_count is not None and page_count > cfg.MAX_PDF_PAGES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"PDF exceeds the {cfg.MAX_PDF_PAGES}-page limit",
+            )
     # Optional AV scan (auditado en av_scan_logs)
     if cfg.ENABLE_FILE_AV_SCAN:
         request_id = None

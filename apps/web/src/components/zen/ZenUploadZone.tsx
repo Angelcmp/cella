@@ -4,17 +4,10 @@ import { useState, useRef, useCallback } from "react";
 import { Upload, FileText, X, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { withCsrfHeaders } from "@/lib/csrf";
+import { ALLOWED_TYPES, maxBytesFor, formatLimit } from "@/lib/limits";
 import type { ZenDocument } from "./store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const MAX_SIZE = 30 * 1024 * 1024;
-const ALLOWED = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "application/msword",
-];
 
 interface ZenUploadZoneProps {
   onComplete: (doc: ZenDocument) => void;
@@ -36,12 +29,12 @@ export default function ZenUploadZone({
 
   const handleFile = useCallback((f: File) => {
     setError("");
-    if (!ALLOWED.includes(f.type)) {
+    if (!ALLOWED_TYPES.includes(f.type)) {
       setError("Formato no soportado. Usa PDF, DOCX, PPTX o TXT.");
       return;
     }
-    if (f.size > MAX_SIZE) {
-      setError("El archivo excede 30 MB.");
+    if (f.size > maxBytesFor(f.type)) {
+      setError(`El archivo excede ${formatLimit(f.type)}.`);
       return;
     }
     setFile(f);
@@ -127,16 +120,16 @@ export default function ZenUploadZone({
   if (uploading) {
     return (
       <div
-        className={`flex items-center justify-center gap-3 p-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] ${className}`}
+        className={`flex items-center justify-center gap-3 p-6 rounded-2xl border border-[var(--zen-line)] bg-[var(--zen-panel)] ${className}`}
       >
-        <Loader2 className="w-5 h-5 text-[var(--accent-primary)] animate-spin" />
+        <Loader2 className="w-5 h-5 text-[var(--primary-fixed)] animate-spin" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[var(--text-primary)]">
+          <p className="text-sm font-medium text-[var(--on-surface)]">
             {progress >= 100 ? "Procesando..." : "Subiendo..."}
           </p>
-          <div className="w-full h-1.5 rounded-full bg-[var(--bg-muted)] mt-2 overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-[var(--zen-panel-alt)] mt-2 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-300"
+              className="h-full rounded-full bg-[var(--primary-fixed)] transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -148,28 +141,28 @@ export default function ZenUploadZone({
   if (file) {
     return (
       <div
-        className={`p-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-4 ${className}`}
+        className={`p-6 rounded-2xl border border-[var(--zen-line)] bg-[var(--zen-panel)] space-y-4 ${className}`}
       >
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-muted)]">
-          <FileText className="w-8 h-8 text-[var(--accent-primary)]" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--zen-panel-alt)]">
+          <FileText className="w-8 h-8 text-[var(--primary-fixed)]" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+            <p className="text-sm font-medium text-[var(--on-surface)] truncate">
               {file.name}
             </p>
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="text-xs text-[var(--on-surface-variant)]">
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </p>
           </div>
           <button
             onClick={reset}
-            className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
+            className="p-1 rounded hover:bg-[var(--zen-panel)] text-[var(--on-surface-variant)]"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
         <button
           onClick={handleUpload}
-          className="w-full py-2.5 rounded-xl bg-[var(--accent-primary)] text-[#003739] text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl bg-[var(--primary-fixed)] text-white text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
         >
           <Upload className="w-4 h-4" />
           Subir ahora
@@ -189,10 +182,10 @@ export default function ZenUploadZone({
       onClick={() => inputRef.current?.click()}
       onPaste={handlePaste}
       tabIndex={0}
-      className={`relative border-2 border-dashed rounded-2xl text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
+      className={`relative border-2 border-dashed rounded-2xl text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-fixed)] ${
         dragOver
-          ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-          : "border-[var(--border-subtle)] hover:border-[var(--text-muted)]"
+          ? "border-[var(--primary-fixed)] bg-[var(--primary-fixed)]/5"
+          : "border-[var(--zen-line)] hover:border-[var(--on-surface-variant)]"
       } ${className}`}
     >
       <input
@@ -207,19 +200,19 @@ export default function ZenUploadZone({
       />
       <div className={compact ? "p-6" : "p-10 md:p-14"}>
         <Upload
-          className={`text-[var(--text-muted)] mx-auto mb-3 ${
+          className={`text-[var(--on-surface-variant)] mx-auto mb-3 ${
             compact ? "w-6 h-6" : "w-10 h-10"
           }`}
         />
         <p
-          className={`text-[var(--text-primary)] font-medium mb-1 ${
+          className={`text-[var(--on-surface)] font-medium mb-1 ${
             compact ? "text-xs" : "text-sm"
           }`}
         >
           Arrastra tu archivo aquí
         </p>
-        <p className={`text-[var(--text-muted)] ${compact ? "text-[10px]" : "text-xs"}`}>
-          o haz clic / pega (Ctrl+V) · PDF, DOCX, PPTX, TXT · Máx 30MB
+        <p className={`text-[var(--on-surface-variant)] ${compact ? "text-[10px]" : "text-xs"}`}>
+          o haz clic / pega (Ctrl+V) · PDF, DOCX, PPTX, TXT · máx 200 MB
         </p>
       </div>
       {error && (
