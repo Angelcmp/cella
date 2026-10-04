@@ -9,6 +9,7 @@ import ChatInput from "./ChatInput";
 import UploadModal from "./UploadModal";
 import TimelineRenderer from "./TimelineRenderer";
 import { withCsrfHeaders } from "@/lib/csrf";
+import { MAX_FILES_PER_PROJECT } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
 const welcomeChips = [
@@ -127,16 +128,30 @@ export default function ChatPanel() {
     const projectId = state.activeProjectId;
 
     if (projectId) {
-      const updatedProjects = state.projects.map((p) =>
-        p.id === projectId ? { ...p, documents: [...p.documents, doc.id] } : p
-      );
-      state.setProjects(updatedProjects);
+      const project = state.projects.find((p) => p.id === projectId);
+      if (project && project.documents.length >= MAX_FILES_PER_PROJECT) {
+        toast.warning(
+          `El proyecto ya tiene ${MAX_FILES_PER_PROJECT} archivos; el documento quedó fuera del proyecto.`
+        );
+      } else {
+        const updatedProjects = state.projects.map((p) =>
+          p.id === projectId ? { ...p, documents: [...p.documents, doc.id] } : p
+        );
+        state.setProjects(updatedProjects);
+      }
     } else {
       const defaultProject = ensureDefaultProject();
-      const updatedProjects = state.projects.map((p) =>
-        p.id === defaultProject.id ? { ...p, documents: [...p.documents, doc.id] } : p
-      );
-      state.setProjects(updatedProjects);
+      const project = state.projects.find((p) => p.id === defaultProject.id);
+      if (project && project.documents.length >= MAX_FILES_PER_PROJECT) {
+        toast.warning(
+          `El proyecto ya tiene ${MAX_FILES_PER_PROJECT} archivos; el documento quedó fuera del proyecto.`
+        );
+      } else {
+        const updatedProjects = state.projects.map((p) =>
+          p.id === defaultProject.id ? { ...p, documents: [...p.documents, doc.id] } : p
+        );
+        state.setProjects(updatedProjects);
+      }
       state.setActiveProject(defaultProject.id);
     }
     setActiveDocument(doc.id);

@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Download
 } from "lucide-react";
 import { toast } from "sonner";
 import styles from "./DocumentViewer.module.css";
 import { cn } from "@/lib/utils";
+import { downloadFile } from "@/lib/download";
 
 const PdfViewer = dynamic(() => import("./PdfViewer"), { ssr: false });
 
@@ -86,6 +88,7 @@ export default function DocumentViewer({
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (documentId) {
@@ -156,8 +159,16 @@ export default function DocumentViewer({
   };
 
   const downloadDocument = async () => {
-    toast.info("Función de descarga en desarrollo");
-    // Implementation would depend on how documents are stored
+    if (!document) return;
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/documents/${documentId}/file`;
+    setDownloading(true);
+    try {
+      await downloadFile(url, document.filename || `${document.title}`);
+    } catch {
+      toast.error("No se pudo descargar el archivo");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -364,6 +375,7 @@ export default function DocumentViewer({
       <PdfViewer
         fileUrl={fileUrl}
         title={document.title}
+        filename={document.filename}
         pages={document.pages}
         initialPage={highlightPage}
         highlightNonce={highlightNonce}
@@ -454,6 +466,21 @@ export default function DocumentViewer({
                   title={readingMode ? "Modo Normal" : "Modo Lectura"}
                 >
                   <Eye className="h-3.5 w-3.5" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadDocument}
+                  disabled={downloading}
+                  className="w-9 h-9 p-0 border-[var(--zen-line)] text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--primary-fixed)] disabled:opacity-50"
+                  title="Descargar original"
+                >
+                  {downloading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
                 </Button>
               </div>
             </CardContent>

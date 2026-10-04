@@ -7,6 +7,11 @@ import {
   Check,
   SlidersHorizontal,
   Square,
+  Upload,
+  MessageSquarePlus,
+  Sparkles,
+  ArrowLeft,
+  X,
 } from "lucide-react";
 import { useZenStore, type ModelId, type ProviderConfig } from "./store";
 
@@ -17,6 +22,15 @@ interface ChatInputProps {
   placeholder?: string;
   onStop?: () => void;
 }
+
+const AI_SKILLS = [
+  { label: "Resumir", prompt: "Resume este documento en 5 puntos clave." },
+  { label: "Mapa mental", prompt: "Organiza las ideas principales de este documento en una estructura de mapa mental." },
+  { label: "Quiz", prompt: "Genera 3 preguntas de opción múltiple sobre este documento." },
+  { label: "Guía de estudio", prompt: "Crea una guía de estudio con los conceptos clave de este documento." },
+  { label: "FAQ", prompt: "Genera preguntas frecuentes sobre este documento." },
+  { label: "Notas", prompt: "Redacta notas concisas de este documento." },
+];
 
 function healthColor(p: ProviderConfig | undefined): string {
   if (!p || p.last_test_ok === null || p.last_test_ok === undefined) return "bg-zinc-400";
@@ -40,8 +54,13 @@ export default function ChatInput({
   } = useZenStore();
   const [message, setMessage] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuView, setMenuView] = useState<"root" | "skills">("root");
+  const [contextText, setContextText] = useState("");
+  const [contextOpen, setContextOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const currentModel = models.find((m) => m.id === selectedModel);
 
@@ -71,7 +90,10 @@ export default function ChatInput({
 
   const handleSend = () => {
     if (!message.trim() || isLoading) return;
-    onSend(message.trim(), selectedModel);
+    const fullMessage = contextText.trim()
+      ? `[Contexto adicional]\n${contextText.trim()}\n\n${message.trim()}`
+      : message.trim();
+    onSend(fullMessage, selectedModel);
     setMessage("");
   };
 
@@ -87,10 +109,14 @@ export default function ChatInput({
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setModelOpen(false);
       }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+        setMenuView("root");
+      }
     };
-    if (modelOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (modelOpen || menuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [modelOpen]);
+  }, [modelOpen, menuOpen]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -99,10 +125,57 @@ export default function ChatInput({
     }
   }, [message]);
 
+  const applySkill = (prompt: string) => {
+    setMessage((prev) => (prev.trim() ? `${prev.trim()} ${prompt}` : prompt));
+    setMenuOpen(false);
+    setMenuView("root");
+    textareaRef.current?.focus();
+  };
+
   return (
     <div className="flex-shrink-0 px-4 pb-4 bg-[var(--zen-read-bg)]">
       <div className="max-w-[792px] mx-auto">
         <div className="bg-[var(--zen-panel)] rounded-3xl border border-[var(--zen-line)] shadow-[0_2px_10px_rgba(11,21,21,0.04)] transition-all duration-200">
+          {/* Context chip / editor */}
+          {(contextOpen || contextText) && (
+            <div className="px-4 pt-3">
+              {contextOpen ? (
+                <div className="rounded-xl border border-[var(--zen-line)] bg-[var(--zen-panel-alt)] p-2">
+                  <textarea
+                    autoFocus
+                    value={contextText}
+                    onChange={(e) => setContextText(e.target.value)}
+                    placeholder="Escribe el contexto adicional para la conversación…"
+                    rows={2}
+                    className="w-full bg-transparent zen-textarea px-2 py-1 text-(length:--zen-fs-secondary) text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 resize-none outline-none"
+                  />
+                  <div className="flex justify-end gap-1 mt-1">
+                    <button
+                      onClick={() => setContextOpen(false)}
+                      className="px-2 py-1 rounded-md text-(length:--zen-fs-label) text-[var(--primary-fixed)] hover:bg-[var(--primary-fixed)]/10 transition-colors"
+                    >
+                      Listo
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--zen-panel-alt)] border border-[var(--zen-line)]">
+                  <MessageSquarePlus className="w-3.5 h-3.5 text-[var(--primary-fixed)] shrink-0" />
+                  <span className="text-(length:--zen-fs-secondary) text-[var(--on-surface)] truncate">
+                    {contextText}
+                  </span>
+                  <button
+                    onClick={() => setContextText("")}
+                    className="ml-auto p-0.5 rounded text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] transition-colors"
+                    title="Quitar contexto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={message}
@@ -115,13 +188,74 @@ export default function ChatInput({
           />
 
           <div className="flex items-center justify-between px-2 pb-2 pt-0.5">
-            <button
-              onClick={onUpload}
-              className="shrink-0 w-8 h-8 rounded-full text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
-              title="Adjuntar archivo"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="relative shrink-0" ref={menuRef}>
+              <button
+                onClick={() => {
+                  setMenuOpen(!menuOpen);
+                  setMenuView("root");
+                }}
+                className="shrink-0 w-8 h-8 rounded-full text-[var(--on-surface-variant)] hover:bg-[var(--zen-hover)] hover:text-[var(--on-surface)] transition-colors flex items-center justify-center"
+                title="Añadir"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+
+              {menuOpen && (
+                <div className="absolute bottom-full left-0 mb-1 w-64 rounded-lg border border-[var(--zen-line)] bg-[var(--zen-panel)] shadow-[var(--zen-elev-2)] py-1 z-50">
+                  {menuView === "root" ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onUpload();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Agregar archivo
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setContextOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+                      >
+                        <MessageSquarePlus className="w-4 h-4" />
+                        Agregar contexto
+                      </button>
+                      <button
+                        onClick={() => setMenuView("skills")}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Agregar skill de IA
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setMenuView("root")}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-(length:--zen-fs-label) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        Volver
+                      </button>
+                      {AI_SKILLS.map((skill) => (
+                        <button
+                          key={skill.label}
+                          onClick={() => applySkill(skill.prompt)}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--zen-hover)] transition-colors"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate text-left">{skill.label}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-1.5">
               <div className="relative shrink-0" ref={dropdownRef}>

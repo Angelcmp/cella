@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { MAX_FILES_PER_PROJECT } from "@/lib/limits";
 
 export interface ZenDocument {
   id: string;
@@ -157,7 +158,7 @@ interface ZenState {
   setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
   removeProject: (id: string) => void;
-  addDocToProject: (projectId: string, docId: string) => void;
+  addDocToProject: (projectId: string, docId: string) => boolean;
   removeDocFromProject: (projectId: string, docId: string) => void;
   ensureDefaultProject: () => Project;
   setDocuments: (docs: ZenDocument[]) => void;
@@ -231,14 +232,17 @@ export const useZenStore = create<ZenState>((set, get) => ({
       projects: state.projects.filter((p) => p.id !== id),
       activeProjectId: state.activeProjectId === id ? null : state.activeProjectId,
     })),
-  addDocToProject: (projectId, docId) =>
+  addDocToProject: (projectId, docId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project || project.documents.includes(docId)) return false;
+    if (project.documents.length >= MAX_FILES_PER_PROJECT) return false;
     set((state) => ({
       projects: state.projects.map((p) =>
-        p.id === projectId && !p.documents.includes(docId)
-          ? { ...p, documents: [...p.documents, docId] }
-          : p
+        p.id === projectId ? { ...p, documents: [...p.documents, docId] } : p
       ),
-    })),
+    }));
+    return true;
+  },
   removeDocFromProject: (projectId, docId) =>
     set((state) => ({
       projects: state.projects.map((p) =>

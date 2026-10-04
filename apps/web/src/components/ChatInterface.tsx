@@ -74,6 +74,7 @@ export default function ChatInterface({
   const [isLoading, setIsLoading] = useState(false);
   const [backendConversationId, setBackendConversationId] = useState<string | null>(null);
   const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set());
+  const [followUps, setFollowUps] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const zenStoreActiveDoc = useZenStore((s) => s.activeDocumentId);
   const activeConversationId = useZenStore((s) => s.activeConversationId);
@@ -89,13 +90,21 @@ export default function ChatInterface({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data?.messages) return;
-        const msgs: Message[] = data.messages.map((m: any) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          citations: m.citations,
-          timestamp: new Date(m.created_at || Date.now()),
-        }));
+        const msgs: Message[] = data.messages.map(
+          (m: {
+            id: string;
+            role: "user" | "assistant";
+            content: string;
+            citations?: Citation[];
+            created_at?: string;
+          }) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            citations: m.citations,
+            timestamp: new Date(m.created_at || Date.now()),
+          })
+        );
         setMessages(msgs);
         setBackendConversationId(data.id);
       })
@@ -373,7 +382,35 @@ export default function ChatInterface({
     streamControllerRef.current?.abort();
   };
 
+  const fetchFollowUps = async (question: string, answer: string) => {
+    if (!question.trim() || !answer.trim()) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/chat/follow-ups`,
+        withCsrfHeaders({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            question,
+            answer,
+            model: model || undefined,
+            document_ids: isMulti ? effectiveDocumentIds : undefined,
+          }),
+        })
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        setFollowUps(data.suggestions.slice(0, 3));
+      }
+    } catch {
+      // Suggestions are best-effort; silently ignore failures.
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
+    setFollowUps([]);
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -418,12 +455,12 @@ export default function ChatInterface({
       const contentType = response.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
         const chatResponse = await response.json();
-        handleNonStreamingResponse(chatResponse);
+        handleNonStreamingResponse(chatResponse, userMessage.content);
         return;
       }
 
       // Streaming SSE path
-      await handleStreamingResponse(response, controller.signal);
+      await handleStreamingResponse(response, controller.signal, userMessage.content);
     } catch (error) {
       if ((error as { name?: string }).name === "AbortError") {
         // User cancelled — handled in the finally block.
@@ -439,7 +476,16 @@ export default function ChatInterface({
     }
   };
 
-  const handleNonStreamingResponse = (chatResponse: any) => {
+  const handleNonStreamingResponse = (
+    chatResponse: {
+      conversation_id?: string;
+      response: string;
+      citations?: { page: number; snippet: string; similarity?: number; document?: string }[];
+      success?: boolean;
+      error?: string;
+    },
+    question: string
+  ) => {
     if (chatResponse.conversation_id) {
       syncBackendId(chatResponse.conversation_id);
     }
@@ -459,6 +505,7 @@ export default function ChatInterface({
 
     setMessages(prev => [...prev, assistantMessage]);
     setIsLoading(false);
+    fetchFollowUps(question, chatResponse.response);
 
     if (!chatResponse.success && chatResponse.error) {
       toast.error(chatResponse.error);
@@ -468,6 +515,7 @@ export default function ChatInterface({
   const handleStreamingResponse = async (
     response: Response,
     signal: AbortSignal,
+    question: string,
   ) => {
     const reader = response.body?.getReader();
     if (!reader) {
@@ -491,6 +539,7 @@ export default function ChatInterface({
     let pendingCitations: Citation[] = [];
     let pendingConversationId: string | null = null;
     let sawError = false;
+    let accumulated = '';
 
     const updateAssistantMessage = (
       updater: (msg: Message) => Message
@@ -543,12 +592,14 @@ export default function ChatInterface({
 
             if (eventType === 'meta' || parsed.event === 'meta') {
               pendingConversationId = parsed.conversation_id || null;
-              pendingCitations = (parsed.citations || []).map((c: any) => ({
-                page: c.page,
-                snippet: c.snippet,
-                similarity: c.similarity,
-                document: c.document,
-              }));
+              pendingCitations = (parsed.citations || []).map(
+                (c: { page: number; snippet: string; similarity?: number; document?: string }) => ({
+                  page: c.page,
+                  snippet: c.snippet,
+                  similarity: c.similarity,
+                  document: c.document,
+                })
+              );
             } else if (eventType === 'thinking_start') {
               updateAssistantMessage(msg => ({
                 ...msg,
@@ -570,6 +621,7 @@ export default function ChatInterface({
               }));
             } else if (eventType === 'text_delta' || parsed.event === 'text_delta') {
               const delta = parsed.delta || '';
+              accumulated += delta;
               updateAssistantMessage(msg => ({
                 ...msg,
                 content: msg.content + delta,
@@ -609,6 +661,8 @@ export default function ChatInterface({
           ...msg,
           content: msg.content || '_(respuesta detenida por el usuario)_',
         }));
+      } else if (accumulated.trim()) {
+        fetchFollowUps(question, accumulated);
       }
       // Suppress unused-var warning for sawError (kept for future telemetry)
       void sawError;
@@ -856,6 +910,27 @@ export default function ChatInterface({
                     className="px-2.5 py-1.5 rounded-full border border-[var(--zen-line)] bg-[var(--zen-panel)] text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:border-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] transition-colors text-left"
                   >
                     {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {followUps.length > 0 && !isLoading && (
+          <div className="flex items-start gap-2">
+            <div className="max-w-[85%]">
+              <p className="text-(length:--zen-fs-label) text-[var(--on-surface-variant)]/60 mb-2 px-1">
+                Preguntas relacionadas
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {followUps.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSendMessage(suggestion)}
+                    className="px-2.5 py-1.5 rounded-full border border-[var(--zen-line)] bg-[var(--zen-panel)] text-(length:--zen-fs-secondary) text-[var(--on-surface-variant)] hover:border-[var(--primary-fixed)] hover:text-[var(--primary-fixed)] transition-colors text-left"
+                  >
+                    {suggestion}
                   </button>
                 ))}
               </div>
